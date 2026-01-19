@@ -20,6 +20,14 @@ RUN apt-get update && \
     git \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Node.js (v23.x - latest) for npx support
+RUN curl -fsSL https://deb.nodesource.com/setup_23.x | bash - && \
+    apt-get install -y --no-install-recommends nodejs && \
+    rm -rf /var/lib/apt/lists/*
+
+# Add npm global bin to PATH for npx access
+ENV PATH=/root/.local/bin:/root/.opencode/bin:/usr/local/lib/node_modules/npm/bin/node-gyp-bin:$PATH
+
 # Create workspace directory with proper ownership (must be done as root)
 RUN mkdir -p /workspace
 
@@ -37,14 +45,33 @@ ENV PATH=/root/.local/bin:/root/.opencode/bin:$PATH
 # YOLO: Fast execution mode with minimal safety checks
 RUN curl -fsSL https://opencode.ai/install | bash
 
+# Create OpenCode config directory and copy configuration files
+RUN mkdir -p /root/.config/opencode
+COPY opencode.jsonc /root/.config/opencode/opencode.jsonc
+COPY AGENT_RALPH.md /root/.config/opencode/AGENT_RALPH.md
+
+# Configure npm for better user experience
+# Note: init.author.name/email/license are deprecated in npm and cannot be set via config
+# They can only be set during `npm init` with --init-author-name/email/license flags
+RUN npm config set save-exact true
+
+# Verify npx is available
+RUN npx --version && echo "npx installation verified"
+
 # Add useful aliases and settings for development
-RUN echo 'export PATH=/root/.local/bin:/root/.opencode/bin:$PATH' >> ~/.bashrc && \
+RUN echo 'export PATH=/root/.local/bin:/root/.opencode/bin:/usr/local/lib/node_modules/npm/bin/node-gyp-bin:$PATH' >> ~/.bashrc && \
     echo 'alias gs="git status"' >> ~/.bashrc && \
-    echo 'export EDITOR=nano' >> ~/.bashrc
+    echo 'export EDITOR=nano' >> ~/.bashrc && \
+    echo 'alias npx="npx --yes"' >> ~/.bashrc
 
 # Copy ralph.sh script to /usr/local/bin/ralph and make it executable
 COPY ralph.sh /usr/local/bin/ralph
 RUN chmod +x /usr/local/bin/ralph
+
+# Copy and setup entrypoint script for auth handling
+COPY entrance.sh /usr/local/bin/entrance.sh
+RUN chmod +x /usr/local/bin/entrance.sh
+ENTRYPOINT ["/usr/local/bin/entrance.sh"]
 
 # Default command
 CMD ["/bin/bash"]

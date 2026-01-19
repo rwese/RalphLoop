@@ -2,6 +2,11 @@
 
 # ralph.sh - RalphLoop Autonomous Development Agent
 # Usage: ./ralph.sh <iterations>
+#
+# Prompt can be provided via:
+# 1. prompt.md file (default)
+# 2. RALPH_PROMPT environment variable (direct prompt text)
+# 3. RALPH_PROMPT_FILE environment variable (path to prompt file)
 
 set -e -u -o pipefail
 
@@ -10,30 +15,50 @@ MAX_ROUNDS=${1:-100}
 PROGRESS_FILE="progress.md"
 PROMPT_FILE="prompt.md"
 
-# Ensure prompt file exists
-if [ ! -f "$PROMPT_FILE" ]; then
-    echo "Error: $PROMPT_FILE file must exist" >&2
+# Determine prompt source
+get_prompt() {
+  # Priority 1: RALPH_PROMPT environment variable
+  if [ -n "${RALPH_PROMPT:-}" ]; then
+    echo "$RALPH_PROMPT"
+    return
+  fi
+
+  # Priority 2: RALPH_PROMPT_FILE environment variable
+  if [ -n "${RALPH_PROMPT_FILE:-}" ]; then
+    [ -f "$RALPH_PROMPT_FILE" ] || {
+      echo "Error: RALPH_PROMPT_FILE '$RALPH_PROMPT_FILE' not found" >&2
+      exit 1
+    }
+    cat "$RALPH_PROMPT_FILE"
+    return
+  fi
+
+  # Priority 3: Default prompt.md file
+  [ -f "$PROMPT_FILE" ] || {
+    echo "Error: $PROMPT_FILE file must exist (or set RALPH_PROMPT/RALPH_PROMPT_FILE)" >&2
     exit 1
-fi
+  }
+  cat "$PROMPT_FILE"
+}
 
 # Ensure progress file exists
 if [ ! -f "$PROGRESS_FILE" ]; then
-    touch "$PROGRESS_FILE"
+  touch "$PROGRESS_FILE"
 fi
 
 # Main loop
 for ((i = 1; i <= MAX_ROUNDS; i++)); do
-    echo "========================================"
-    echo "🔄 RalphLoop Iteration $i of $MAX_ROUNDS"
-    echo "========================================"
+  echo "========================================"
+  echo "🔄 RalphLoop Iteration $i of $MAX_ROUNDS"
+  echo "========================================"
 
-    # Read current progress for context
-    PROGRESS_CONTENT=$(cat "$PROGRESS_FILE")
-    PROMPT_CONTENT=$(cat "$PROMPT_FILE")
+  # Read current progress and prompt
+  PROGRESS_CONTENT=$(cat "$PROGRESS_FILE")
+  PROMPT_CONTENT=$(get_prompt)
 
-    # Run OpenCode agent with current context
-    result=$(
-        opencode run --share --agent yolo << EOF
+  # Run OpenCode agent with current context
+  result=$(
+    opencode run --share --agent yolo <<EOF
 # Goals and Resources
 
 ## Project plan
@@ -66,21 +91,21 @@ The loop succeeds when:
 
 If the current goal is complete, output <promise>COMPLETE</promise>.
 EOF
-    )
+  )
 
-    echo "$result" | tee /dev/stderr
+  echo "$result" | tee /dev/stderr
 
-    # Check for completion
-    if echo "$result" | grep -q "<promise>COMPLETE</promise>"; then
-        echo ""
-        echo "🎉 RalphLoop mission complete!"
-        echo "========================================"
-        exit 0
-    fi
-
+  # Check for completion
+  if echo "$result" | grep -q "<promise>COMPLETE</promise>"; then
     echo ""
-    echo "✅ Iteration $i complete. Continuing..."
-    echo ""
+    echo "🎉 RalphLoop mission complete!"
+    echo "========================================"
+    exit 0
+  fi
+
+  echo ""
+  echo "✅ Iteration $i complete. Continuing..."
+  echo ""
 done
 
 echo "========================================"

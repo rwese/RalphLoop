@@ -158,6 +158,82 @@ podman run -it --rm \
   localhost/opencode-dev bash ./ralph.sh 1
 ```
 
+## 🔐 Environment Variables
+
+RalphLoop supports several environment variables for configuration:
+
+### Prompt Configuration
+
+```bash
+# Option 1: Direct prompt via environment variable
+RALPH_PROMPT="Build a REST API for user management" ./ralph.sh 50
+
+# Option 2: Prompt from file path
+RALPH_PROMPT_FILE="/path/to/custom-prompt.md" ./ralph.sh 50
+
+# Option 3: Default (prompt.md in current directory)
+./ralph.sh 50
+```
+
+### API Keys
+
+```bash
+# Context7 MCP Server (documentation lookup)
+export CONTEXT7_API_KEY=your_context7_api_key_here
+
+# OpenCode API
+export OPENCODE_API_KEY=your_opencode_api_key_here
+```
+
+### Environment File Template
+
+Copy `.env.dist` to `.env` and fill in your values:
+
+```bash
+cp .env.dist .env
+# Edit .env with your actual values
+```
+
+## ⚙️ Configuration Files
+
+### OpenCode Configuration
+
+The project includes configuration files for OpenCode:
+
+- **`opencode.jsonc`** - OpenCode CLI configuration
+- **`AGENT_RALPH.md`** - Custom agent instructions for RalphLoop
+- These are automatically copied to `/root/.config/opencode/` in the Docker container
+
+### Docker Configuration
+
+The `Dockerfile` includes:
+
+- Node.js v23.x with npx support
+- OpenCode installation
+- npm configured with `save-exact=true`
+- Useful development aliases and PATH settings
+
+Build the Docker image:
+
+```bash
+# Build with podman
+podman build -t ralphloop .
+
+# Build with docker
+docker build -t ralphloop .
+```
+
+Run with Docker:
+
+```bash
+# Run single iteration
+podman run -it --rm \
+  -v "$(pwd):/workspace" \
+  -w "/workspace" \
+  -e RALPH_PROMPT="Your prompt here" \
+  ralphloop bash ./ralph.sh 1
+```
+
 ## 📊 Progress Tracking
 
 The experiment tracks progress in `progress.md`:
