@@ -1,113 +1,259 @@
-# YouTube URL Processor - CLI Tool
+# TubeMaster - Pro YouTube Media Suite
 
-Build a command-line tool for downloading YouTube URLs and generating transcripts.
+Build a professional-grade YouTube media management CLI tool that power users would rely on daily. Think of it as your personal YouTube media library manager.
 
 ## Core Features
 
-### URL Processing
+### Download Engine
 
-- Accept single URL or file with multiple URLs (one per line)
-- Support various YouTube URL formats:
-  - `https://www.youtube.com/watch?v=VIDEO_ID`
-  - `https://youtu.be/VIDEO_ID`
-  - `https://www.youtube.com/shorts/VIDEO_ID`
-- Validate URLs before processing
-- Skip already-downloaded content (idempotent)
+- **Smart Downloads**: Intelligent download queue with automatic retry, resume from interruption
+- **Format Selection**: Choose video, audio only, or both; select quality (4K, 1080p, 720p, 480p)
+- **Audio Extraction**: Extract audio in multiple formats (MP3, AAC, FLAC, WAV, OPUS)
+- **Playlist Support**: Download entire playlists, specify range (e.g., "download songs 5-20")
+- **Channel Download**: Download all videos from a channel, with pagination support
+- **Scheduled Downloads**: Queue downloads for off-peak hours
+- **Smart Caching**: Skip already downloaded files, detect changed videos (re-uploaded)
+- **Bandwidth Control**: Rate limiting, time-based throttling (slower at certain hours)
 
-### Audio Download
+### Media Library Management
 
-- Download YouTube video as audio (MP3 format)
-- Default quality: 192kbps (configurable)
-- Include video metadata in ID3 tags:
-  - Title
-  - Artist (uploader)
-  - Album (video title)
-  - Release date
-  - Cover art (video thumbnail)
-- Output filename format: `ARTIST - TITLE.mp3`
+- **Local Database**: SQLite database tracking all downloads with metadata
+- **Library Organization**:
+  ```
+  library/
+  ├── podcasts/
+  │   ├── Language Learning/
+  │   │   ├── Coffee Break Spanish/
+  │   │   │   ├── Season 1/
+  │   │   │   │   ├── S1E01 - Greetings.mp3
+  │   │   │   │   └── S1E02 - Introductions.mp3
+  │   │   │   └── metadata.json
+  │   │   └── EnglishClass101/
+  └── music/
+      ├── Artist - Song.mp3
+      └── metadata.json
+  ```
+- **Deduplication**: Detect duplicates by content, not just filename
+- **Tags & Playlists**: Organize downloaded media into custom playlists
+- **Search**: Full-text search across downloaded library by title, description, transcript
+- **Statistics**: View download history, total size, most played, listening time
 
-### Transcript Generation
+### Metadata & Enrichment
 
-- Generate transcripts from YouTube videos
-- Support auto-generated and manual captions
-- Preserve timestamps in VTT format
-- Generate plain text version (no timestamps)
-- Language detection (default: English)
+- **Auto Tagging**: Embed ID3v2 tags in MP3/AAC files (title, artist, album, artwork, release date)
+- **Album Art**: Fetch high-quality thumbnails, embed in audio files
+- **Lyrics**: Fetch lyrics when available (Genius API integration optional)
+- **Chapters**: Extract video chapters for long content
+- **Transcript Export**: Generate text, VTT, SRT formats with speaker detection
+- **Description**: Include video description in metadata file
+- **Thumbnail Archive**: Save thumbnails in multiple sizes
 
-### Output Structure
+### Integration Features
 
-```
-output/
-├── audio/
-│   └── ARTIST - TITLE.mp3
-├── transcripts/
-│   └── VIDEO_ID/
-│       ├── transcript.vtt
-│       └── transcript.txt
-└── metadata/
-    └── VIDEO_ID.json
+- **Music Player Sync**: Sync playlists to music players (iPod, Android, foobar2000)
+- **Podcast Feeds**: Generate RSS feeds from downloaded content for podcast apps
+- **Smart Playlists**: "Newest from subscriptions", "Unplayed", "Most Played"
+- **Webhook Notifications**: Call webhook on download complete (for automation)
+- **API Server**: Expose REST API for other tools (web UI, mobile app)
+- **Keyboard Shortcuts** (when in interactive mode):
+  - `j/k` or `↑/↓` - Navigate
+  - `space` - Toggle selection
+  - `d` - Download selected
+  - `p` - Play in default player
+  - `q` - Quit
+
+### CLI Interface
+
+```bash
+# Core commands
+tubemaster download <url>              # Download single video/audio
+tubemaster playlist <url>              # Download entire playlist
+tubemaster search <query>              # Search YouTube
+tubemaster library                     # Browse local library
+tubemaster sync                        # Sync to devices
+tubemaster playlist                    # Manage playlists
+
+# Options
+-o, --output <path>                    # Output directory (default: ~/TubeMaster)
+-f, --format <format>                  # Video: mp4|mkv|webm (default: mp4)
+-a, --audio <format>                   # Audio: mp3|aac|flac|wav|opus (default: mp3)
+-q, --quality <quality>                # Quality: 4k|1080p|720p|480p|360p (default: 720p)
+--no-audio                             # Video only, no audio
+--no-video                             # Audio only
+--extract-audio                        # Extract audio after download
+--add-to-playlist <name>               # Add to playlist after download
+--download-archive <file>              # Don't re-download archived videos
+--cookies <file>                       # Use cookies for age-restricted content
+--rate-limit <speed>                   # Limit download speed (e.g., 5M)
+--max-downloads <n>                    # Parallel downloads (default: 1)
+--transcript                           # Generate transcript (default: true)
+--no-transcript                        # Skip transcript
+--thumbnail                            # Download thumbnail images
+--metadata                             # Save metadata JSON (default: true)
+--embed-thumbnail                      # Embed thumbnail in audio file
+--force                                # Overwrite existing files
+--dry-run                              # Preview without downloading
+
+# Management commands
+tubemaster library list                # List all downloads
+tubemaster library search <query>      # Search library
+tubemaster library stats               # Show storage usage, counts
+tubemaster library clean               # Remove broken/incomplete files
+tubemaster playlist create <name>      # Create new playlist
+tubemaster playlist add <name> <url>   # Add video to playlist
+tubemaster playlist export <name>      # Export playlist to file
+tubemaster playlist import <file>      # Import playlist
+tubemaster sync device <name>          # Sync to connected device
+
+# Configuration
+tubemaster config show                 # Show current config
+tubemaster config set <key> <value>    # Set config value
+tubemaster config reset                # Reset to defaults
+
+# Interactive mode
+tubemaster interactive                 # Enter interactive TUI mode
+tubemaster i                            # Shorthand
 ```
 
 ## Technical Requirements
 
 ### Stack
 
-- Node.js v23.x with npm
-- No global dependencies (use npx for tools)
-- Use yt-dlp for downloading (install via npm)
-- Configuration via config file or CLI flags
+- **Node.js v23.x** with npm/npx
+- **TypeScript** with strict mode (compiles in build step)
+- **SQLite** with better-sqlite3 for local database
+- **yt-dlp** as download engine (install via npm or standalone)
+- **fluent-ffmpeg** for media processing
+- **chalk** for colored terminal output
+- **Ink** or **Blessed** for interactive TUI
+- **Conf** for config file management
+- **Execa** for subprocess management
 
-### CLI Interface
+### Configuration
 
-```bash
-youtube-processor [OPTIONS] URL_OR_FILE
+Config file location: `~/.config/tubemaster/config.json`
 
-Options:
-  -o, --output-dir PATH    Output directory (default: ./output)
-  -q, --quality BITRATE    Audio quality in kbps (default: 192)
-  -f, --format FORMAT      Output format: mp3, m4a, wav (default: mp3)
-  -t, --transcript         Generate transcript (default: true)
-  --no-transcript          Skip transcript generation
-  --include-metadata       Save video metadata JSON (default: true)
-  --overwrite              Re-download existing files
-  --concurrency N          Parallel downloads (default: 1)
-  -h, --help               Show help
-  --version                Show version
+```json
+{
+  "downloadsDir": "~/TubeMaster",
+  "defaultFormat": "mp3",
+  "defaultQuality": "720p",
+  "audioBitrate": 192,
+  "extractAudio": true,
+  "includeMetadata": true,
+  "includeTranscripts": true,
+  "embedThumbnails": true,
+  "maxConcurrent": 2,
+  "rateLimit": null,
+  "downloadSchedule": {
+    "enabled": true,
+    "start": "02:00",
+    "end": "06:00"
+  },
+  "playbackDevice": null,
+  "webhookUrl": null,
+  "theme": "dark"
+}
 ```
 
 ### Error Handling
 
-- Graceful handling of unavailable videos
-- Clear error messages with exit codes
-- Resume capability for interrupted downloads
-- Rate limiting to avoid IP blocks
-- Logging to file and stdout
+- **Graceful Degradation**: Continue on single download failure, report all errors
+- **Exit Codes**: 0=success, 1=general error, 2=usage error, 3=download partially failed
+- **Detailed Logging**: JSON logs to file, pretty to stdout
+- **Progress Bars**: Real-time progress with ETA for each download
+- **Disk Space Alerts**: Warn when low disk space, auto-pause
+- **Network Retry**: Exponential backoff for network errors (max 3 retries)
 
-## Example Usage
+### Performance
+
+- **Smart Queue**: Prioritize downloads, queue management
+- **Memory Efficient**: Stream processing, no full file buffering
+- **Parallel Processing**: Concurrent downloads + audio extraction
+- **Cache Strategy**: Cache API responses, thumbnails, metadata
+
+## Example Usage Scenarios
+
+### Scenario 1: Build Music Library
 
 ```bash
-# Download single video with transcript
-npx youtube-processor "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+# Download playlist of favorite music videos, extract audio
+tubemaster playlist "https://youtube.com/playlist?list=PLxxx" \
+  --extract-audio --audio mp3 --quality 720p \
+  --add-to-playlist "Favorites"
 
-# Process multiple URLs from file
-npx youtube-processor urls.txt
+# Later, sync to phone
+tubemaster sync device "Pixel 7"
+```
 
-# Download high-quality audio without transcript
-npx youtube-processor -q 320 -t false -o /music "https://youtu.be/VIDEO_ID"
+### Scenario 2: Podcast Archive
 
-# Parallel download with overwrite
-npx youtube-processor --concurrency 3 --overwrite urls.txt
+```bash
+# Download podcast channel, generate RSS feed
+tubemaster channel "https://www.youtube.com/@PodcastChannel" \
+  --output ~/TubeMaster/podcasts \
+  --format audio --audio aac \
+  --add-to-playlist "Tech Podcasts"
+
+# Generate RSS for podcast app
+tubemaster rss generate ~/TubeMaster/podcasts/Tech\ Podcasts \
+  --title "Tech Podcast Archive" \
+  --url "https://myserver.com/feed.xml"
+```
+
+### Scenario 3: Offline Learning
+
+```bash
+# Download course videos for offline viewing
+tubemaster playlist "https://youtube.com/playlist?list=PLcourse" \
+  --format mp4 --quality 1080p \
+  --output ~/Courses/Python
+
+# Include transcripts for searching
+tubemaster playlist "https://youtube.com/playlist?list=PLcourse" \
+  --transcript --output ~/Courses/Python
+
+# Search within transcripts later
+tubemaster library search "python list comprehension" \
+  --transcript
+```
+
+### Scenario 4: Batch Night Download
+
+```bash
+# Queue multiple downloads for off-peak hours
+cat <<EOF > downloads.txt
+https://youtube.com/watch?v=video1
+https://youtube.com/watch?v=video2
+https://youtube.com/playlist?list=playlist1
+EOF
+
+tubemaster download downloads.txt \
+  --download-archive ~/.tubemaster/archive.txt \
+  --rate-limit 10M \
+  --schedule
 ```
 
 ## Success Criteria
 
-- [ ] CLI tool installs and runs without errors
-- [ ] Downloads audio from various YouTube URL formats
-- [ ] Generates transcripts with timestamps
-- [ ] Includes proper ID3 tags on audio files
-- [ ] Handles errors gracefully with clear messages
-- [ ] Idempotent (skips already downloaded)
-- [ ] Configurable via CLI and config file
-- [ ] Code is well-documented and maintainable
-- [ ] Includes package.json with proper bin entry
-- [ ] README with usage examples
+- [ ] **Installs cleanly**: `npm install -g tubemaster` works on macOS/Linux
+- [ ] **No external deps**: yt-dlp bundled or easy install
+- [ ] **Fast downloads**: Parallel processing, resume support
+- [ ] **Great audio**: High-quality audio extraction with proper tags
+- [ ] **Searchable library**: Full-text search across titles and transcripts
+- [ ] **Syncs well**: Works with common music players and devices
+- [ ] **Beautiful TUI**: Interactive mode feels professional
+- [ ] **Robust**: Handles errors, network issues, partial downloads
+- [ ] **Well documented**: --help for every command, examples in README
+- [ ] **Configurable**: Sensible defaults, easy customization
+
+## Bonus Features
+
+- [ ] **Web Dashboard**: Simple web UI for library management
+- [ ] **Smart Recommendations**: "You might also like" based on downloads
+- [ ] **Cloud Sync**: Sync library across machines (optional S3/Google Drive)
+- [ ] **AI Summaries**: Generate AI summaries of video content
+- [ ] **Share Server**: Stream content to other devices on network
+- [ ] **Voice Commands**: Voice control for interactive mode
+- [ ] **Mobile App**: React Native companion app
+- [ ] **Plugin System**: Third-party plugins for custom integrations

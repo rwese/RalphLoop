@@ -12,12 +12,28 @@ ENV PATH=/root/.local/bin:/root/.opencode/bin:$PATH
 WORKDIR /workspace
 
 # Install curl, git, and other useful tools for the container
+# Also install Playwright dependencies for browser automation
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     curl \
     ca-certificates \
     sudo \
     git \
+    libnss3 \
+    libnspr4 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libdrm2 \
+    libxkbcommon0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    libgbm1 \
+    libpango-1.0-0 \
+    libasound2t64 \
+    libatspi2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js (v23.x - latest) for npx support
@@ -44,6 +60,11 @@ ENV PATH=/root/.local/bin:/root/.opencode/bin:$PATH
 # Install OpenCode in user context
 
 RUN curl -fsSL https://opencode.ai/install | bash
+
+# Install Playwright and browsers for browser automation
+RUN npm install -g playwright && \
+    npx playwright install chromium --with-deps 2>/dev/null || \
+    npx playwright install chromium
 # Configure npm for better user experience
 # Note: init.author.name/email/license are deprecated in npm and cannot be set via config
 # They can only be set during `npm init` with --init-author-name/email/license flags
