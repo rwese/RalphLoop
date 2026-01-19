@@ -42,14 +42,8 @@ ENV HOME=/root
 ENV PATH=/root/.local/bin:/root/.opencode/bin:$PATH
 
 # Install OpenCode in user context
-# YOLO: Fast execution mode with minimal safety checks
+
 RUN curl -fsSL https://opencode.ai/install | bash
-
-# Create OpenCode config directory and copy configuration files
-RUN mkdir -p /root/.config/opencode
-COPY opencode.jsonc /root/.config/opencode/opencode.jsonc
-COPY AGENT_RALPH.md /root/.config/opencode/AGENT_RALPH.md
-
 # Configure npm for better user experience
 # Note: init.author.name/email/license are deprecated in npm and cannot be set via config
 # They can only be set during `npm init` with --init-author-name/email/license flags
@@ -64,6 +58,8 @@ RUN echo 'export PATH=/root/.local/bin:/root/.opencode/bin:/usr/local/lib/node_m
     echo 'export EDITOR=nano' >> ~/.bashrc && \
     echo 'alias npx="npx --yes"' >> ~/.bashrc
 
+COPY .opencode /root/.config/opencode
+
 # Copy ralph.sh script to /usr/local/bin/ralph and make it executable
 COPY ralph.sh /usr/local/bin/ralph
 RUN chmod +x /usr/local/bin/ralph
@@ -71,6 +67,7 @@ RUN chmod +x /usr/local/bin/ralph
 # Copy and setup entrypoint script for auth handling
 COPY entrance.sh /usr/local/bin/entrance.sh
 RUN chmod +x /usr/local/bin/entrance.sh
+
 ENTRYPOINT ["/usr/local/bin/entrance.sh"]
 
 # Default command

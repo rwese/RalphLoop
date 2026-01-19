@@ -21,7 +21,7 @@ The project uses a self-contained autonomous loop that:
 
 1. **Reads State** - Reads `progress.md` and prompt source (file, env var, or `prompt.md`)
 2. **Analyzes** - Decides highest priority next step using OpenCode agent
-3. **Executes** - Implements the task with OpenCode yolo agent
+3. **Executes** - Implements the task with OpenCode AGENT_RALPH agent
 4. **Commits** - Creates git commits for all changes
 5. **Tracks** - Updates `progress.md` with accomplishments
 6. **Iterates** - Continues until goal complete or max iterations reached
@@ -88,8 +88,9 @@ RalphLoop/
 ├── Dockerfile            # Container definition
 ├── entrance.sh           # Container entrypoint (auth handling)
 ├── .env.dist             # Environment variables template
-├── AGENT_RALPH.md        # OpenCode agent configuration
-├── opencode.jsonc        # OpenCode CLI configuration
+├── .opencode/               # OpenCode configuration
+│   ├── prompts/agent/AGENT_RALPH.md  # Agent configuration
+│   └── opencode.jsonc        # OpenCode CLI configuration
 ├── DOCKER.md             # Docker/Podman run commands
 ├── quick-notes/          # Quick Notes web application (MVP product)
 └── docs/                 # Documentation

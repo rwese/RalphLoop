@@ -9,7 +9,7 @@
       "permission": {
         "*": "allow"
       },
-      "prompt": "{file:AGENT_RALPH.md}",
+      "prompt": "{file:prompts/agent/AGENT_RALPH.md}",
     }
   },
   "default_agent": "AGENT_RALPH",

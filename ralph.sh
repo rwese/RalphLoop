@@ -58,7 +58,7 @@ for ((i = 1; i <= MAX_ROUNDS; i++)); do
 
   # Run OpenCode agent with current context
   result=$(
-    opencode run --share --agent yolo <<EOF
+    opencode run --share --agent AGENT_RALPH <<EOF
 # Goals and Resources
 
 ## Project plan
