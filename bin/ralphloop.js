@@ -102,7 +102,6 @@ function buildRunCommand(runtime, image, args, cwd, isGitRepo, command = null) {
     'run',
     '--rm',
     '-it',
-    '--userns=keep-id',
     '-e',
     'HOME=/root',
     '-w',
@@ -110,6 +109,11 @@ function buildRunCommand(runtime, image, args, cwd, isGitRepo, command = null) {
     '-v',
     `${cwd}:/workspace`,
   ];
+
+  // Add --userns=keep-id only for Podman (not supported by Docker)
+  if (runtime === 'podman') {
+    commonArgs.splice(3, 0, '--userns=keep-id');
+  }
 
   // Add git config if in a git repo (for commits)
   if (isGitRepo) {
