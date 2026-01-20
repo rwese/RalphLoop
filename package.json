@@ -33,6 +33,9 @@
     "container:push": "./bin/container.sh push",
     "container:run": "./bin/container.sh run",
     "container:info": "./bin/container.sh info",
+    "ralph": "node bin/ralphloop.js",
+    "ralph:doctor": "node bin/ralphloop.js doctor",
+    "ralph:examples": "node bin/ralphloop.js examples",
     "lefthook": "lefthook"
   },
   "devDependencies": {
