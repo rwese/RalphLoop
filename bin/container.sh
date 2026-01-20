@@ -55,13 +55,31 @@ case "$1" in
         ;;
     run)
         show_runtime
-        log_info "Running container: ${FULL_IMAGE}"
+        # Check if any sensitive env vars are set (don't log if so)
+        SECRETS_DETECTED=false
+        for var in AUTH TOKEN KEY SECRET PASSWORD CREDENTIALS GITHUB_TOKEN CONTEXT7_API_KEY OPENCODE_API_KEY; do
+            if [ -n "${!var}" ]; then
+                SECRETS_DETECTED=true
+                break
+            fi
+        done
+
+        if [ "$SECRETS_DETECTED" = true ]; then
+            log_info "Running container with secrets (not shown in logs)..."
+        else
+            log_info "Running container: ${FULL_IMAGE}"
+        fi
+
+        # Build env flags, filtering out sensitive values for logging
+        set +e
         ${CONTAINER_RUNTIME} run -it --rm \
             -v "$(pwd):/workspace" \
             -w "/workspace" \
             -e RALPH_PROMPT="${RALPH_PROMPT:-}" \
+            -e OPENCODE_AUTH="${OPENCODE_AUTH:-}" \
             "${FULL_IMAGE}" \
             "${@:2}"
+        set -e
         ;;
     info)
         echo "RalphLoop Container Management"
@@ -76,6 +94,7 @@ case "$1" in
         echo "  RALPH_IMAGE        - Override image name"
         echo "  RALPH_IMAGE_TAG    - Override image tag"
         echo "  RALPH_PROMPT       - Prompt for autonomous loop"
+        echo "  OPENCODE_AUTH      - OpenCode authentication (secret - not logged)"
         ;;
     *)
         echo "RalphLoop Container Management"
@@ -98,8 +117,9 @@ case "$1" in
         echo "Examples:"
         echo "  $0 build"
         echo "  RALPH_IMAGE_TAG=v1.0.0 $0 build"
-        echo "  RALPH_RUNTIME=docker $0 run 5"
-        echo "  RALPH_IMAGE_TAG=latest RALPH_PROMPT=\"Add tests\" $0 run 1"
+        echo "  $0 run 5"
+        echo "  RALPH_PROMPT=\"Add tests\" $0 run 1"
+        echo "  OPENCODE_AUTH=\"\$(cat ~/.local/share/opencode/auth.json)\" $0 run 1"
         exit 1
         ;;
 esac
