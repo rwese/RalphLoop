@@ -25,19 +25,24 @@ get_prompt() {
 
   # Priority 2: RALPH_PROMPT_FILE environment variable
   if [ -n "${RALPH_PROMPT_FILE:-}" ]; then
-    [ -f "$RALPH_PROMPT_FILE" ] || {
-      echo "Error: RALPH_PROMPT_FILE '$RALPH_PROMPT_FILE' not found" >&2
+    if [ ! -f "$RALPH_PROMPT_FILE" ]; then
+      echo "Error: RALPH_PROMPT_FILE points to a missing file: '$RALPH_PROMPT_FILE'" >&2
       exit 1
-    }
+    fi
     cat "$RALPH_PROMPT_FILE"
     return
   fi
 
   # Priority 3: Default prompt.md file
-  [ -f "$PROMPT_FILE" ] || {
-    echo "Error: $PROMPT_FILE file must exist (or set RALPH_PROMPT/RALPH_PROMPT_FILE)" >&2
+  if [ ! -f "$PROMPT_FILE" ]; then
+    echo "Error: No prompt file found." >&2
+    echo "" >&2
+    echo "To fix this, either:" >&2
+    echo "  1. Create a 'prompt.md' file in the current directory" >&2
+    echo "  2. Set RALPH_PROMPT environment variable with your objective" >&2
+    echo "  3. Set RALPH_PROMPT_FILE to point to a valid prompt file" >&2
     exit 1
-  }
+  fi
   cat "$PROMPT_FILE"
 }
 

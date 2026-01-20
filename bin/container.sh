@@ -75,9 +75,16 @@ case "$1" in
             log_info "Running container: ${FULL_IMAGE}"
         fi
 
+        # Check if stdin is a TTY for interactive mode
+        if [ -t 0 ]; then
+            TTY_FLAGS="-it"
+        else
+            TTY_FLAGS=""
+        fi
+
         # Build env flags, filtering out sensitive values for logging
         set +e
-        ${CONTAINER_RUNTIME} run -it --rm \
+        ${CONTAINER_RUNTIME} run ${TTY_FLAGS} --rm \
             -v "$(pwd):/workspace" \
             -w "/workspace" \
             -e RALPH_PROMPT="${RALPH_PROMPT:-}" \
