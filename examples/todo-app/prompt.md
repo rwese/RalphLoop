@@ -6,211 +6,66 @@ Build a feature-rich, production-ready todo application that you would actually 
 
 ### Task Management
 
-- **Smart Task Creation**: Create tasks with title, rich description (markdown support), due dates, times, and priority
-- **Quick Add**: Press `n` to open quick add modal, type task, press Enter to save
-- **Inline Editing**: Click any task field to edit directly - no modal needed
-- **Smart Delete**: Soft delete with trash bin, permanent delete, and restore within 30 days
-- **Bulk Operations**: Select multiple tasks (shift+click or checkbox), bulk delete, bulk complete, bulk move
-- **Task Templates**: Create templates for recurring task types (e.g., "Weekly Review", "Meeting Prep")
+- **Smart Task Creation**: Create tasks with title, rich descriptions, due dates, times, and priority levels
+- **Quick Add**: Fast way to create new tasks without navigating through menus
+- **Inline Editing**: Edit task details directly where they appear
+- **Smart Delete**: Soft delete with trash bin, permanent delete, and restore capability
+- **Bulk Operations**: Select multiple tasks and perform actions on all at once
+- **Task Templates**: Create templates for recurring task types
 
 ### Organization System
 
-- **Nested Projects**: Unlimited folder/project hierarchy (Work/Projects/Backend, Personal/Hobbies)
-- **Smart Lists**: "Today", "This Week", "Overdue", "Flagged", "All Tasks"
-- **Tags & Labels**: Multi-colored tags with drag-and-drop assignment
-- **Priorities**: 4 levels (urgent, high, medium, low) with visual indicators
-- **Due Dates & Reminders**: Set due dates with times, get browser notifications
-- **Recurring Tasks**: Daily, weekly, monthly, yearly, or custom intervals (e.g., "every 3 days")
+- **Nested Projects**: Organize tasks in hierarchical folders or projects
+- **Smart Lists**: Filter views like "Today", "This Week", "Overdue", "Flagged"
+- **Tags & Labels**: Flexible tagging system with visual indicators
+- **Priorities**: Multiple priority levels with clear visual distinction
+- **Due Dates & Reminders**: Set due dates with times, receive notifications
+- **Recurring Tasks**: Support for daily, weekly, monthly, or custom recurring schedules
 - **Task Dependencies**: Mark tasks as blocked by other tasks
 
 ### Collaboration & Sharing
 
 - **Share Lists**: Generate shareable links for read-only or edit access
-- **Team Tasks**: Assign tasks to "people" (simple name entries)
-- **Comments**: Add comments/discussions on tasks
-- **Activity History**: See who did what and when
+- **Team Tasks**: Assign tasks to people with simple name entries
+- **Comments**: Add comments and discussions on tasks
+- **Activity History**: Track who did what and when
 
 ### Progress & Insights
 
-- **Visual Progress**: Completion rings, progress bars per project
-- **Productivity Stats**: Tasks completed today/week/month, current streak
-- **Burndown Charts**: Simple visualization for project completion over time
-- **Heatmap**: Calendar view showing activity intensity (like GitHub contributions)
+- **Visual Progress**: Completion indicators and progress tracking per project
+- **Productivity Stats**: Track tasks completed over time
+- **Trends**: Visualize task completion patterns over days/weeks/months
+- **Activity Heatmap**: Calendar view showing activity intensity
 
 ### User Experience
 
-- **Dark/Light Mode**: System preference detection, manual toggle
-- **Offline First**: Works completely offline with service workers, auto-sync when online
-- **Keyboard Shortcuts**:
-  - `n` = New task
-  - `e` = Edit selected task
-  - `space` = Toggle complete
-  - `del` = Soft delete
-  - `f` = Focus search
-  - `p` = Switch to previous project
-  - `1-9` = Quick filter shortcuts
-  - `?` = Show all shortcuts
+- **Themes**: Dark/light mode with system preference detection and manual toggle
+- **Offline First**: Works completely offline with automatic sync when online
+- **Keyboard Shortcuts**: Power user shortcuts for fast navigation and actions
 - **Drag & Drop**: Reorder tasks within list, move between projects
-- **Auto-save**: Instant persistence to localStorage with conflict resolution
-- **Data Export**: Export all data as JSON for backup or migration
-- **Data Import**: Import from JSON, Todoist CSV, Wunderlist export
-- **Undo/Redo**: Full action history with undo (Ctrl+Z) and redo (Ctrl+Y)
-
-## Technical Requirements
-
-### Stack
-
-- Single HTML file with embedded CSS and JavaScript (no framework, no build step)
-- **CSS**: Modern CSS with custom properties, flexbox/grid, animations
-- **JS**: Vanilla ES6+ with modules (import/export from same file via data: URLs)
-- **No external dependencies**: No CDN links, no npm packages, everything inline
-- **Storage**: localStorage with IndexedDB for larger data (attachments, history)
-- **PWA**: manifest.json and service worker for installability and offline use
-
-### Performance
-
-- **Load Time**: Under 100KB initial bundle, load in under 100ms
-- **Interaction**: All interactions under 100ms response
-- **Animations**: Smooth 60fps CSS animations, no jank
-- **Storage**: Efficient localStorage usage with compression (LZ-String or similar inline)
-- **Memory**: Works on devices with < 256MB RAM
-
-### Code Quality
-
-- **Accessibility**: WCAG 2.1 AA compliant, full keyboard navigation, screen reader support
-- **Semantic HTML**: Proper landmarks, ARIA labels, focus management
-- **Responsive**: Mobile-first, works from 320px to 4K screens
-- **Error Handling**: Graceful degradation, error boundaries, meaningful error messages
-- **Testing**: Include comprehensive test suite validating core functionality
-
-## Testing Requirements
-
-### Test Suite Structure
-
-Create a `tests/` directory with the following test files:
-
-- **`tests/core.test.js`** - Core CRUD operations tests
-  - Task creation with all fields (title, description, due date, priority)
-  - Task editing and inline editing
-  - Task deletion (soft and permanent)
-  - Task completion toggle
-  - Bulk operations (select, delete, complete)
-
-- **`tests/organization.test.js`** - Organization system tests
-  - Nested project creation and navigation
-  - Smart list filtering (Today, This Week, Overdue, etc.)
-  - Tag creation and assignment
-  - Priority setting and filtering
-  - Recurring task handling
-  - Task dependencies (blocking)
-
-- **`tests/data.test.js`** - Data persistence tests
-  - localStorage save/load
-  - IndexedDB operations for large data
-  - Data export/import functionality
-  - Undo/redo functionality
-  - Conflict resolution
-
-- **`tests/ui.test.js`** - UI/UX tests
-  - Dark/light mode toggle
-  - Keyboard shortcuts functionality
-  - Drag and drop operations
-  - Responsive layout on different screen sizes
-  - Focus management and accessibility
-
-### Running Tests
-
-```bash
-# Run all tests
-npm test
-
-# Run specific test file
-npm test -- tests/core.test.js
-
-# Run with coverage
-npm test -- --coverage
-```
-
-### Browser Test Execution
-
-Tests should be runnable in browser console:
-
-```javascript
-// Include test runner in app
-if (window.location.search.includes('runTests')) {
-  TestRunner.runAll();
-}
-```
-
-### Success Criteria
-
-- [ ] **Tests Pass**: All test suites pass with 100% pass rate
-- [ ] **Coverage**: Minimum 80% code coverage on core functionality
-- [ ] **Critical Paths**: CRUD operations fully tested
-- [ ] **Data Safety**: All persistence operations tested
-- [ ] **No Regressions**: Tests catch breaking changes
-- [ ] **Documented**: Test usage documented in README
-
-### Security
-
-- **XSS Prevention**: All user input sanitized, CSP headers inline
-- **Data Validation**: Input validation on client side
-- **Privacy**: All data stays local, no analytics, no tracking
-
-## Example Usage Scenarios
-
-### Scenario 1: Daily Planning
-
-```
-1. Open app, automatically filtered to "Today" view
-2. Review yesterday's incomplete tasks (shown at top)
-3. Press `n`, type "Review emails", set due today, priority medium, add to "Work"
-4. Create 3-4 more tasks for the day
-5. See progress ring update as tasks are completed
-6. At end of day, export weekly report
-```
-
-### Scenario 2: Project Management
-
-```
-1. Create project "Website Redesign"
-2. Add tasks: "Design mockups", "Set up repo", "Implement header", "Test on mobile"
-3. Set "Design mockups" as prerequisite for "Implement header"
-4. Set due dates: mockups (3 days), repo (1 day), header (5 days), test (7 days)
-5. See blocked tasks dimmed until prerequisite complete
-6. Share project link with team for read-only view
-```
-
-### Scenario 3: Habit Tracking
-
-```
-1. Create recurring task "Exercise" with recurrence "daily"
-2. Add to "Health" project with high priority
-3. Complete task daily, watch streak counter grow
-4. View heatmap to see consistency over months
-5. Get browser notification at 7 AM daily (if due today and incomplete)
-```
+- **Auto-save**: Instant persistence with conflict resolution
+- **Data Export/Import**: Export all data for backup, import from common formats
+- **Undo/Redo**: Full action history for recovering mistakes
 
 ## Success Criteria
 
-- [ ] **Functional**: All CRUD operations work smoothly without bugs
-- [ ] **Fast**: Sub-100ms interactions, instant load
-- [ ] **Beautiful**: Modern UI that looks professional, not like a tutorial project
-- [ ] **Accessible**: Fully usable with keyboard only, screen reader compatible
-- [ ] **Offline**: Install as PWA, works completely offline
-- [ ] **Data Safe**: Auto-save, undo/redo, export/import
-- [ ] **Mobile**: Works great on phone with touch interactions
-- [ ] **Keyboard Pro**: Power user keyboard shortcuts that feel natural
-- [ ] **No Errors**: Zero console errors, graceful error handling
-- [ ] **Documented**: Inline code comments, keyboard shortcut reference in-app
-- [ ] **Tested**: All core functionality has automated tests
+- **Functional**: All CRUD operations work smoothly without bugs
+- **Fast**: Responsive interactions and instant load times
+- **Beautiful**: Modern UI that looks professional, not like a tutorial project
+- **Accessible**: Fully usable with keyboard only, screen reader compatible
+- **Offline**: Install as app, works completely offline
+- **Data Safe**: Auto-save, undo/redo, export/import for data protection
+- **Mobile**: Works great on phone with touch interactions
+- **Keyboard Pro**: Power user keyboard shortcuts that feel natural
+- **Robust**: Zero console errors, graceful error handling
+- **Documented**: Clear inline documentation and shortcut reference
+- **Tested**: Core functionality validated with automated tests
 
 ## Bonus Features (if time permits)
 
-- [ ] **Themes**: Multiple color themes (blue, green, purple, etc.)
-- [ ] **Emoji Support**: Add emoji to task titles
-- [ ] **Natural Language Parsing**: Parse "buy milk tomorrow at 5pm" into task + date + time
-- [ ] **Focus Mode**: Hide everything except current task
-- [ ] **Timer**: Pomodoro timer built into task view
-- [ ] **Email Tasks**: Forward email to generate task (requires backend)
-- [ ] **API**: Expose local API for other tools to interact
+- Multiple color themes
+- Emoji support in task titles
+- Natural language parsing for quick task creation
+- Focus mode for single-task concentration
+- Pomodoro timer integration
+- API for external tool integration
