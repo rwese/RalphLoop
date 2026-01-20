@@ -39,6 +39,7 @@ RALPH_PROMPT_FILE=/usr/share/ralphloop/examples/todo-app/prompt.md npm run conta
 | [finance-dashboard](./finance-dashboard/) | Personal finance tracking and budgeting         | 15-20      |
 | [weather-cli](./weather-cli/)             | Professional CLI weather tool                   | 5-10       |
 | [youtube-cli](./youtube-cli/)             | YouTube download and media management           | 10-15      |
+| [prompt-builder](./prompt-builder/)       | Interactive tool to craft quality prompts       | 5-10       |
 
 ## Example Structure
 

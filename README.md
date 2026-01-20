@@ -69,6 +69,7 @@ npx ralphloop 5
 | `npx ralphloop doctor`                                 | Diagnose system requirements      |
 | `npx ralphloop examples`                               | List available example projects   |
 | `npx ralphloop quick todo`                             | Quick-start with todo-app example |
+| `npx ralphloop quick prompt`                           | Build a prompt from your idea     |
 | `npx ralphloop -p ./prompt.md 10`                      | Read prompt from file directly    |
 | `npx ralphloop --env "VAR=value"`                      | Set environment variable          |
 
@@ -83,8 +84,11 @@ npx ralphloop doctor
 # List available examples
 npx ralphloop examples
 
-# Quick-start an example (todo, book, finance, weather, youtube)
+# Quick-start an example (todo, book, finance, weather, youtube, prompt)
 npx ralphloop quick todo
+
+# Build a prompt from your idea (interactive)
+npx ralphloop quick prompt
 
 # Read prompt from file (recommended for large prompts)
 npx ralphloop --ralph-prompt-file ./prompt.md 10
@@ -264,6 +268,7 @@ RalphLoop includes ready-to-use project prompts in the `examples/` directory. Ea
 | [finance-dashboard](./examples/finance-dashboard/) | Personal finance tracking and budgeting         | 15-20      |
 | [weather-cli](./examples/weather-cli/)             | Professional CLI weather tool                   | 5-10       |
 | [youtube-cli](./examples/youtube-cli/)             | YouTube download and media management           | 10-15      |
+| [prompt-builder](./examples/prompt-builder/)       | Interactive tool to craft quality prompts       | 5-10       |
 
 See the [Examples README](./examples/README.md) for detailed usage instructions.
 
