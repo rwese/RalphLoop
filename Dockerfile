@@ -81,8 +81,8 @@ RUN echo 'export PATH=/root/.local/bin:/root/.opencode/bin:/usr/local/lib/node_m
 
 COPY .opencode /root/.config/opencode
 
-# Copy ralph.sh script to /usr/local/bin/ralph and make it executable
-COPY ralph.sh /usr/local/bin/ralph
+# Copy ralph script to /usr/local/bin/ralph and make it executable
+COPY ralph /usr/local/bin/ralph
 RUN chmod +x /usr/local/bin/ralph
 
 # Copy and setup entrypoint script for auth handling
