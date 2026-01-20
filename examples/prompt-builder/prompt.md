@@ -2,6 +2,64 @@
 
 Build an interactive CLI tool that helps users transform raw ideas into high-quality, well-structured prompts for RalphLoop autonomous development system.
 
+## Usage Modes
+
+### Interactive Mode (Default)
+
+When run without parameters, the tool prompts the user with "What is your idea you want to have built?" and guides them through defining their project.
+
+### Non-Interactive Mode
+
+When run with the `IDEA` environment variable, the tool processes the idea directly:
+
+```bash
+# Using environment variable
+IDEA="Build a habit tracker for busy professionals" npx ralphloop quick prompt
+
+# Using RalphLoop with the example
+RALPH_PROMPT="Build PromptBuilder that takes IDEA= environment variable and generates a quality prompt" npx ralphloop -p examples/prompt-builder/prompt.md 5
+
+# Direct invocation
+node examples/prompt-builder/bin/prompt-builder.js --idea "Build a weather CLI tool"
+```
+
+## Parameter Input
+
+The tool accepts input in the following priority order:
+
+1. **Environment Variable `IDEA`**: Primary input method for non-interactive mode
+
+   ```bash
+   IDEA="Build a REST API for user management" npx ralphloop quick prompt
+   ```
+
+2. **Command-line Argument `--idea` or `-i`**: CLI parameter for direct input
+
+   ```bash
+   prompt-builder --idea "Build a habit tracker"
+   ```
+
+3. **Interactive Prompt**: Falls back to asking the user when no input is provided
+
+### Additional Parameters
+
+| Parameter              | Description                                |
+| ---------------------- | ------------------------------------------ |
+| `--output <file>`      | Output file path (default: prompt.md)      |
+| `--audience <text>`    | Target audience (for non-interactive mode) |
+| `--features <list>`    | Comma-separated must-have features         |
+| `--constraints <text>` | Any constraints or preferences             |
+
+Example with all parameters:
+
+```bash
+prompt-builder --idea "Build a weather app" \
+  --audience "hikers and outdoor enthusiasts" \
+  --features "current conditions, forecasts, alerts" \
+  --constraints "offline-first, minimal dependencies" \
+  --output weather-prompt.md
+```
+
 ## Core Features
 
 ### Interactive Idea Collection

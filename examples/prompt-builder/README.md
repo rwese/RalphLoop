@@ -9,11 +9,37 @@ Have an idea but don't know how to write a good prompt? PromptBuilder guides you
 ## Running with RalphLoop
 
 ```bash
-# Quick-start with PromptBuilder
+# Quick-start with PromptBuilder (interactive)
 npx ralphloop quick prompt
+
+# Non-interactive mode with IDEA environment variable
+IDEA="Build a habit tracker for busy professionals" npx ralphloop quick prompt
 
 # Or using prompt file directly
 npx ralphloop --ralph-prompt-file examples/prompt-builder/prompt.md 5
+```
+
+## Interactive vs Non-Interactive
+
+### Interactive Mode
+
+Just run without parameters and the tool will ask you questions:
+
+```bash
+npx ralphloop quick prompt
+# 💡 What is your idea you want to have built?
+# > Build a weather app
+```
+
+### Non-Interactive Mode
+
+Pass the idea via environment variable:
+
+```bash
+# Using IDEA environment variable
+IDEA="Build a REST API for user authentication" npx ralphloop quick prompt
+
+# The tool generates a complete prompt and can save it to a file
 ```
 
 ## Features
@@ -23,24 +49,44 @@ npx ralphloop --ralph-prompt-file examples/prompt-builder/prompt.md 5
 - **Smart Generation**: Creates structured prompts with all essential sections
 - **Multiple Outputs**: Save to file, copy to clipboard, or run directly
 
-## Quick Start
+## CLI Options
+
+When running the built tool directly:
 
 ```bash
-# Interactive mode
-node examples/prompt-builder/bin/prompt-builder.js
+prompt-builder --help
 
-# With command-line arguments
-node examples/prompt-builder/bin/prompt-builder.js --idea "Build a habit tracker"
+Options:
+  --idea, -i <text>      Your idea (non-interactive mode)
+  --output, -o <file>    Output file (default: prompt.md)
+  --audience, -a <text>  Target audience
+  --features, -f <list>  Comma-separated must-have features
+  --constraints, -c <text>  Constraints or preferences
+  --help                 Show this help
+```
 
-# Generate and save
-node examples/prompt-builder/bin/prompt-builder.js --output my-prompt.md
+## Example Usage
+
+```bash
+# Interactive
+prompt-builder
+
+# Non-interactive with parameters
+prompt-builder --idea "Build a habit tracker" \
+  --audience "busy professionals" \
+  --features "daily reminders, streak tracking" \
+  --constraints "offline-first, no account required"
+
+# With RalphLoop environment variable
+IDEA="Build a weather CLI tool with forecasts and alerts" \
+  npx ralphloop quick prompt
 ```
 
 ## Example Output
 
 PromptBuilder transforms:
 
-> "I want to build a habit tracker"
+> "Build a habit tracker for busy professionals"
 
 Into a complete prompt:
 
