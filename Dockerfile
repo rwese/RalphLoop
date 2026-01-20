@@ -5,7 +5,7 @@ USER root
 ENV HOME=/root
 ENV USER=root
 ENV DEBIAN_FRONTEND=noninteractive
-ENV PATH=/root/.local/bin:/root/.opencode/bin:/usr/local/lib/node_modules/npm/bin/node-gyp-bin:$PATH
+ENV PATH=/root/.local/bin:/root/.opencode/bin:/usr/local/lib/node_modules/npm/bin/node-gyp-bin:/root/.bun/bin:$PATH
 
 # Set working directory
 WORKDIR /workspace
@@ -15,7 +15,7 @@ RUN mkdir -p /root/.local/state && \
     mkdir -p /root/.config && \
     mkdir -p /workspace
 
-RUN set -ex && \
+RUN set -xe && \
     apt-get update && apt-get install -y --no-install-recommends curl ca-certificates sudo git libnss3 unzip ripgrep fd-find 7zip jq && \
     curl -fsSL https://deb.nodesource.com/setup_23.x | bash - && \
     apt-get update && apt-get install -y --no-install-recommends \
@@ -52,6 +52,7 @@ RUN set -ex && \
     npx --version && echo "npx installation verified" && \
     echo 'export PATH=/root/.local/bin:/root/.opencode/bin:/usr/local/lib/node_modules/npm/bin/node-gyp-bin:$PATH' >> ~/.bashrc && \
     echo 'alias npx="npx --yes"' >> ~/.bashrc && \
+    set +x && \
     rm -rf /var/lib/apt/lists/*
 
 COPY backend/opencode /root/.opencode
