@@ -9,6 +9,7 @@ RalphLoop is an autonomous development system that runs itself to achieve goals 
 **Key Technologies:**
 
 - OpenCode CLI for autonomous agent operation
+- OpenCode PTY plugin for interactive terminal management
 - Docker/Podman for containerized environments
 - Node.js v23.x with npx for package management
 - Bash scripting for automation
@@ -88,9 +89,13 @@ RalphLoop/
 ├── Dockerfile            # Container definition
 ├── entrance.sh           # Container entrypoint (auth handling)
 ├── .env.dist             # Environment variables template
-├── .opencode/               # OpenCode configuration
+├── backend/opencode/         # OpenCode configuration
 │   ├── prompts/agent/AGENT_RALPH.md  # Agent configuration
 │   └── opencode.jsonc        # OpenCode CLI configuration
+├── share/opencode-pty/       # OpenCode PTY plugin (git submodule)
+│   ├── src/                  # Plugin source code
+│   ├── index.ts              # Plugin entry point
+│   └── README.md             # Plugin documentation
 ├── docs/                 # Documentation
 │   ├── DOCKER.md         # Docker/Podman run commands
 │   ├── DOCKER_HUB.md     # Docker Hub publishing guide
@@ -219,6 +224,44 @@ bash: ./ralph: Permission denied
 ```bash
 chmod +x ralph
 ```
+
+## OpenCode PTY Plugin
+
+RalphLoop includes the [opencode-pty](https://github.com/shekohex/opencode-pty) plugin for interactive terminal management. This enables agents to:
+
+- Run background processes (dev servers, watch modes)
+- Manage multiple terminal sessions
+- Send interactive input (Ctrl+C, arrow keys, etc.)
+- Read output with pagination and regex filtering
+- Receive exit notifications for long-running processes
+
+### Available Tools
+
+| Tool        | Description              |
+| ----------- | ------------------------ |
+| `pty_spawn` | Create a new PTY session |
+| `pty_write` | Send input to a PTY      |
+| `pty_read`  | Read output buffer       |
+| `pty_list`  | List all PTY sessions    |
+| `pty_kill`  | Terminate a PTY          |
+
+### Example Usage
+
+```json
+// Start a dev server
+pty_spawn: command="npm", args=["run", "dev"], title="Dev Server"
+
+// Read output
+pty_read: id="pty_xxxxxxxx", limit=50
+
+// Send Ctrl+C
+pty_write: id="pty_xxxxxxxx", data="\x03"
+
+// Kill session
+pty_kill: id="pty_xxxxxxxx", cleanup=true
+```
+
+The plugin is located at `share/opencode-pty` and is pre-installed in the container at `/usr/share/ralphloop/opencode-pty`.
 
 ## Development Workflow
 

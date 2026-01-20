@@ -1,5 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "plugin": ["file:///usr/share/ralphloop/opencode-pty"],
   "agent": {
     "AGENT_RALPH": {
       "description": "Fast execution mode - minimal safety checks",

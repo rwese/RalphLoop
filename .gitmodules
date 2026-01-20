@@ -1,0 +1,3 @@
+[submodule "share/opencode-pty"]
+	path = share/opencode-pty
+	url = https://github.com/shekohex/opencode-pty.git
