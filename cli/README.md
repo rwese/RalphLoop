@@ -1,19 +1,42 @@
 # RalphLoop CLI
 
-Run the RalphLoop autonomous development system via container with a simple npx command.
+Run the RalphLoop autonomous development system via container with a simple command.
 
 ## Installation
 
-No installation required! Just use npx:
+### Method 1: Clone and Run (Works Now)
 
 ```bash
-npx ralphloop
+# Clone the repository
+git clone https://github.com/rwese/RalphLoop.git
+cd RalphLoop
+
+# Run CLI directly
+node cli/bin/ralphloop --help
+node cli/bin/ralphloop 5
 ```
 
-Or install globally for convenience:
+### Method 2: Publish to npm (For Global Access)
 
 ```bash
+# From the cli/ directory
+cd cli
+npm publish
+
+# Then use from anywhere
+npx ralphloop --help
+npx ralphloop 5
+```
+
+### Method 3: Install Globally (After Publishing)
+
+```bash
+# After publishing to npm
 npm install -g ralphloop
+
+# Run from anywhere
+ralphloop --help
+ralphloop 5
 ```
 
 ## Usage

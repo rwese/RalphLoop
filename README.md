@@ -13,6 +13,50 @@ docker build -t ralphloop .
 docker run -it --rm -v "$(pwd):/workspace" ralphloop bash ./ralph 1
 ```
 
+## CLI Tool (Recommended)
+
+RalphLoop includes an npx CLI tool for easy containerized execution:
+
+### Option 1: Clone and Run
+
+```bash
+git clone https://github.com/rwese/RalphLoop.git
+cd RalphLoop
+node cli/bin/ralphloop --help
+node cli/bin/ralphloop 5          # Run 5 iterations
+```
+
+### Option 2: Publish to npm (Recommended for Regular Use)
+
+```bash
+# From the cli/ directory
+cd cli
+npm publish
+
+# Then use from anywhere
+npx ralphloop --help
+npx ralphloop 5
+```
+
+### CLI Options
+
+| Option                                                 | Description                      |
+| ------------------------------------------------------ | -------------------------------- |
+| `npx ralphloop`                                        | Run with default (1 iteration)   |
+| `npx ralphloop 10`                                     | Run 10 iterations                |
+| `npx ralphloop --docker 5`                             | Force Docker instead of Podman   |
+| `npx ralphloop --image ghcr.io/rwese/ralphloop:v1.0.0` | Use specific image tag           |
+| `npx ralphloop --pull`                                 | Pull latest image before running |
+| `npx ralphloop --help`                                 | Show help                        |
+
+### Environment Variables
+
+| Variable           | Description                       |
+| ------------------ | --------------------------------- |
+| `GITHUB_TOKEN`     | GitHub token for API access       |
+| `CONTEXT7_API_KEY` | Context7 documentation lookup key |
+| `OPENCODE_AUTH`    | OpenCode authentication data      |
+
 ## Published Image
 
 RalphLoop is published to GitHub Container Registry:
