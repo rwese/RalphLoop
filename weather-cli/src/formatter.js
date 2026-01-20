@@ -178,6 +178,14 @@ class Formatter {
     const index = Math.round(degrees / 22.5) % 16;
     return directions[index];
   }
+
+  formatError(message) {
+    return chalk.red(`❌ Error: ${message}`);
+  }
+
+  formatSuccess(message) {
+    return chalk.green(`✅ ${message}`);
+  }
 }
 
 module.exports = Formatter;

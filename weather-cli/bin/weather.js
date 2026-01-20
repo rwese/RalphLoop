@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const { Command } = require('commander');
+const chalk = require('chalk');
 const WeatherService = require('../src/weather-service');
 const Formatter = require('../src/formatter');
 
@@ -24,7 +25,7 @@ program
       const weatherData = await weatherService.getCurrentWeather(location, options.units);
       formatter.formatCurrentWeather(weatherData);
     } catch (error) {
-      console.error(formatter.formatError(error.message));
+      console.error(chalk.red('Error:'), error.message);
       process.exit(1);
     }
   });
@@ -46,7 +47,7 @@ program
       const forecastData = await weatherService.getForecast(location, days, options.units);
       formatter.formatForecast(forecastData);
     } catch (error) {
-      console.error(formatter.formatError(error.message));
+      console.error(chalk.red('Error:'), error.message);
       process.exit(1);
     }
   });
@@ -61,7 +62,7 @@ program
       const locations = await weatherService.searchLocations(query);
       formatter.formatLocationSearch(locations);
     } catch (error) {
-      console.error(formatter.formatError(error.message));
+      console.error(chalk.red('Error:'), error.message);
       process.exit(1);
     }
   });
@@ -85,14 +86,14 @@ program
         switch (key) {
           case 'apiKey':
             weatherService.setConfig('apiKey', value);
-            console.log(formatter.formatSuccess('API key updated'));
+            console.log(chalk.green('API key updated'));
             break;
           case 'units':
             if (!['metric', 'imperial', 'kelvin'].includes(value)) {
               throw new Error('Units must be one of: metric, imperial, kelvin');
             }
             weatherService.setConfig('units', value);
-            console.log(formatter.formatSuccess(`Units set to ${value}`));
+            console.log(chalk.green(`Units set to ${value}`));
             break;
           default:
             throw new Error(`Unknown configuration key: ${key}`);
@@ -103,15 +104,15 @@ program
         formatter.formatConfig(config);
       }
     } catch (error) {
-      console.error(formatter.formatError(error.message));
+      console.error(chalk.red('Error:'), error.message);
       process.exit(1);
     }
   });
 
 // Global error handler
 process.on('unhandledRejection', (reason, promise) => {
-  console.error(formatter.formatError('Unexpected error occurred'));
-  console.error(formatter.formatError(reason.message || reason));
+  console.error(chalk.red('Unexpected error occurred'));
+  console.error(chalk.red(reason.message || reason));
   process.exit(1);
 });
 
