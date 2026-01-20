@@ -1,13 +1,12 @@
 # Workflow file for building and publishing Docker images
 name: Build and Publish Docker Image
 
-on:
+"on":
   push:
     branches: [main]
     tags: ['v*']
   pull_request:
     branches: [main]
-
 env:
   # GitHub Container Registry
   GHCR_REGISTRY: ghcr.io
