@@ -2,11 +2,11 @@
 
 /**
  * RalphLoop CLI - Run the autonomous development system via container
- * 
+ *
  * Usage:
  *   npx ralphloop [--podman | --docker] [iterations]
  *   npx ralphloop --help
- * 
+ *
  * Examples:
  *   npx ralphloop                    # Run with default 1 iteration
  *   npx ralphloop 10                 # Run 10 iterations
@@ -33,7 +33,7 @@ function detectRuntimeSync(forceRuntime) {
   if (forceRuntime === 'podman' || forceRuntime === 'docker') {
     return { name: forceRuntime, available: true };
   }
-  
+
   // Check for podman first (preferred on Linux/macOS)
   try {
     const result = spawnSync('which', ['podman']);
@@ -41,7 +41,7 @@ function detectRuntimeSync(forceRuntime) {
       return { name: 'podman', available: true };
     }
   } catch {}
-  
+
   // Check for docker
   try {
     const result = spawnSync('which', ['docker']);
@@ -49,7 +49,7 @@ function detectRuntimeSync(forceRuntime) {
       return { name: 'docker', available: true };
     }
   } catch {}
-  
+
   return { name: null, available: false };
 }
 
@@ -59,25 +59,25 @@ function detectRuntimeSync(forceRuntime) {
 async function spawnAsync(command, args, options = {}) {
   const proc = spawn(command, args, {
     stdio: ['pipe', 'pipe', 'pipe'],
-    ...options
+    ...options,
   });
-  
+
   return new Promise((resolve) => {
     let stdout = '';
     let stderr = '';
-    
+
     proc.stdout.on('data', (data) => {
       const text = data.toString();
       stdout += text;
       process.stdout.write(text);
     });
-    
+
     proc.stderr.on('data', (data) => {
       const text = data.toString();
       stderr += text;
       process.stderr.write(text);
     });
-    
+
     proc.on('close', (code) => {
       resolve({ code, stdout, stderr });
     });
@@ -90,7 +90,7 @@ async function spawnAsync(command, args, options = {}) {
 function getProjectInfo() {
   const cwd = process.cwd();
   const isGitRepo = existsSync(join(cwd, '.git'));
-  
+
   return { cwd, isGitRepo };
 }
 
@@ -103,18 +103,21 @@ function buildRunCommand(runtime, image, args, cwd, isGitRepo, command = null) {
     '--rm',
     '-it',
     '--userns=keep-id',
-    '-e', 'HOME=/root',
-    '-w', '/workspace',
-    '-v', `${cwd}:/workspace`,
+    '-e',
+    'HOME=/root',
+    '-w',
+    '/workspace',
+    '-v',
+    `${cwd}:/workspace`,
   ];
-  
+
   // Add git config if in a git repo (for commits)
   if (isGitRepo) {
     // Pass through git user config if available
     try {
       const userName = spawnSync('git', ['config', '--global', 'user.name']);
       const userEmail = spawnSync('git', ['config', '--global', 'user.email']);
-      
+
       if (userName.status === 0 && userName.stdout && userName.stdout.toString().trim()) {
         commonArgs.push('-e', `GIT_USER_NAME=${userName.stdout.toString().trim()}`);
       }
@@ -123,35 +126,35 @@ function buildRunCommand(runtime, image, args, cwd, isGitRepo, command = null) {
       }
     } catch {}
   }
-  
+
   // Pass through GitHub token if available
   if (process.env.GITHUB_TOKEN) {
     commonArgs.push('-e', `GITHUB_TOKEN=${process.env.GITHUB_TOKEN}`);
   }
-  
+
   // Pass through Context7 API key if available
   if (process.env.CONTEXT7_API_KEY) {
     commonArgs.push('-e', `CONTEXT7_API_KEY=${process.env.CONTEXT7_API_KEY}`);
   }
-  
+
   // Pass through OpenCode auth if available
   if (process.env.OPENCODE_AUTH) {
     commonArgs.push('-e', `OPENCODE_AUTH=${process.env.OPENCODE_AUTH}`);
   }
-  
+
   // Add image
   commonArgs.push(image);
-  
+
   // Add command override (e.g., 'ralph') if specified
   if (command) {
     commonArgs.push(command);
   }
-  
+
   // Add ralph arguments
   if (args.length > 0) {
     commonArgs.push(...args);
   }
-  
+
   return [runtime, commonArgs];
 }
 
@@ -233,98 +236,98 @@ async function pullImage(runtime, image) {
  */
 async function main() {
   const args = process.argv.slice(2);
-  
+
   // Parse options
   let runtime = null;
   let image = DEFAULT_IMAGE;
   let iterations = DEFAULT_ITERATIONS;
   let pullImageFlag = false;
   let extraArgs = [];
-  
+
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
-    
+
     if (arg === '--help' || arg === '-h') {
       showHelp();
       process.exit(0);
     }
-    
+
     if (arg === '--version' || arg === '-V') {
       await showVersion();
       process.exit(0);
     }
-    
+
     if (arg === '--pull') {
       pullImageFlag = true;
       continue;
     }
-    
+
     if (arg === '--no-pull') {
       pullImageFlag = false;
       continue;
     }
-    
+
     if ((arg === '--runtime' || arg === '-r') && args[i + 1]) {
       runtime = args[++i];
       continue;
     }
-    
+
     if ((arg === '--image' || arg === '-i') && args[i + 1]) {
       image = args[++i];
       continue;
     }
-    
+
     // Check if it's a number (iterations)
     if (/^\d+$/.test(arg)) {
       iterations = parseInt(arg, 10);
       continue;
     }
-    
+
     // Pass through other arguments
     extraArgs.push(arg);
   }
-  
+
   // Detect runtime
   const { name: detectedRuntime, available } = detectRuntimeSync(runtime);
-  
+
   if (!available) {
     console.error('Error: No container runtime found.');
     console.error('Please install Podman (https://podman.io) or Docker (https://docker.com)');
     process.exit(1);
   }
-  
+
   const finalRuntime = detectedRuntime;
   console.log(`Using container runtime: ${finalRuntime}`);
-  
+
   // Get project info
   const { cwd, isGitRepo } = getProjectInfo();
   console.log(`Working directory: ${cwd}`);
   console.log(`Git repository: ${isGitRepo ? 'Yes' : 'No'}`);
-  
+
   // Pull image if requested
   if (pullImageFlag) {
     await pullImage(finalRuntime, image);
   }
-  
+
   // Build the run command
-  const fullArgs = [iterations.toString(), ...extraArgs].filter(a => a);
+  const fullArgs = [iterations.toString(), ...extraArgs].filter((a) => a);
   const [runtimeCmd, containerArgs] = buildRunCommand(
     finalRuntime,
     image,
     fullArgs,
     cwd,
     isGitRepo,
-    'ralph'  // Execute ralph script inside container
+    'ralph' // Execute ralph script inside container
   );
-  
+
   console.log(`\nRunning: ${runtimeCmd} ${containerArgs.join(' ')}\n`);
-  
+
   // Run the container
   const result = await spawnAsync(runtimeCmd, containerArgs, {
     cwd,
-    env: { ...process.env, TERM: process.env.TERM || 'xterm' }
+    env: { ...process.env, TERM: process.env.TERM || 'xterm' },
   });
-  
+
   process.exit(result.code);
 }
 

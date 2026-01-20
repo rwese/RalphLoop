@@ -383,11 +383,11 @@ Always define your data model explicitly:
 
 ```typescript
 interface Book {
-  id: string
-  title: string
-  authors: string[]
-  status: "want" | "reading" | "read"
-  rating?: number
+  id: string;
+  title: string;
+  authors: string[];
+  status: 'want' | 'reading' | 'read';
+  rating?: number;
   // ... other fields
 }
 ```

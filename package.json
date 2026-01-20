@@ -23,5 +23,28 @@
     "type": "git",
     "url": "https://github.com/rwese/RalphLoop.git"
   },
-  "homepage": "https://github.com/rwese/RalphLoop#readme"
+  "homepage": "https://github.com/rwese/RalphLoop#readme",
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint:markdown": "markdownlint '**/*.md' --ignore 'node_modules' --ignore '.git'",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{js,ts,json}": [
+      "prettier --write"
+    ],
+    "*.md": [
+      "markdownlint --fix"
+    ],
+    "*.sh": [
+      "shellcheck"
+    ]
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
+    "markdownlint-cli": "^0.47.0",
+    "prettier": "^3.8.0"
+  }
 }

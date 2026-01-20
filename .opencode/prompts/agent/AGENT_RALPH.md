@@ -11,6 +11,5 @@ Fast execution mode with minimal safety checks. Use when speed matters more than
 
 ## Report Format
 
-- Done: [what was accomplished] 
+- Done: [what was accomplished]
 - Issues: [any problems encountered]
-

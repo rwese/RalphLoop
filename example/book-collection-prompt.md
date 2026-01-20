@@ -137,47 +137,47 @@ bookshelf i                       # Shorthand
 
 ```typescript
 interface Book {
-  id: string
-  isbn: string
-  title: string
-  subtitle?: string
-  authors: string[]
-  publisher?: string
-  publishedDate?: string
-  pageCount?: number
-  genres: string[]
-  tags: string[]
-  format: "physical" | "kindle" | "epub" | "pdf" | "audiobook"
-  language?: string
-  condition?: "new" | "like-new" | "good" | "fair" | "poor"
-  location?: string // shelf, device, box
-  coverUrl?: string
-  description?: string
-  series?: string
-  seriesNumber?: number
-  edition?: string
-  notes?: string
-  purchaseDate?: string
-  purchasePrice?: number
-  purchaseLocation?: string
-  currentPage?: number
-  status: "want-to-read" | "reading" | "on-hold" | "read" | "abandoned"
-  rating?: number // 1-5
-  review?: string
-  startDate?: string
-  finishDate?: string
-  lastReadDate?: string
-  dateAdded: string
-  dateModified: string
-  readingSessions?: ReadingSession[]
+  id: string;
+  isbn: string;
+  title: string;
+  subtitle?: string;
+  authors: string[];
+  publisher?: string;
+  publishedDate?: string;
+  pageCount?: number;
+  genres: string[];
+  tags: string[];
+  format: 'physical' | 'kindle' | 'epub' | 'pdf' | 'audiobook';
+  language?: string;
+  condition?: 'new' | 'like-new' | 'good' | 'fair' | 'poor';
+  location?: string; // shelf, device, box
+  coverUrl?: string;
+  description?: string;
+  series?: string;
+  seriesNumber?: number;
+  edition?: string;
+  notes?: string;
+  purchaseDate?: string;
+  purchasePrice?: number;
+  purchaseLocation?: string;
+  currentPage?: number;
+  status: 'want-to-read' | 'reading' | 'on-hold' | 'read' | 'abandoned';
+  rating?: number; // 1-5
+  review?: string;
+  startDate?: string;
+  finishDate?: string;
+  lastReadDate?: string;
+  dateAdded: string;
+  dateModified: string;
+  readingSessions?: ReadingSession[];
 }
 
 interface ReadingSession {
-  date: string
-  startPage: number
-  endPage: number
-  duration?: number // minutes
-  notes?: string
+  date: string;
+  startPage: number;
+  endPage: number;
+  duration?: number; // minutes
+  notes?: string;
 }
 ```
 
