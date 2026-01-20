@@ -14,9 +14,14 @@ Build a modern fintech-style application with:
 ## Running with RalphLoop
 
 ```bash
-# Run from project root with prompt file
-RALPH_PROMPT_FILE=example/finance-dashboard/prompt.md npm run container:run 15
+# Run with 15 iterations (path is relative to /workspace inside container)
+RALPH_PROMPT_FILE=/workspace/example/finance-dashboard/prompt.md npm run container:run 15
+
+# Or set RALPH_PROMPT directly from the file
+RALPH_PROMPT="$(cat example/finance-dashboard/prompt.md)" npm run container:run 15
 ```
+
+> **Note:** `RALPH_PROMPT_FILE` paths are relative to `/workspace` inside the container.
 
 ## Key Features
 
@@ -42,7 +47,3 @@ RALPH_PROMPT_FILE=example/finance-dashboard/prompt.md npm run container:run 15
 ## Files
 
 - `prompt.md` - Complete project specification for RalphLoop
-
-## Source
-
-Original prompt: `finance-dashboard-prompt.md`

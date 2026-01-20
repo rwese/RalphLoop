@@ -7,6 +7,7 @@ pre-commit:
       run: npx prettier --write {staged_files}
       stage: true
     lint-markdown:
+      glob: '*.md'
       run: npx markdownlint --fix --config .markdownlintrc.json {staged_files}
       stage: true
     lint-shell:

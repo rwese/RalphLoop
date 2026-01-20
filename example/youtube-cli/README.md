@@ -14,9 +14,14 @@ Build a comprehensive YouTube download and management tool with:
 ## Running with RalphLoop
 
 ```bash
-# Run from project root with prompt file
-RALPH_PROMPT_FILE=example/youtube-cli/prompt.md npm run container:run 10
+# Run with 10 iterations (path is relative to /workspace inside container)
+RALPH_PROMPT_FILE=/workspace/example/youtube-cli/prompt.md npm run container:run 10
+
+# Or set RALPH_PROMPT directly from the file
+RALPH_PROMPT="$(cat example/youtube-cli/prompt.md)" npm run container:run 10
 ```
+
+> **Note:** `RALPH_PROMPT_FILE` paths are relative to `/workspace` inside the container.
 
 ## Key Features
 
@@ -44,7 +49,3 @@ RALPH_PROMPT_FILE=example/youtube-cli/prompt.md npm run container:run 10
 ## Files
 
 - `prompt.md` - Complete project specification for RalphLoop
-
-## Source
-
-Original prompt: `youtube-cli-prompt.md`

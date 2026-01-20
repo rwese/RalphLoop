@@ -191,16 +191,29 @@ See the [Examples README](./example/README.md) for detailed usage instructions.
 
 ```bash
 # Run the todo app example with 10 iterations
-RALPH_PROMPT_FILE=example/todo-app/prompt.md npm run container:run 10
+# Note: RALPH_PROMPT_FILE paths are relative to /workspace inside the container
+RALPH_PROMPT_FILE=/workspace/example/todo-app/prompt.md npm run container:run 10
 
 # Or use the container script directly
-RALPH_PROMPT_FILE=example/todo-app/prompt.md ./bin/container.sh run 10
+RALPH_PROMPT_FILE=/workspace/example/todo-app/prompt.md ./bin/container.sh run 10
+
+# Set RALPH_PROMPT directly from the file (no path conversion needed)
+RALPH_PROMPT="$(cat example/todo-app/prompt.md)" npm run container:run 10
 
 # Copy the prompt to your project and run there
 cp example/todo-app/prompt.md my-project/
 cd my-project
 RALPH_PROMPT="$(cat prompt.md)" npm run container:run 10
 ```
+
+> **Note:** `RALPH_PROMPT_FILE` must be a path relative to `/workspace` inside the container (where your project is mounted).
+
+### Environment Variables for Prompts
+
+| Variable            | Description                                                   |
+| ------------------- | ------------------------------------------------------------- |
+| `RALPH_PROMPT`      | Direct prompt text for the autonomous loop                    |
+| `RALPH_PROMPT_FILE` | Path to a prompt file (relative to `/workspace` in container) |
 
 ### Creating Your Own
 

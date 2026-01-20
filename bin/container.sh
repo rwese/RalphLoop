@@ -1,18 +1,23 @@
 #!/usr/bin/env bash
+
 # Container management script for RalphLoop
+
 # Supports both Docker and Podman runtimes
 
 set -e
 
 # Detect container runtime
+
 CONTAINER_RUNTIME="${RALPH_RUNTIME:-$(command -v podman >/dev/null 2>&1 && echo podman || echo docker)}"
 
 # Image configuration
+
 IMAGE="${RALPH_IMAGE:-ghcr.io/rwese/ralphloop}"
 IMAGE_TAG="${RALPH_IMAGE_TAG:-latest}"
 FULL_IMAGE="${IMAGE}:${IMAGE_TAG}"
 
 # Colors for output
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -90,11 +95,12 @@ case "$1" in
         echo "Full Image:   ${FULL_IMAGE}"
         echo ""
         echo "Environment variables:"
-        echo "  RALPH_RUNTIME      - Override container runtime (podman|docker)"
-        echo "  RALPH_IMAGE        - Override image name"
-        echo "  RALPH_IMAGE_TAG    - Override image tag"
-        echo "  RALPH_PROMPT       - Prompt for autonomous loop"
-        echo "  OPENCODE_AUTH      - OpenCode authentication (secret - not logged)"
+        echo "  RALPH_RUNTIME        - Override container runtime (podman|docker)"
+        echo "  RALPH_IMAGE          - Override image name"
+        echo "  RALPH_IMAGE_TAG      - Override image tag"
+        echo "  RALPH_PROMPT         - Direct prompt text for autonomous loop"
+        echo "  RALPH_PROMPT_FILE    - Path to prompt file (relative to /workspace in container)"
+        echo "  OPENCODE_AUTH        - OpenCode authentication (secret - not logged)"
         ;;
     *)
         echo "RalphLoop Container Management"
@@ -109,16 +115,18 @@ case "$1" in
         echo "  info     Show current configuration"
         echo ""
         echo "Environment variables:"
-        echo "  RALPH_RUNTIME      - Container runtime (default: podman if available, else docker)"
-        echo "  RALPH_IMAGE        - Image name (default: ghcr.io/rwese/ralphloop)"
-        echo "  RALPH_IMAGE_TAG    - Image tag (default: latest)"
-        echo "  RALPH_PROMPT       - Prompt for autonomous loop (used with run)"
+        echo "  RALPH_RUNTIME        - Container runtime (default: podman if available, else docker)"
+        echo "  RALPH_IMAGE          - Image name (default: ghcr.io/rwese/ralphloop)"
+        echo "  RALPH_IMAGE_TAG      - Image tag (default: latest)"
+        echo "  RALPH_PROMPT         - Direct prompt text (used with run)"
+        echo "  RALPH_PROMPT_FILE    - Path to prompt file (relative to /workspace in container)"
         echo ""
         echo "Examples:"
         echo "  $0 build"
         echo "  RALPH_IMAGE_TAG=v1.0.0 $0 build"
         echo "  $0 run 5"
         echo "  RALPH_PROMPT=\"Add tests\" $0 run 1"
+        echo "  RALPH_PROMPT_FILE=/workspace/example/todo-app/prompt.md $0 run 10"
         echo "  OPENCODE_AUTH=\"\$(cat ~/.local/share/opencode/auth.json)\" $0 run 1"
         exit 1
         ;;

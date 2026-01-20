@@ -14,12 +14,14 @@ Build a todo app that feels like a mini-product, not just a coding exercise. Thi
 ## Running with RalphLoop
 
 ```bash
-# Run in current directory (contains prompt.md)
-cd example/todo-app
+# Run with 10 iterations (path is relative to /workspace inside container)
+RALPH_PROMPT_FILE=/workspace/example/todo-app/prompt.md npm run container:run 10
 
-# Or run from project root with prompt file
-RALPH_PROMPT_FILE=example/todo-app/prompt.md npm run container:run 10
+# Or set RALPH_PROMPT directly from the file
+RALPH_PROMPT="$(cat example/todo-app/prompt.md)" npm run container:run 10
 ```
+
+> **Note:** `RALPH_PROMPT_FILE` paths are relative to `/workspace` inside the container.
 
 ## Key Features
 
@@ -46,7 +48,3 @@ RALPH_PROMPT_FILE=example/todo-app/prompt.md npm run container:run 10
 
 - `prompt.md` - Complete project specification for RalphLoop
 - `index.html` - When built, contains the complete application
-
-## Source
-
-Original prompt: `todo-app-prompt.md`

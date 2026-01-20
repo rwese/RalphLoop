@@ -14,9 +14,14 @@ Build a terminal-based weather tool with:
 ## Running with RalphLoop
 
 ```bash
-# Run from project root with prompt file
-RALPH_PROMPT_FILE=example/weather-cli/prompt.md npm run container:run 5
+# Run with 5 iterations (path is relative to /workspace inside container)
+RALPH_PROMPT_FILE=/workspace/example/weather-cli/prompt.md npm run container:run 5
+
+# Or set RALPH_PROMPT directly from the file
+RALPH_PROMPT="$(cat example/weather-cli/prompt.md)" npm run container:run 5
 ```
+
+> **Note:** `RALPH_PROMPT_FILE` paths are relative to `/workspace` inside the container.
 
 ## Key Features
 
@@ -42,7 +47,3 @@ RALPH_PROMPT_FILE=example/weather-cli/prompt.md npm run container:run 5
 ## Files
 
 - `prompt.md` - Complete project specification for RalphLoop
-
-## Source
-
-Original prompt: `weather-cli-prompt.md`
