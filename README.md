@@ -26,7 +26,14 @@ node bin/ralphloop --help
 node bin/ralphloop 5          # Run 5 iterations
 ```
 
-### Option 2: Publish to npm (Recommended for Regular Use)
+### Option 2: Direct npx from GitHub (Quickest)
+
+```bash
+npx https://github.com/rwese/RalphLoop.git --help
+npx https://github.com/rwese/RalphLoop.git 5
+```
+
+### Option 3: Publish to npm (Best for Regular Use)
 
 ```bash
 # From the project root
@@ -44,6 +51,7 @@ npx ralphloop 5
 | ------------------------------------------------------ | -------------------------------- |
 | `npx ralphloop`                                        | Run with default (1 iteration)   |
 | `npx ralphloop 10`                                     | Run 10 iterations                |
+| `npx https://github.com/rwese/RalphLoop.git 10`        | Run directly from GitHub         |
 | `npx ralphloop --docker 5`                             | Force Docker instead of Podman   |
 | `npx ralphloop --image ghcr.io/rwese/ralphloop:v1.0.0` | Use specific image tag           |
 | `npx ralphloop --pull`                                 | Pull latest image before running |
