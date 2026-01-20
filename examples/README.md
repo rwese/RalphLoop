@@ -164,7 +164,7 @@ RALPH_PROMPT="Build a new feature X for my app" npm run container:run 5
 
 ## Creating Your Own
 
-1. Create a new folder in `example/`
+1. Create a new folder in `examples/`
 2. Add your project prompt as `prompt.md`
 3. Add a `README.md` with overview and instructions
 4. Run with:

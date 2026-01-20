@@ -133,7 +133,7 @@ case "$1" in
         echo "  RALPH_IMAGE_TAG=v1.0.0 $0 build"
         echo "  $0 run 5"
         echo "  RALPH_PROMPT=\"Add tests\" $0 run 1"
-        echo "  RALPH_PROMPT_FILE=/workspace/example/todo-app/prompt.md $0 run 10"
+        echo "  RALPH_PROMPT_FILE=/workspace/examples/todo-app/prompt.md $0 run 10"
         echo "  OPENCODE_AUTH=\"\$(cat ~/.local/share/opencode/auth.json)\" $0 run 1"
         exit 1
         ;;
