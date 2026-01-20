@@ -1,0 +1,45 @@
+{
+  "name": "weather-cli",
+  "version": "1.0.0",
+  "description": "A sophisticated Weather Dashboard CLI tool with external API integration",
+  "type": "commonjs",
+  "main": "src/weather-service.js",
+  "bin": {
+    "weather": "./bin/weather.js"
+  },
+  "scripts": {
+    "start": "node bin/weather.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "echo 'Linting would go here'",
+    "build": "echo 'No build step required'"
+  },
+  "keywords": [
+    "weather",
+    "cli",
+    "forecast",
+    "command-line"
+  ],
+  "author": "RalphLoop Autonomous Development",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^11.1.0",
+    "axios": "^1.6.2",
+    "chalk": "^4.1.2",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ralphloop/weather-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ralphloop/weather-cli/issues"
+  },
+  "homepage": "https://github.com/ralphloop/weather-cli#readme"
+}
