@@ -213,12 +213,14 @@ ARGUMENTS
   iterations   Number of iterations to run (default: 1)
 
 OPTIONS
-  --runtime, -r      Container runtime: podman or docker (auto-detected)
-  --image, -i        Docker image to use (default: ${DEFAULT_IMAGE})
-  --pull             Pull the latest image before running (default)
-  --no-pull          Skip pulling the image, use cached version
-  --help, -h         Show this help message
-  --version, -V      Show version information
+  --runtime, -r            Container runtime: podman or docker (auto-detected)
+  --image, -i              Docker image to use (default: ghcr.io/rwese/ralphloop:latest)
+  --pull                   Pull the latest image before running (default)
+  --no-pull                Skip pulling the image, use cached version
+  --ralph-prompt-file, -p  Read prompt from file and pass to container
+  --env                    Set environment variable (can be used multiple times)
+  --help, -h               Show this help message
+  --version, -V            Show version information
 
 QUICK-START EXAMPLES
   # Run the todo-app example (10 iterations)
@@ -237,14 +239,16 @@ QUICK-START EXAMPLES
   npx ralphloop quick youtube
 
 CUSTOM PROMPT USAGE
-  # Using a local prompt file
+  # Using --ralph-prompt-file (recommended - reads file directly)
+  npx ralphloop --ralph-prompt-file ./examples/todo-app/prompt.md 10
+  npx ralphloop -p ./my-prompt.md 5
+
+  # Using --env flag
+  npx ralphloop --env "RALPH_PROMPT=$(< ./examples/todo-app/prompt.md)" 10
+
+  # Using environment variables (shell syntax)
   RALPH_PROMPT_FILE=./my-prompt.md npx ralphloop 5
-
-  # Using prompt from file (relative to project root)
-  RALPH_PROMPT="$(< ./examples/todo-app/prompt.md)" npx ralphloop 10
-
-  # Using direct prompt
-  RALPH_PROMPT="Build a REST API for user management" npx ralphloop 5
+  RALPH_PROMPT="Build a REST API" npx ralphloop 5
 
 ENVIRONMENT VARIABLES
   GITHUB_TOKEN         GitHub token for API access (needed for private repos)
@@ -594,23 +598,23 @@ Here are your options:
    Or list all examples:
    npx ralphloop examples
 
-📄 OPTION 2: Use a local prompt file
-   # From project root with examples:
+📄 OPTION 2: Use a local prompt file (recommended)
+   npx ralphloop --ralph-prompt-file ./examples/todo-app/prompt.md 10
+   npx ralphloop -p ./my-prompt.md 5
+
+   # Or using environment variables:
    RALPH_PROMPT_FILE=./examples/todo-app/prompt.md npx ralphloop 10
 
-   # From anywhere:
-   RALPH_PROMPT_FILE=/path/to/my-prompt.md npx ralphloop 5
-
 📝 OPTION 3: Paste prompt directly
-   # Using command substitution:
-   RALPH_PROMPT="$(< ./examples/todo-app/prompt.md)" npx ralphloop 10
+   # Using --env flag:
+   npx ralphloop --env "RALPH_PROMPT=$(< ./examples/todo-app/prompt.md)" 10
 
-   # Or set directly (for short prompts):
-   RALPH_PROMPT="Build a REST API for user authentication" npx ralphloop 5
+   # Or using environment variables:
+   RALPH_PROMPT="$(< ./examples/todo-app/prompt.md)" npx ralphloop 10
 
 🔧 OPTION 4: Create your own prompt
    1. Create a prompt.md file describing your project
-   2. Run: RALPH_PROMPT_FILE=./prompt.md npx ralphloop
+   2. Run: npx ralphloop --ralph-prompt-file ./prompt.md
 
 💡 TIP: Run diagnostics first to check your setup:
    npx ralphloop doctor
@@ -634,12 +638,69 @@ async function main() {
     process.exit(0);
   }
 
-  // Parse command
-  const command = args[0].startsWith('-') ? 'run' : args[0];
-  const commandArgs = command === 'run' ? args : args.slice(1);
+  // Pre-parse options that need to be available before command detection
+  let promptFileOverride = null;
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if ((arg === '--ralph-prompt-file' || arg === '-p') && args[i + 1]) {
+      promptFileOverride = args[++i];
+      break;
+    }
+  }
 
-  // Handle commands
+  // Load prompt file if specified
+  if (promptFileOverride) {
+    try {
+      const content = readFileSync(promptFileOverride, 'utf-8');
+      process.env.RALPH_PROMPT = content;
+      console.log(`  ✓ Loaded prompt from ${promptFileOverride} (${content.length} chars)`);
+    } catch (error) {
+      console.error(`  ✗ Failed to read ${promptFileOverride}: ${error.message}`);
+      process.exit(1);
+    }
+  }
+
+  // Parse command - detect known commands first
+  const knownCommands = ['run', 'doctor', 'examples', 'quick', 'help'];
+  let command = 'run'; // default
+  let commandArgs = args;
+
+  // Find first non-option argument to determine command
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    // Skip --ralph-prompt-file when looking for commands
+    if (arg === '--ralph-prompt-file' || arg === '-p') {
+      i++; // skip the filename too
+      continue;
+    }
+    if (!arg.startsWith('-') && knownCommands.includes(arg)) {
+      command = arg;
+      commandArgs = args.slice(i + 1);
+      break;
+    }
+  }
+
+  // Initialize env overrides array early for commands that need it
+  const envOverrides = [];
+
+  // Handle commands before options parsing
   if (command === 'doctor') {
+    // For doctor, parse --env from the original args array
+    for (let i = 0; i < args.length; i++) {
+      const arg = args[i];
+      if (arg === '--env' && args[i + 1]) {
+        envOverrides.push(args[++i]);
+      }
+    }
+    // Apply environment variable overrides for doctor output
+    for (const envDef of envOverrides) {
+      const [key, ...valueParts] = envDef.split('=');
+      const value = valueParts.join('=');
+      if (key && value !== undefined) {
+        process.env[key] = value;
+        console.log(`  ✓ Set ${key} from --env argument`);
+      }
+    }
     await doctorCommand();
     process.exit(0);
   }
@@ -706,6 +767,11 @@ async function main() {
       continue;
     }
 
+    if (arg === '--env' && commandArgs[i + 1]) {
+      envOverrides.push(commandArgs[++i]);
+      continue;
+    }
+
     // Check if it's a number (iterations)
     if (/^\d+$/.test(arg)) {
       iterations = parseInt(arg, 10);
@@ -716,11 +782,27 @@ async function main() {
     extraArgs.push(arg);
   }
 
-  // Check if prompt is configured
-  const hasPrompt = process.env.RALPH_PROMPT || process.env.RALPH_PROMPT_FILE;
-  if (!hasPrompt && command === 'run') {
-    showUsageGuide();
-    process.exit(1);
+  // Apply environment variable overrides
+  for (const envDef of envOverrides) {
+    const [key, ...valueParts] = envDef.split('=');
+    const value = valueParts.join('=');
+    if (key && value !== undefined) {
+      process.env[key] = value;
+      console.log(`  ✓ Set ${key} from --env argument`);
+    }
+  }
+
+  // For commands that don't need a prompt, handle them before prompt check
+  if (command === 'doctor') {
+    // Doctor doesn't need a prompt - skip to detection
+    // Detect runtime first to show in doctor output
+  } else if (command === 'run') {
+    // Check if prompt is configured for run command
+    const hasPrompt = process.env.RALPH_PROMPT || process.env.RALPH_PROMPT_FILE;
+    if (!hasPrompt) {
+      showUsageGuide();
+      process.exit(1);
+    }
   }
 
   // Detect runtime
