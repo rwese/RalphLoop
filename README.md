@@ -96,11 +96,10 @@ npx ralphloop --env "RALPH_PROMPT=build a todo app" 5
 
 ### Environment Variables
 
-| Variable           | Description                       |
-| ------------------ | --------------------------------- |
-| `GITHUB_TOKEN`     | GitHub token for API access       |
-| `CONTEXT7_API_KEY` | Context7 documentation lookup key |
-| `OPENCODE_AUTH`    | OpenCode authentication data      |
+| Variable        | Description                  |
+| --------------- | ---------------------------- |
+| `GITHUB_TOKEN`  | GitHub token for API access  |
+| `OPENCODE_AUTH` | OpenCode authentication data |
 
 ## Published Image
 
@@ -162,13 +161,12 @@ podman run -it --rm \
 
 Pass environment variables to configure the container:
 
-| Variable            | Description                                   |
-| ------------------- | --------------------------------------------- |
-| `RALPH_PROMPT`      | Direct prompt text for the autonomous loop    |
-| `RALPH_PROMPT_FILE` | Path to a prompt file (mounted in container)  |
-| `CONTEXT7_API_KEY`  | API key for Context7 MCP documentation lookup |
-| `OPENCODE_API_KEY`  | API key for OpenCode cloud features           |
-| `OPENCODE_AUTH`     | Auth data for OpenCode (JSON format)          |
+| Variable            | Description                                  |
+| ------------------- | -------------------------------------------- |
+| `RALPH_PROMPT`      | Direct prompt text for the autonomous loop   |
+| `RALPH_PROMPT_FILE` | Path to a prompt file (mounted in container) |
+| `OPENCODE_API_KEY`  | API key for OpenCode cloud features          |
+| `OPENCODE_AUTH`     | Auth data for OpenCode (JSON format)         |
 
 ```bash
 # Example with multiple environment variables
@@ -176,7 +174,6 @@ docker run -it --rm \
   -v "$(pwd):/workspace" \
   -w "/workspace" \
   -e RALPH_PROMPT="Add dark mode to the app" \
-  -e CONTEXT7_API_KEY="your-key" \
   ghcr.io/rwese/ralphloop:latest ./ralph 10
 ```
 

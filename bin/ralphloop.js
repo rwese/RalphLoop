@@ -158,11 +158,6 @@ function buildRunCommand(runtime, image, args, cwd, isGitRepo, command = null) {
     commonArgs.push('-e', `GITHUB_TOKEN=${process.env.GITHUB_TOKEN}`);
   }
 
-  // Pass through Context7 API key if available
-  if (process.env.CONTEXT7_API_KEY) {
-    commonArgs.push('-e', `CONTEXT7_API_KEY=${process.env.CONTEXT7_API_KEY}`);
-  }
-
   // Pass through OpenCode auth if available
   if (process.env.OPENCODE_AUTH) {
     commonArgs.push('-e', `OPENCODE_AUTH=${process.env.OPENCODE_AUTH}`);
@@ -252,7 +247,6 @@ CUSTOM PROMPT USAGE
 
 ENVIRONMENT VARIABLES
   GITHUB_TOKEN         GitHub token for API access (needed for private repos)
-  CONTEXT7_API_KEY     Context7 documentation lookup key
   OPENCODE_AUTH        OpenCode authentication data
   RALPH_PROMPT         Direct prompt text for the autonomous loop
   RALPH_PROMPT_FILE    Path to a prompt file
@@ -378,7 +372,7 @@ async function doctorCommand() {
   // 4. Environment variables
   console.log('\n🔑 Environment Variables');
   console.log('-'.repeat(30));
-  const envVars = ['GITHUB_TOKEN', 'CONTEXT7_API_KEY', 'OPENCODE_AUTH'];
+  const envVars = ['GITHUB_TOKEN', 'OPENCODE_AUTH'];
   for (const env of envVars) {
     const value = process.env[env];
     if (value && value.length > 0) {
