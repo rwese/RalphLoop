@@ -281,7 +281,7 @@ RALPH_VALIDATE_EOF
       # Extract and save validation issues
       ISSUES=$(get_validation_issues "$validation_result")
       RECOMMENDATIONS=$(get_validation_recommendations "$validation_result")
-      
+
       # Combine issues and recommendations for the next iteration
       {
         echo "## Issues Found:"
@@ -289,8 +289,8 @@ RALPH_VALIDATE_EOF
         echo ""
         echo "## Recommendations:"
         echo "$RECOMMENDATIONS"
-      } > "$VALIDATION_ISSUES_FILE"
-      
+      } >"$VALIDATION_ISSUES_FILE"
+
       echo "Issues saved to ${VALIDATION_ISSUES_FILE}"
       echo "Agent will prioritize fixing these in next iteration."
       echo ""
