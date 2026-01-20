@@ -51,7 +51,7 @@ jobs:
           tags: |
             type=ref,event=branch
             type=sha
-            type=raw,value=latest,enable={{eq github.ref_name, 'main'}}
+            type=raw,value=latest,enable=${{ github.ref_name == 'main' }}
 
       - name: Build and push Docker image
         id: build
