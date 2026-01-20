@@ -1,3 +1,4 @@
+# Workflow file for building and publishing Docker images
 name: Build and Publish Docker Image
 
 on:
