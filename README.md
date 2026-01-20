@@ -2,6 +2,16 @@
 
 Autonomous development system that runs itself.
 
+## ⚠️ Security Notice
+
+**DO NOT use `git commit --no-verify` or `git commit -n`**
+
+Pre-commit hooks are CRITICAL for security and MUST run on every commit. Secret scanning (Gitleaks) catches exposed API keys and tokens BEFORE they reach CI.
+
+- ❌ Never skip hooks: `git commit -n` or `git commit --no-verify`
+- ✅ Commits with exposed secrets will be REJECTED by CI
+- ✅ See [SECURITY.md](./SECURITY.md) for full security policy
+
 ## Quick Start
 
 ```bash

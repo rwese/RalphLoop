@@ -1,16 +1,29 @@
 # lefthook.yml - Git hooks configuration for RalphLoop
+#
+# SECURITY: Do NOT use `git commit --no-verify` or `git commit -n`
+# Pre-commit hooks MUST run to catch secrets before they reach CI.
+# Skipping hooks will allow exposed secrets in the codebase.
+# If you must bypass hooks, you are violating security policy.
 
 pre-commit:
-  parallel: true
+  parallel: false
   commands:
-    format:
+    # Secret scanning - CRITICAL: This MUST pass
+    # NEVER skip this check with --no-verify
+    secrets-scan:
+      run: gitleaks detect --staged --verbose --exit-code=1
+      description: Scanning for secrets in staged changes
+
+  # Formatting and linting (run after secrets scan)
+  hooks:
+    - name: format
       run: npx prettier --write {staged_files}
       stage: true
-    lint-markdown:
+    - name: lint-markdown
       glob: '*.md'
       run: npx markdownlint --fix --config .markdownlintrc.json {staged_files}
       stage: true
-    lint-shell:
+    - name: lint-shell
       glob: '*.sh'
       run: npx shellcheck {staged_files}
       stage: true
