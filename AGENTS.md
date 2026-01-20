@@ -377,6 +377,43 @@ Output `<promise>COMPLETE</promise>` when:
 - Code is committed and tested
 - Progress is documented
 
+### Validation Workflow
+
+RalphLoop implements an independent validation system to ensure quality:
+
+1. **Completion Signal**: When agent outputs `<promise>COMPLETE</promise>`, the loop triggers independent validation
+2. **Independent Verification**: A separate agent instance verifies all acceptance criteria:
+   - Runs build commands (`npm run build`)
+   - Runs tests (`npm test`)
+   - Runs linter (`npm run lint`)
+   - Validates all acceptance criteria from prompt.md
+   - Checks for regressions
+3. **XML Output Format**: Validation results in structured XML:
+
+```xml
+<validation_status>PASS</validation_status> or <validation_status>FAIL</validation_status>
+
+<validation_issues>
+- Failing criterion 1
+- Failing criterion 2
+</validation_issues>
+
+<validation_recommendations>
+- Fix action 1
+- Fix action 2
+</validation_recommendations>
+```
+
+4. **Feedback Loop**: If validation FAILS:
+   - Issues are saved to `.ralph_validation_issues.txt`
+   - Next iteration receives pending issues in context
+   - Agent focuses on fixing specific issues
+   - Re-validation occurs after fix attempt
+
+5. **Completion**: Validation PASS → Mission complete!
+
+This ensures agents cannot prematurely exit without meeting all requirements.
+
 ## Quick Reference
 
 ### Essential Commands

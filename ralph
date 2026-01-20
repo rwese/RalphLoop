@@ -14,6 +14,20 @@ set -e -u -o pipefail
 MAX_ROUNDS=${1:-100}
 PROGRESS_FILE="progress.md"
 PROMPT_FILE="prompt.md"
+VALIDATION_ISSUES_FILE=".ralph_validation_issues.txt"
+
+# Validate MAX_ROUNDS is a positive integer
+validate_max_rounds() {
+  if ! [[ "$MAX_ROUNDS" =~ ^[0-9]+$ ]]; then
+    echo "Error: MAX_ROUNDS must be a positive integer, got: '$MAX_ROUNDS'" >&2
+    exit 1
+  fi
+  if [ "$MAX_ROUNDS" -eq 0 ]; then
+    echo "Error: MAX_ROUNDS must be greater than 0" >&2
+    exit 1
+  fi
+}
+validate_max_rounds
 
 # Determine prompt source
 get_prompt() {
@@ -46,10 +60,43 @@ get_prompt() {
   cat "$PROMPT_FILE"
 }
 
+# Sanitize content to prevent heredoc injection
+sanitize_for_heredoc() {
+  local content="$1"
+  echo "$content" | sed 's/EOF/RALPH_SAFE_EOF_MARKER/g'
+}
+
+# Get validation status from result
+get_validation_status() {
+  local result="$1"
+  echo "$result" | grep -o '<validation_status>[^<]*</validation_status>' | sed 's/<[^>]*>//g' | tr -d ' '
+}
+
+# Get validation issues from result
+get_validation_issues() {
+  local result="$1"
+  # Extract content between <validation_issues> and </validation_issues>
+  local issues
+  issues=$(echo "$result" | sed -n '/<validation_issues>/,/<\/validation_issues>/p' | sed '1d;$d')
+  echo "$issues"
+}
+
+# Get validation recommendations from result
+get_validation_recommendations() {
+  local result="$1"
+  # Extract content between <validation_recommendations> and </validation_recommendations>
+  local recs
+  recs=$(echo "$result" | sed -n '/<validation_recommendations>/,/<\/validation_recommendations>/p' | sed '1d;$d')
+  echo "$recs"
+}
+
 # Ensure progress file exists
 if [ ! -f "$PROGRESS_FILE" ]; then
   touch "$PROGRESS_FILE"
 fi
+
+# Clear previous validation issues at start
+rm -f "$VALIDATION_ISSUES_FILE"
 
 # Main loop
 for ((i = 1; i <= MAX_ROUNDS; i++)); do
@@ -61,41 +108,99 @@ for ((i = 1; i <= MAX_ROUNDS; i++)); do
   PROGRESS_CONTENT=$(cat "$PROGRESS_FILE")
   PROMPT_CONTENT=$(get_prompt)
 
+  # Sanitize content to prevent heredoc injection
+  SANITIZED_PROGRESS=$(sanitize_for_heredoc "$PROGRESS_CONTENT")
+  SANITIZED_PROMPT=$(sanitize_for_heredoc "$PROMPT_CONTENT")
+
+  # Check for pending validation issues from previous incomplete validation
+  PENDING_ISSUES=""
+  if [ -f "$VALIDATION_ISSUES_FILE" ]; then
+    PENDING_ISSUES=$(cat "$VALIDATION_ISSUES_FILE")
+  fi
+
+  # Build context section with pending issues if any
+  CONTEXT_SECTION=""
+  if [ -n "$PENDING_ISSUES" ]; then
+    CONTEXT_SECTION="
+## 🚨 PENDING VALIDATION ISSUES FROM PREVIOUS ITERATION
+The previous completion attempt failed validation. You MUST fix these issues:
+
+${PENDING_ISSUES}
+
+## Your Priority
+Focus ONLY on resolving these validation issues. Do NOT work on new features.
+After fixing, mark complete with <promise>COMPLETE</promise> for re-validation.
+"
+  fi
+
   # Run OpenCode agent with current context
   result=$(
-    opencode run --share --agent AGENT_RALPH <<EOF
+    opencode run --agent AGENT_RALPH <<RALPH_EOF_XYZ123
 # Goals and Resources
 
 ## Project plan
 
-${PROMPT_CONTENT}
+${SANITIZED_PROMPT}
 
 ## Current Progress
 
-${PROGRESS_CONTENT}
+${SANITIZED_PROGRESS}
+${CONTEXT_SECTION}
 
 ## Your Priorities
 
-1. [ ] Analyze current state and decide highest goal next step
-2. [ ] Work on the next goal
-3. [ ] Update progress.md with what was accomplished and which goals are left to reach our project plan
-4. [ ] Create git commit with changes
-5. [ ] Identify new improvements or features to add to achieve our goal
+### Phase 1: ANALYZE
+1. [ ] Read and understand the project plan and acceptance criteria
+2. [ ] Read progress.md to understand current state
+3. [ ] Identify the highest priority next step that makes measurable progress
+
+### Phase 2: PLAN & VALIDATE
+4. [ ] Break down the goal into verifiable tasks
+5. [ ] Define what "done" looks like for each task
+6. [ ] Identify how you will verify completion (builds, tests, manual checks)
+
+### Phase 3: EXECUTE & VERIFY
+7. [ ] Implement the task
+8. [ ] Run verification checks:
+   - [ ] Code compiles/builds without errors
+   - [ ] Tests pass (if applicable)
+   - [ ] No linting errors
+   - [ ] Changes meet acceptance criteria
+9. [ ] Fix any issues found before proceeding
+
+### Phase 4: DOCUMENT & COMMIT
+10. [ ] Update progress.md with accomplishments
+11. [ ] Create meaningful git commit
+12. [ ] Identify next improvements
+
+## Verification Requirements
+
+BEFORE marking a task complete, you MUST verify:
+
+- [ ] **Build**: Code compiles/runs successfully
+- [ ] **Tests**: Unit tests pass (or state why not applicable)
+- [ ] **Linting**: Code passes style checks
+- [ ] **Requirements**: Feature meets acceptance criteria
+- [ ] **Integration**: Works with existing code
+- [ ] **No Regressions**: Existing functionality intact
 
 ## Constraints
 
 - [ ] Only work on ONE goal per iteration
+- [ ] NEVER skip verification steps
+- [ ] Always run tests before committing
 
 ## Success Criteria
 
 The loop succeeds when:
 
 - [ ] Git history shows regular commits
-- [ ] Progress tracking is up to date
-- [ ] We made progress towards our goal
+- [ ] Progress tracking is current
+- [ ] Verification checklist is completed
+- [ ] Measurable progress made toward goal
 
 If the current goal is complete, output <promise>COMPLETE</promise>.
-EOF
+RALPH_EOF_XYZ123
   )
 
   echo "$result" | tee /dev/stderr
@@ -103,9 +208,93 @@ EOF
   # Check for completion
   if echo "$result" | grep -q "<promise>COMPLETE</promise>"; then
     echo ""
-    echo "🎉 RalphLoop mission complete!"
+    echo "🛡️ Goal marked complete. Running independent validation..."
     echo "========================================"
-    exit 0
+
+    # Run validation prompt to verify completion criteria are truly met
+    validation_result=$(
+      opencode run --agent AGENT_RALPH <<RALPH_VALIDATE_EOF
+# Validation Task
+
+The agent previously indicated completion with <promise>COMPLETE</promise>.
+
+You must INDEPENDENTLY VERIFY that all acceptance criteria are actually met.
+
+## Original Project Goal (from prompt.md):
+$(get_prompt)
+
+## Current Progress:
+$(cat "$PROGRESS_FILE")
+
+## Your Validation Task:
+
+1. READ the current codebase state
+2. CHECK each acceptance criterion is actually satisfied:
+   - For each requirement, verify it exists and works
+   - Run tests, build commands, and manual checks
+3. VERIFY git history shows meaningful commits
+4. RUN comprehensive verification:
+   - [ ] Code compiles/builds without errors (run: npm run build or equivalent)
+   - [ ] Tests pass (run: npm test or equivalent)
+   - [ ] No linting errors (run: npm run lint or equivalent)
+   - [ ] All acceptance criteria from prompt.md are met
+   - [ ] No regressions in existing functionality
+5. OUTPUT your findings in this exact XML format:
+
+<validation_status>PASS</validation_status> or <validation_status>FAIL</validation_status>
+
+<validation_issues>
+- [List each failing criterion with specific details]
+- Leave empty if PASS
+</validation_issues>
+
+<validation_recommendations>
+- [Specific actions needed to fix each issue]
+- Leave empty if PASS
+</validation_recommendations>
+
+IMPORTANT:
+- If ALL checks pass, use <validation_status>PASS</validation_status>
+- If ANY check fails, use <validation_status>FAIL</validation_status> and list all issues
+- Do NOT trust the previous agent's assessment. Verify independently.
+RALPH_VALIDATE_EOF
+    )
+
+    echo ""
+    echo "📋 Validation Results:"
+    echo "-----------------------------------"
+    echo "$validation_result" | tee /dev/stderr
+    echo "-----------------------------------"
+
+    # Extract and check validation status
+    VALIDATION_STATUS=$(get_validation_status "$validation_result")
+
+    if [ "$VALIDATION_STATUS" = "PASS" ]; then
+      echo ""
+      echo "🎉 Validation PASSED! RalphLoop mission complete!"
+      echo "========================================"
+      rm -f "$VALIDATION_ISSUES_FILE"
+      exit 0
+    else
+      echo ""
+      echo "⚠️ Validation FAILED. Saving issues for next iteration..."
+      # Extract and save validation issues
+      ISSUES=$(get_validation_issues "$validation_result")
+      RECOMMENDATIONS=$(get_validation_recommendations "$validation_result")
+      
+      # Combine issues and recommendations for the next iteration
+      {
+        echo "## Issues Found:"
+        echo "$ISSUES"
+        echo ""
+        echo "## Recommendations:"
+        echo "$RECOMMENDATIONS"
+      } > "$VALIDATION_ISSUES_FILE"
+      
+      echo "Issues saved to ${VALIDATION_ISSUES_FILE}"
+      echo "Agent will prioritize fixing these in next iteration."
+      echo ""
+    fi
   fi
 
   echo ""
