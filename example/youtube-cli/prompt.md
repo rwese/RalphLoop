@@ -19,6 +19,7 @@ Build a professional-grade YouTube media management CLI tool that power users wo
 
 - **Local Database**: SQLite database tracking all downloads with metadata
 - **Library Organization**:
+
   ```
   library/
   ├── podcasts/
@@ -33,6 +34,7 @@ Build a professional-grade YouTube media management CLI tool that power users wo
       ├── Artist - Song.mp3
       └── metadata.json
   ```
+
 - **Deduplication**: Detect duplicates by content, not just filename
 - **Tags & Playlists**: Organize downloaded media into custom playlists
 - **Search**: Full-text search across downloaded library by title, description, transcript

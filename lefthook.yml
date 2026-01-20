@@ -1,5 +1,4 @@
 # lefthook.yml - Git hooks configuration for RalphLoop
-# https://github.com/evilmartians/lefthook
 
 pre-commit:
   parallel: true
@@ -11,5 +10,6 @@ pre-commit:
       run: npx markdownlint --fix --config .markdownlintrc.json {staged_files}
       stage: true
     lint-shell:
+      glob: '*.sh'
       run: npx shellcheck {staged_files}
       stage: true

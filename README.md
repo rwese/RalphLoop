@@ -121,7 +121,7 @@ podman run -it --rm \
   ghcr.io/rwese/ralphloop:latest bash
 ```
 
-### Environment Variables
+### Container Environment Variables
 
 Pass environment variables to configure the container:
 
@@ -170,6 +170,43 @@ docker run -it --rm \
   -w "/workspace" \
   ghcr.io/rwese/ralphloop:latest ./ralph 5
 ```
+
+## Examples
+
+RalphLoop includes ready-to-use project prompts in the `example/` directory. Each example is a complete project specification that RalphLoop can build for you.
+
+### Available Examples
+
+| Example                                           | Description                                     | Iterations |
+| ------------------------------------------------- | ----------------------------------------------- | ---------- |
+| [todo-app](./example/todo-app/)                   | Modern task management web app with PWA support | 10-15      |
+| [book-collection](./example/book-collection/)     | Personal library management system              | 15-20      |
+| [finance-dashboard](./example/finance-dashboard/) | Personal finance tracking and budgeting         | 15-20      |
+| [weather-cli](./example/weather-cli/)             | Professional CLI weather tool                   | 5-10       |
+| [youtube-cli](./example/youtube-cli/)             | YouTube download and media management           | 10-15      |
+
+See the [Examples README](./example/README.md) for detailed usage instructions.
+
+### Running an Example
+
+```bash
+# Run the todo app example with 10 iterations
+RALPH_PROMPT_FILE=example/todo-app/prompt.md npm run container:run 10
+
+# Or use the container script directly
+RALPH_PROMPT_FILE=example/todo-app/prompt.md ./bin/container.sh run 10
+
+# Copy the prompt to your project and run there
+cp example/todo-app/prompt.md my-project/
+cd my-project
+RALPH_PROMPT="$(cat prompt.md)" npm run container:run 10
+```
+
+### Creating Your Own
+
+1. Create a new folder in `example/`
+2. Add your project prompt as `prompt.md`
+3. See [example/README.md](./example/README.md) for full instructions
 
 ## License
 
