@@ -22,15 +22,15 @@ RalphLoop includes an npx CLI tool for easy containerized execution:
 ```bash
 git clone https://github.com/rwese/RalphLoop.git
 cd RalphLoop
-node cli/bin/ralphloop --help
-node cli/bin/ralphloop 5          # Run 5 iterations
+node bin/ralphloop --help
+node bin/ralphloop 5          # Run 5 iterations
 ```
 
 ### Option 2: Publish to npm (Recommended for Regular Use)
 
 ```bash
-# From the cli/ directory
-cd cli
+# From the project root
+
 npm publish
 
 # Then use from anywhere
