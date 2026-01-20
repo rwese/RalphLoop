@@ -40,7 +40,10 @@ RUN set -ex && \
       libx11-xcb1 \
       libxtst6 && \
     curl -fsSL https://opencode.ai/install | bash && \
+    curl -fsSL https://claude.ai/install.sh | bash && \
     curl -fsSL https://bun.com/install | bash && \
+    npm install -g @kilocode/cli && \
+    npm install -g @openai/codex && \
     npm install -g playwright && \
     npx playwright install-deps chromium && \
     npx playwright install chromium && \
@@ -60,7 +63,7 @@ RUN chmod +x /usr/local/bin/ralph
 COPY entrance.sh /usr/local/bin/entrance.sh
 RUN chmod +x /usr/local/bin/entrance.sh
 
-RUN RESULT=$(opencode debug config 2>&1) || echo 'Opencode install failed:' "$RESULT"
+RUN RESULT=$(opencode --print-logs debug agent AGENT_RALPH 2>&1) || echo 'Opencode install failed:' "$RESULT"
 
 ENTRYPOINT ["/usr/local/bin/entrance.sh"]
 
