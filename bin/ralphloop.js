@@ -517,6 +517,12 @@ async function examplesCommand() {
       description: 'YouTube download and media management',
       quick: 'youtube',
     },
+    {
+      name: 'prompt-builder',
+      iterations: '5-10',
+      description: 'Interactive tool to craft quality prompts',
+      quick: 'prompt',
+    },
   ];
 
   examples.forEach((example) => {
@@ -560,6 +566,7 @@ async function quickCommand(exampleName) {
     },
     weather: { name: 'weather-cli', prompt: 'examples/weather-cli/prompt.md', iterations: 5 },
     youtube: { name: 'youtube-cli', prompt: 'examples/youtube-cli/prompt.md', iterations: 10 },
+    prompt: { name: 'prompt-builder', prompt: 'examples/prompt-builder/prompt.md', iterations: 5 },
   };
 
   const example = examples[exampleName.toLowerCase()];
