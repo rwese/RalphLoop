@@ -109,16 +109,8 @@ function buildRunCommand(runtime, image, args, cwd, isGitRepo, command = null) {
     `${cwd}:/workspace`,
   ];
 
-  // Add -it flags only when running interactively (TTY available)
-  // This prevents "the input device is not a TTY" error in non-interactive environments
-  if (process.stdin.isTTY) {
-    commonArgs.splice(2, 0, '-it');
-  }
-
   // Add --userns=keep-id only for Podman (not supported by Docker)
   if (runtime === 'podman') {
-    // Insert after '-it' or at position 3 if no -it flag
-    const insertPos = process.stdin.isTTY ? 4 : 3;
     commonArgs.splice(insertPos, 0, '--userns=keep-id');
   }
 
@@ -201,16 +193,16 @@ OPTIONS
 EXAMPLES
   # Run with default settings (1 iteration)
   npx ralphloop
-  
+
   # Run 10 iterations
   npx ralphloop 10
-  
+
   # Force Docker (instead of auto-detected Podman)
   npx ralphloop --docker 5
-  
+
   # Use a specific image tag
   npx ralphloop --image ghcr.io/rwese/ralphloop:v1.0.0
-  
+
   # Run with environment variables
   npx ralphloop 3
 
@@ -341,10 +333,10 @@ async function main() {
 
   console.log(`\nRunning: ${runtimeCmd} ${containerArgs.join(' ')}\n`);
 
-   // Run the container
+  // Run the container
   const result = await spawnAsync(runtimeCmd, containerArgs, {
     cwd,
-    env: { ...process.env, TERM: process.stdin.isTTY ? (process.env.TERM || 'xterm') : 'dumb' },
+    env: { ...process.env },
   });
 
   process.exit(result.code);
