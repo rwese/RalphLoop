@@ -209,7 +209,7 @@ This iteration is running with backend integration. Be aware of any backend-spec
 
   # Run OpenCode agent with current context
   result=$(
-    opencode run --agent AGENT_RALPH <<RALPH_EOF_XYZ123 | tee /dev/stderr
+    opencode run --agent AGENT_RALPH <<RALPH_EOF_XYZ123
 # Goals and Resources
 
 ## Project plan
@@ -288,7 +288,7 @@ RALPH_EOF_XYZ123
 
     # Run validation prompt to verify completion criteria are truly met
     validation_result=$(
-      opencode run --agent AGENT_RALPH <<RALPH_VALIDATE_EOF | tee /dev/stderr
+      opencode run --agent AGENT_RALPH <<RALPH_VALIDATE_EOF
 # Validation Task
 
 The agent previously indicated completion with <promise>COMPLETE</promise>.
