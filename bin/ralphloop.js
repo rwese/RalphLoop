@@ -111,7 +111,7 @@ function buildRunCommand(runtime, image, args, cwd, isGitRepo, command = null) {
 
   // Add --userns=keep-id only for Podman (not supported by Docker)
   if (runtime === 'podman') {
-    commonArgs.splice(insertPos, 0, '--userns=keep-id');
+    commonArgs.push('--userns=keep-id');
   }
 
   // Add git config if in a git repo (for commits)
