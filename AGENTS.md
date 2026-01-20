@@ -29,7 +29,7 @@ The project uses a self-contained autonomous loop that:
 **Loop Command:**
 
 ```bash
-./ralph.sh <iterations>  # Default: 100 iterations
+./ralph <iterations>  # Default: 100 iterations
 ```
 
 ### Configuration Cascade
@@ -47,13 +47,13 @@ Settings flow from most specific to least specific:
 
 ```bash
 # Method 1: Direct prompt
-RALPH_PROMPT="Build a REST API for user management" ./ralph.sh 50
+RALPH_PROMPT="Build a REST API for user management" ./ralph 50
 
 # Method 2: Prompt from file
-RALPH_PROMPT_FILE="/path/to/custom-prompt.md" ./ralph.sh 50
+RALPH_PROMPT_FILE="/path/to/custom-prompt.md" ./ralph 50
 
 # Method 3: Default prompt.md
-./ralph.sh 50
+./ralph 50
 ```
 
 ### API Keys
@@ -71,18 +71,18 @@ export OPENCODE_API_KEY=your_api_key_here
 ```bash
 # Podman (default on this system)
 podman build -t ralphloop .
-podman run -it --rm -v "$(pwd):/workspace" ralphloop bash ./ralph.sh 1
+podman run -it --rm -v "$(pwd):/workspace" ralphloop bash ./ralph 1
 
 # Docker (alternative)
 docker build -t ralphloop .
-docker run -it --rm -v "$(pwd):/workspace" ralphloop bash ./ralph.sh 1
+docker run -it --rm -v "$(pwd):/workspace" ralphloop bash ./ralph 1
 ```
 
 ## Project Structure
 
 ```
 RalphLoop/
-├── ralph.sh              # Autonomous loop script (entry point)
+├── ralph                  # Autonomous loop script (entry point)
 ├── prompt.md             # Default project objectives
 ├── progress.md           # Iteration tracking and progress
 ├── Dockerfile            # Container definition
@@ -188,13 +188,13 @@ Authentication required for OpenCode
 **Problem:**
 
 ```
-bash: ./ralph.sh: Permission denied
+bash: ./ralph: Permission denied
 ```
 
 **Solution:**
 
 ```bash
-chmod +x ralph.sh entrance.sh
+chmod +x ralph
 ```
 
 ## Development Workflow
@@ -206,7 +206,7 @@ chmod +x ralph.sh entrance.sh
 nano prompt.md
 
 # 2. Test with single iteration
-./ralph.sh 1
+./ralph 1
 
 # 3. Check git status
 git status
@@ -226,7 +226,7 @@ podman run -it --rm \
   --userns=keep-id \
   -v "$(pwd):/workspace" \
   -w "/workspace" \
-  ralphloop bash ./ralph.sh 1
+  ralphloop bash ./ralph 1
 
 # Interactive development
 podman run -it --rm \
@@ -243,7 +243,7 @@ podman run -it --rm \
 echo "New objective" > prompt.md
 
 # Run one iteration
-RALPH_PROMPT="Complete the feature" ./ralph.sh 1
+RALPH_PROMPT="Complete the feature" ./ralph 1
 
 # Check progress
 cat progress.md
@@ -360,10 +360,10 @@ Output `<promise>COMPLETE</promise>` when:
 
 ```bash
 # Run loop
-./ralph.sh <iterations>
+./ralph <iterations>
 
 # With custom prompt
-RALPH_PROMPT="goal" ./ralph.sh 1
+RALPH_PROMPT="goal" ./ralph 1
 
 # Docker build
 podman build -t ralphloop .

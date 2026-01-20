@@ -6,11 +6,11 @@ Autonomous development system that runs itself.
 
 ```bash
 # Run the autonomous loop
-./ralph.sh 1
+./ralph 1
 
 # Build and run Docker image
 docker build -t ralphloop .
-docker run -it --rm -v "$(pwd):/workspace" ralphloop bash ./ralph.sh 1
+docker run -it --rm -v "$(pwd):/workspace" ralphloop bash ./ralph 1
 ```
 
 ## Published Image
@@ -41,7 +41,7 @@ docker run -it --rm \
   -v "$(pwd):/workspace" \
   -w "/workspace" \
   -e RALPH_PROMPT="Your task here" \
-  ghcr.io/rwese/ralphloop:latest ./ralph.sh 1
+  ghcr.io/rwese/ralphloop:latest ./ralph 1
 
 # Podman (with UID preservation)
 podman run -it --rm \
@@ -49,7 +49,7 @@ podman run -it --rm \
   -v "$(pwd):/workspace" \
   -w "/workspace" \
   -e RALPH_PROMPT="Your task here" \
-  ghcr.io/rwese/ralphloop:latest ./ralph.sh 1
+  ghcr.io/rwese/ralphloop:latest ./ralph 1
 ```
 
 ### Interactive Development
@@ -88,7 +88,7 @@ docker run -it --rm \
   -w "/workspace" \
   -e RALPH_PROMPT="Add dark mode to the app" \
   -e CONTEXT7_API_KEY="your-key" \
-  ghcr.io/rwese/ralphloop:latest ./ralph.sh 10
+  ghcr.io/rwese/ralphloop:latest ./ralph 10
 ```
 
 ### Using with GitHub Authentication
@@ -103,7 +103,7 @@ docker run -it --rm \
   -v "$(pwd):/workspace" \
   -w "/workspace" \
   -e GH_TOKEN \
-  ghcr.io/rwese/ralphloop:latest ./ralph.sh 1
+  ghcr.io/rwese/ralphloop:latest ./ralph 1
 ```
 
 ### Volume Mounts for Persistence
@@ -116,7 +116,7 @@ docker run -it --rm \
   -v "$(pwd)/.local:/root/.local" \
   -v "$(pwd)/.config:/root/.config" \
   -w "/workspace" \
-  ghcr.io/rwese/ralphloop:latest ./ralph.sh 5
+  ghcr.io/rwese/ralphloop:latest ./ralph 5
 ```
 
 ## License

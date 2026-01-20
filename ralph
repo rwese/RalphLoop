@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-# ralph.sh - RalphLoop Autonomous Development Agent
-# Usage: ./ralph.sh <iterations>
+# ralph - RalphLoop Autonomous Development Agent
+# Usage: ./ralph <iterations>
 #
 # Prompt can be provided via:
 # 1. prompt.md file (default)
