@@ -166,8 +166,161 @@
         }
 
         .theme-toggle:hover {
-            background: rgba(255,255,255,0.3);
-            transform: translateY(-2px);
+            transform: scale(1.1);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        [data-theme="dark"] .theme-toggle {
+            background: rgba(30, 30, 30, 0.9);
+            color: #ffd700;
+        }
+
+        .help-btn {
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            border-radius: 20px;
+            padding: 8px 16px;
+            font-size: 14px;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .help-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        [data-theme="dark"] .help-btn {
+            background: rgba(30, 30, 30, 0.9);
+            color: #e0e0e0;
+        }
+
+        /* Help Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            animation: modalSlideIn 0.3s ease;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--header-border);
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .modal-close:hover {
+            background: var(--tag-bg);
+            color: var(--text-primary);
+        }
+
+        .shortcuts-grid {
+            display: grid;
+            gap: 12px;
+        }
+
+        .shortcut-item {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 12px;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .shortcut-item:last-child {
+            border-bottom: none;
+        }
+
+        .shortcut-keys {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+        }
+
+        .key {
+            background: var(--tag-bg);
+            color: var(--text-primary);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            font-weight: 600;
+            border: 1px solid var(--card-border);
+        }
+
+        .shortcut-description {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .shortcuts-section {
+            margin-bottom: 20px;
+        }
+
+        .shortcuts-section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 12px;
         }
 
         [data-theme="dark"] .theme-toggle {
@@ -628,6 +781,9 @@
                 <h1>📝 Quick Notes</h1>
             </div>
             <div class="header-right">
+                <button class="help-btn" id="helpBtn" title="Show keyboard shortcuts">
+                    ⌨️ Shortcuts
+                </button>
                 <button class="theme-toggle" id="themeToggle" title="Toggle dark/light mode">
                     🌙 Dark Mode
                 </button>
@@ -698,6 +854,100 @@
 
     <div class="toast" id="toast"></div>
 
+    <!-- Help Modal -->
+    <div class="modal" id="helpModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">⌨️ Keyboard Shortcuts</h2>
+                <button class="modal-close" id="modalClose">×</button>
+            </div>
+            
+            <div class="shortcuts-section">
+                <h3 class="shortcuts-section-title">Global Shortcuts (when not typing)</h3>
+                <div class="shortcuts-grid">
+                    <div class="shortcut-item">
+                        <div class="shortcut-keys">
+                            <span class="key">Ctrl</span>
+                            <span class="key">+</span>
+                            <span class="key">N</span>
+                        </div>
+                        <span class="shortcut-description">New note</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <div class="shortcut-keys">
+                            <span class="key">N</span>
+                        </div>
+                        <span class="shortcut-description">New note</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <div class="shortcut-keys">
+                            <span class="key">Ctrl</span>
+                            <span class="key">+</span>
+                            <span class="key">F</span>
+                        </div>
+                        <span class="shortcut-description">Focus search</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <div class="shortcut-keys">
+                            <span class="key">/</span>
+                        </div>
+                        <span class="shortcut-description">Focus search</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <div class="shortcut-keys">
+                            <span class="key">Ctrl</span>
+                            <span class="key">+</span>
+                            <span class="key">T</span>
+                        </div>
+                        <span class="shortcut-description">Toggle theme</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <div class="shortcut-keys">
+                            <span class="key">T</span>
+                        </div>
+                        <span class="shortcut-description">Toggle theme</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <div class="shortcut-keys">
+                            <span class="key">Ctrl</span>
+                            <span class="key">+</span>
+                            <span class="key">E</span>
+                        </div>
+                        <span class="shortcut-description">Export notes (JSON)</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <div class="shortcut-keys">
+                            <span class="key">Esc</span>
+                        </div>
+                        <span class="shortcut-description">Clear form and search</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="shortcuts-section">
+                <h3 class="shortcuts-section-title">While typing in note or search</h3>
+                <div class="shortcuts-grid">
+                    <div class="shortcut-item">
+                        <div class="shortcut-keys">
+                            <span class="key">Ctrl</span>
+                            <span class="key">+</span>
+                            <span class="key">S</span>
+                        </div>
+                        <span class="shortcut-description">Save note</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <div class="shortcut-keys">
+                            <span class="key">Ctrl</span>
+                            <span class="key">+</span>
+                            <span class="key">Enter</span>
+                        </div>
+                        <span class="shortcut-description">Save note</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         class QuickNotes {
             constructor() {
@@ -714,6 +964,7 @@
             init() {
                 this.applyTheme();
                 this.bindEvents();
+                this.renderTags();
                 this.render();
             }
 
@@ -775,9 +1026,101 @@
                     }
                 });
 
+                // Help modal functionality
+                const helpBtn = document.getElementById('helpBtn');
+                const helpModal = document.getElementById('helpModal');
+                const modalClose = document.getElementById('modalClose');
+
+                helpBtn.addEventListener('click', () => {
+                    helpModal.classList.add('show');
+                });
+
+                modalClose.addEventListener('click', () => {
+                    helpModal.classList.remove('show');
+                });
+
+                helpModal.addEventListener('click', (e) => {
+                    if (e.target === helpModal) {
+                        helpModal.classList.remove('show');
+                    }
+                });
+
                 // Theme toggle functionality
                 themeToggle.addEventListener('click', () => {
                     this.toggleTheme();
+                });
+
+                // Keyboard shortcuts
+                document.addEventListener('keydown', (e) => {
+                    // Only apply shortcuts when not typing in input fields
+                    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.contentEditable === 'true') {
+                        // Allow some shortcuts even in inputs
+                        if (e.ctrlKey || e.metaKey) {
+                            switch (e.key) {
+                                case 's':
+                                    e.preventDefault();
+                                    this.saveNote();
+                                    break;
+                                case 'Enter':
+                                    e.preventDefault();
+                                    this.saveNote();
+                                    break;
+                            }
+                        }
+                        return;
+                    }
+
+                    // Global shortcuts
+                    if (e.ctrlKey || e.metaKey) {
+                        switch (e.key) {
+                            case 'n':
+                                e.preventDefault();
+                                this.clearForm();
+                                document.getElementById('noteInput').focus();
+                                break;
+                            case 'f':
+                                e.preventDefault();
+                                document.getElementById('searchInput').focus();
+                                break;
+                            case 't':
+                                e.preventDefault();
+                                this.toggleTheme();
+                                break;
+                            case 'e':
+                                e.preventDefault();
+                                this.exportNotes('json');
+                                break;
+                        }
+                    } else {
+                        switch (e.key) {
+                            case 'n':
+                                e.preventDefault();
+                                this.clearForm();
+                                document.getElementById('noteInput').focus();
+                                break;
+                            case '/':
+                                e.preventDefault();
+                                document.getElementById('searchInput').focus();
+                                break;
+                            case '?':
+                                e.preventDefault();
+                                document.getElementById('helpModal').classList.add('show');
+                                break;
+                            case 't':
+                                e.preventDefault();
+                                this.toggleTheme();
+                                break;
+                            case 'Escape':
+                                e.preventDefault();
+                                this.clearForm();
+                                document.getElementById('searchInput').value = '';
+                                this.searchQuery = '';
+                                this.render();
+                                // Also close modal if open
+                                document.getElementById('helpModal').classList.remove('show');
+                                break;
+                        }
+                    }
                 });
             }
 
@@ -1036,16 +1379,22 @@
                 const count = document.getElementById('notesCount');
                 const searchResults = document.getElementById('searchResults');
                 
+                // Render tag filter section
+                this.renderTagFilter();
+                
                 const filteredNotes = this.filterNotes();
                 const totalNotes = this.notes.length;
                 const showingNotes = filteredNotes.length;
 
-                // Update count
-                if (this.searchQuery || this.currentFilter !== 'all') {
+                // Update count with tag filter info
+                const filterInfo = [];
+                if (this.searchQuery) filterInfo.push(`Search: "${this.searchQuery}"`);
+                if (this.currentFilter !== 'all') filterInfo.push(`Filter: ${this.currentFilter}`);
+                if (this.activeTagFilter) filterInfo.push(`Tag: ${this.activeTagFilter}`);
+                
+                if (filterInfo.length > 0) {
                     count.textContent = `Showing ${showingNotes} of ${totalNotes} notes`;
-                    searchResults.textContent = this.searchQuery ? 
-                        `Search: "${this.searchQuery}"` : 
-                        `Filter: ${this.currentFilter}`;
+                    searchResults.textContent = filterInfo.join(' • ');
                 } else {
                     count.textContent = `${totalNotes} note${totalNotes !== 1 ? 's' : ''}`;
                     searchResults.textContent = '';
@@ -1072,22 +1421,30 @@
                     return;
                 }
 
-                grid.innerHTML = filteredNotes.map(note => `
-                    <div class="note-item" data-id="${note.id}">
-                        <div class="note-content">${this.highlightSearchTerm(note.content)}</div>
-                        <div class="note-meta">
-                            <span>🕒 ${this.formatDate(note.updatedAt)}</span>
-                            <div class="note-actions">
-                                <button class="btn-secondary" onclick="app.editNote('${note.id}')">
-                                    ✏️ Edit
-                                </button>
-                                <button class="btn-danger" onclick="app.deleteNote('${note.id}')">
-                                    🗑️ Delete
-                                </button>
+                grid.innerHTML = filteredNotes.map(note => {
+                    const tagsHtml = note.tags && note.tags.length > 0 ? 
+                        `<div class="note-tags">
+                            ${note.tags.map(tag => `<span class="note-tag">${this.escapeHtml(tag)}</span>`).join('')}
+                        </div>` : '';
+                    
+                    return `
+                        <div class="note-item" data-id="${note.id}">
+                            <div class="note-content">${this.highlightSearchTerm(note.content)}</div>
+                            ${tagsHtml}
+                            <div class="note-meta">
+                                <span>🕒 ${this.formatDate(note.updatedAt)}</span>
+                                <div class="note-actions">
+                                    <button class="btn-secondary" onclick="app.editNote('${note.id}')">
+                                        ✏️ Edit
+                                    </button>
+                                    <button class="btn-danger" onclick="app.deleteNote('${note.id}')">
+                                        🗑️ Delete
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                `).join('');
+                    `;
+                }).join('');
             }
 
             escapeHtml(text) {
@@ -1142,6 +1499,9 @@
                     content += `Note #${index + 1}\n`;
                     content += `Created: ${new Date(note.createdAt).toLocaleString()}\n`;
                     content += `Updated: ${new Date(note.updatedAt).toLocaleString()}\n`;
+                    if (note.tags && note.tags.length > 0) {
+                        content += `Tags: ${note.tags.join(', ')}\n`;
+                    }
                     content += `${'-'.repeat(30)}\n`;
                     content += `${note.content}\n\n`;
                 });
