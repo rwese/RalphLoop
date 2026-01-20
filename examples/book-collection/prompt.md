@@ -54,6 +54,7 @@ Build a comprehensive book collection manager for book lovers who want to catalo
 ## Success Criteria
 
 - **Easy Entry**: Add books quickly with minimal friction
+- **Fast Capture of Books** using the device camera to scan ISBN codes and fetch metadata
 - **Rich Data**: Fetch covers, descriptions, and metadata automatically when available
 - **Beautiful Library**: Grid view with covers looks visually appealing
 - **Insightful Stats**: Statistics feel meaningful and provide real value
