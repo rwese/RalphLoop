@@ -11,7 +11,7 @@ env:
   # GitHub Container Registry
   GHCR_REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-  
+
   # Docker Hub (optional - configure DOCKER_USERNAME and DOCKER_PASSWORD secrets)
   DOCKERHUB_REGISTRY: docker.io
   DOCKERHUB_IMAGE: ${{ secrets.DOCKER_USERNAME }}/ralphloop
@@ -94,20 +94,20 @@ jobs:
             curl -fsSL https://github.com/estesp/manifest-tool/releases/download/v2.1.3/manifest-tool-linux-amd64 -o manifest-tool
             chmod +x manifest-tool
           fi
-          
+
           # Check manifest for GitHub Container Registry
           echo "=== GitHub Container Registry Manifest ==="
           echo "Image: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-          
+
           # Docker Buildx automatically creates manifest lists
           echo "✓ Multi-architecture image built and pushed"
           echo "  - linux/amd64"
           echo "  - linux/arm64"
-          
+
           echo ""
           echo "Pull command:"
           echo "  podman pull ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-          
+
           if secrets.DOCKER_USERNAME != ''; then
             echo ""
             echo "Docker Hub:"
