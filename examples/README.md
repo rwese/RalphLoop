@@ -151,7 +151,28 @@ RALPH_PROMPT="Build a new feature X for my app" npm run container:run 5
 | ------------------- | -------------------------------------------------------------------------------- |
 | `RALPH_PROMPT`      | Direct prompt text for the autonomous loop                                       |
 | `RALPH_PROMPT_FILE` | Path to a prompt file (e.g., `/usr/share/ralphloop/examples/todo-app/prompt.md`) |
-| `OPENCODE_AUTH`     | OpenCode authentication (required)                                               |
+| `OPENCODE_AUTH`     | OpenCode authentication data (JSON format, required)                             |
+
+### Setting Up OPENCODE_AUTH
+
+1. **Install OpenCode CLI and log in:**
+
+   ```bash
+   npm install -g @opencode/ai
+   opencode auth login
+   ```
+
+2. **The auth file is at:** `~/.local/share/opencode/auth.json`
+
+3. **Pass to container:**
+
+   ```bash
+   # Using shell substitution
+   OPENCODE_AUTH=$(cat ~/.local/share/opencode/auth.json) npx ralphloop 10
+
+   # Or using --env flag
+   npx ralphloop --env "OPENCODE_AUTH=$(cat ~/.local/share/opencode/auth.json)" 10
+   ```
 
 ## Tips
 
