@@ -5,5 +5,13 @@
   "trailingComma": "es5",
   "printWidth": 100,
   "bracketSpacing": true,
-  "arrowParens": "always"
+  "arrowParens": "always",
+  "overrides": [
+    {
+      "files": "Dockerfile*",
+      "options": {
+        "parser": "dockerfile"
+      }
+    }
+  ]
 }
