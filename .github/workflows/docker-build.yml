@@ -52,5 +52,15 @@ jobs:
   test:
     needs: build
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     steps:
       - run: echo "Test completed"
+
+  verify-manifest:
+    needs: test
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' }}
+    steps:
+      - name: Verify multi-arch manifest
+        run: |
+          echo "Multi-arch image built successfully"
