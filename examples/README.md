@@ -111,6 +111,33 @@ podman run -it --rm \
   ralphloop ./ralph 10
 ```
 
+### PromptBuilder
+
+Build an interactive tool that helps users transform raw ideas into quality prompts:
+
+```bash
+podman run -it --rm \
+  --userns=keep-id \
+  -v "$(pwd):/workspace" \
+  -w "/workspace" \
+  -e "RALPH_PROMPT_FILE=/usr/share/ralphloop/examples/prompt-builder/prompt.md" \
+  -e "OPENCODE_AUTH=$(< ~/.local/share/opencode/auth.json)" \
+  ralphloop ./ralph 5
+```
+
+Or using the quick command:
+
+```bash
+npx ralphloop quick prompt
+```
+
+Or using npm scripts:
+
+```bash
+# Run with example prompt (path is inside the container)
+RALPH_PROMPT_FILE=/usr/share/ralphloop/examples/prompt-builder/prompt.md npm run container:run 5
+```
+
 ## Interactive Mode
 
 Get a shell inside the container to experiment:
