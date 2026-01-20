@@ -33,22 +33,10 @@
     "container:push": "./bin/container.sh push",
     "container:run": "./bin/container.sh run",
     "container:info": "./bin/container.sh info",
-    "prepare": "husky"
-  },
-  "lint-staged": {
-    "*.{js,ts,json}": [
-      "prettier --write"
-    ],
-    "*.md": [
-      "markdownlint --fix --config .markdownlintrc.json"
-    ],
-    "*.sh": [
-      "shellcheck"
-    ]
+    "lefthook": "lefthook"
   },
   "devDependencies": {
-    "husky": "^9.1.7",
-    "lint-staged": "^16.2.7",
+    "lefthook": "^2.0.15",
     "markdownlint-cli": "^0.47.0",
     "prettier": "^3.8.0"
   }
