@@ -142,6 +142,14 @@ function buildRunCommand(runtime, image, args, cwd, isGitRepo, command = null) {
     commonArgs.push('-e', `OPENCODE_AUTH=${process.env.OPENCODE_AUTH}`);
   }
 
+  // Pass through RalphLoop prompt environment variables
+  if (process.env.RALPH_PROMPT) {
+    commonArgs.push('-e', `RALPH_PROMPT=${process.env.RALPH_PROMPT}`);
+  }
+  if (process.env.RALPH_PROMPT_FILE) {
+    commonArgs.push('-e', `RALPH_PROMPT_FILE=${process.env.RALPH_PROMPT_FILE}`);
+  }
+
   // Add image
   commonArgs.push(image);
 
@@ -176,8 +184,8 @@ OPTIONS
   --image, -i      Docker image to use (default: ${DEFAULT_IMAGE})
   --help, -h       Show this help message
   --version, -V    Show version information
-  --pull           Always pull the latest image before running
-  --no-pull        Skip pulling the image
+  --pull           Pull the latest image before running (default)
+  --no-pull        Skip pulling the image, use cached version
 
 EXAMPLES
   # Run with default settings (1 iteration)
@@ -241,7 +249,7 @@ async function main() {
   let runtime = null;
   let image = DEFAULT_IMAGE;
   let iterations = DEFAULT_ITERATIONS;
-  let pullImageFlag = false;
+  let pullImageFlag = true; // Default to pulling latest image
   let extraArgs = [];
 
   for (let i = 0; i < args.length; i++) {

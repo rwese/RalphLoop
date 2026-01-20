@@ -81,6 +81,9 @@ RUN echo 'export PATH=/root/.local/bin:/root/.opencode/bin:/usr/local/lib/node_m
 
 COPY .opencode /root/.config/opencode
 
+# Copy examples directory to standard Linux share location
+COPY example /usr/share/ralphloop/examples
+
 # Copy ralph script to /usr/local/bin/ralph and make it executable
 COPY ralph /usr/local/bin/ralph
 RUN chmod +x /usr/local/bin/ralph

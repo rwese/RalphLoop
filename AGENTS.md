@@ -92,6 +92,12 @@ RalphLoop/
 │   ├── prompts/agent/AGENT_RALPH.md  # Agent configuration
 │   └── opencode.jsonc        # OpenCode CLI configuration
 ├── DOCKER.md             # Docker/Podman run commands
+├── example/              # Ready-to-use project examples
+│   ├── todo-app/         # Task management web app
+│   ├── book-collection/  # Personal library manager
+│   ├── finance-dashboard/# Personal finance tracker
+│   ├── weather-cli/      # CLI weather tool
+│   └── youtube-cli/      # YouTube download tool
 ├── quick-notes/          # Quick Notes web application (MVP product)
 └── docs/                 # Documentation
 ```
@@ -112,6 +118,18 @@ RalphLoop/
 2. **Mount current directory** - `-v "$(pwd):/workspace"` for live development
 3. **Set working directory** - `-w "/workspace"` in container runs
 4. **Pass environment variables** - `-e VAR=value` for configuration
+5. **Examples are pre-installed** - Use `/usr/share/ralphloop/examples/` for quick start
+
+### Running Examples
+
+```bash
+# Run todo-app example with npx (auto-pulls latest image)
+RALPH_PROMPT_FILE=/usr/share/ralphloop/examples/todo-app/prompt.md npx ralphloop 10
+
+# Or build locally and run with npm script
+npm run container:build
+RALPH_PROMPT_FILE=/usr/share/ralphloop/examples/todo-app/prompt.md npm run container:run 10
+```
 
 ### For npm/node Usage
 
@@ -133,9 +151,11 @@ npm error The `init.author.name` option is deprecated
 
 - Remove deprecated options from Dockerfile
 - Use command-line flags during `npm init` instead:
+
   ```bash
   npm init --init-author-name="Name" --init-author-email="email@example.com"
   ```
+
 - Only `save-exact` can be set via `npm config set`
 
 ### Issue: Prompt file not found
@@ -165,6 +185,7 @@ curl: (7) Failed to connect to deb.nodesource.com
 1. Check network connectivity
 2. Ensure curl is installed before NodeSource script
 3. Try alternative Node.js installation method:
+
    ```dockerfile
    RUN apt-get install -y nodejs
    ```
@@ -388,5 +409,5 @@ git log --oneline -10
 ### Support
 
 - **Context7 docs**: Set `CONTEXT7_API_KEY` for MCP documentation lookup
-- **OpenCode docs**: https://opencode.ai/docs
+- **OpenCode docs**: <https://opencode.ai/docs>
 - **Project progress**: See `progress.md` for experiment status
