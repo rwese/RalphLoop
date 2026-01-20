@@ -101,7 +101,6 @@ function buildRunCommand(runtime, image, args, cwd, isGitRepo, command = null) {
   const commonArgs = [
     'run',
     '--rm',
-    '-it',
     '-e',
     'HOME=/root',
     '-w',
@@ -110,9 +109,17 @@ function buildRunCommand(runtime, image, args, cwd, isGitRepo, command = null) {
     `${cwd}:/workspace`,
   ];
 
+  // Add -it flags only when running interactively (TTY available)
+  // This prevents "the input device is not a TTY" error in non-interactive environments
+  if (process.stdin.isTTY) {
+    commonArgs.splice(2, 0, '-it');
+  }
+
   // Add --userns=keep-id only for Podman (not supported by Docker)
   if (runtime === 'podman') {
-    commonArgs.splice(3, 0, '--userns=keep-id');
+    // Insert after '-it' or at position 3 if no -it flag
+    const insertPos = process.stdin.isTTY ? 4 : 3;
+    commonArgs.splice(insertPos, 0, '--userns=keep-id');
   }
 
   // Add git config if in a git repo (for commits)
@@ -334,10 +341,10 @@ async function main() {
 
   console.log(`\nRunning: ${runtimeCmd} ${containerArgs.join(' ')}\n`);
 
-  // Run the container
+   // Run the container
   const result = await spawnAsync(runtimeCmd, containerArgs, {
     cwd,
-    env: { ...process.env, TERM: process.env.TERM || 'xterm' },
+    env: { ...process.env, TERM: process.stdin.isTTY ? (process.env.TERM || 'xterm') : 'dumb' },
   });
 
   process.exit(result.code);
