@@ -1,0 +1,24 @@
+{
+  "name": "autonomous-development",
+  "description": "Standard autonomous development workflow with Claude Code",
+  "enabled": true,
+  "settings": {
+    "iterations": 10,
+    "mode": "autonomous",
+    "promptFile": "examples/autonomous-development/prompt.md"
+  },
+  "environment": {
+    "RALPH_MODE": "autonomous",
+    "RALPH_ITERATIONS": "10"
+  },
+  "hooks": {
+    "preEvaluation": ["validateEnvironment", "checkClaudeAuth"],
+    "postEvaluation": ["generateReport"],
+    "onError": ["logError", "notifyUser"]
+  },
+  "customizations": {
+    "autoCommit": true,
+    "autoPush": false,
+    "createBranches": true
+  }
+}

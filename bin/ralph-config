@@ -190,7 +190,7 @@ get_config() {
 
     jq -r ".$jq_path // \"Not set\"" "$config" 2>/dev/null
   else
-    # Use json-query.js
+    # Use json-query.cjs
     "$json_query" "$config" "$key" --get
   fi
 }

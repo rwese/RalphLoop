@@ -1,0 +1,24 @@
+{
+  "name": "workflow-automation",
+  "description": "Complex workflow automation with Kilo CLI",
+  "enabled": true,
+  "settings": {
+    "iterations": 20,
+    "mode": "autonomous",
+    "promptFile": "examples/workflow-automation/prompt.md"
+  },
+  "environment": {
+    "RALPH_MODE": "autonomous",
+    "RALPH_ITERATIONS": "20"
+  },
+  "hooks": {
+    "preEvaluation": ["validateWorkflow", "checkPrerequisites"],
+    "postEvaluation": ["generateWorkflowReport", "archiveArtifacts"],
+    "onError": ["attemptRecovery", "cleanupResources"]
+  },
+  "workflowSettings": {
+    "stages": ["analysis", "implementation", "testing", "documentation"],
+    "autoApproval": false,
+    "requireCodeReview": true
+  }
+}

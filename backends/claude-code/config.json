@@ -2,7 +2,7 @@
   "name": "Claude Code Backend",
   "version": "1.0.0",
   "description": "Configuration for integrating RalphLoop with Claude Code CLI",
-  "enabled": false,
+  "enabled": true,
   "cli": {
     "name": "claude",
     "installUrl": "https://github.com/anthropics/claude-code-cli",
@@ -16,23 +16,37 @@
     "evaluationTrigger": {
       "command": "ralph-trigger",
       "description": "Trigger RalphLoop evaluation loop",
-      "arguments": ["--iterations", "--prompt", "--mode"]
+      "arguments": [
+        "--iterations",
+        "--prompt",
+        "--mode"
+      ]
     },
     "statusCheck": {
       "command": "ralph-status",
       "description": "Check RalphLoop status and progress",
-      "arguments": ["--progress", "--state"]
+      "arguments": [
+        "--progress",
+        "--state"
+      ]
     },
     "configuration": {
       "command": "ralph-config",
       "description": "Configure RalphLoop settings",
-      "arguments": ["--set", "--get", "--list"]
+      "arguments": [
+        "--set",
+        "--get",
+        "--list"
+      ]
     }
   },
   "hooks": {
     "preEvaluation": [],
     "postEvaluation": [],
-    "onError": ["logError", "notifyUser"]
+    "onError": [
+      "logError",
+      "notifyUser"
+    ]
   },
   "environment": {
     "CLAUDE_API_KEY": {
@@ -49,21 +63,27 @@
     {
       "name": "evaluate",
       "command": "ralph",
-      "arguments": ["$ITERATIONS"],
+      "arguments": [
+        "$ITERATIONS"
+      ],
       "description": "Start evaluation loop",
       "mode": "autonomous"
     },
     {
       "name": "status",
       "command": "ralph",
-      "arguments": ["--status"],
+      "arguments": [
+        "--status"
+      ],
       "description": "Check current status",
       "mode": "interactive"
     },
     {
       "name": "validate",
       "command": "ralph",
-      "arguments": ["--validate"],
+      "arguments": [
+        "--validate"
+      ],
       "description": "Validate current state",
       "mode": "validation"
     }
