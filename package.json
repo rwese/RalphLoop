@@ -27,7 +27,7 @@
   "scripts": {
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "lint:markdown": "markdownlint '**/*.md' --ignore 'node_modules' --ignore '.git'",
+    "lint:markdown": "markdownlint '**/*.md' --ignore 'node_modules' --ignore '.git' --ignore 'test/node_modules'",
     "container:build": "./bin/container.sh build",
     "container:pull": "./bin/container.sh pull",
     "container:push": "./bin/container.sh push",

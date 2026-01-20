@@ -96,7 +96,7 @@ The `main` branch is protected:
 
 ### Reporting Vulnerabilities
 
-Report security vulnerabilities to: security@ralphloop.example.com
+Report security vulnerabilities to: <security@ralphloop.example.com>
 
 ## 🔄 Security Best Practices
 
@@ -108,7 +108,7 @@ Report security vulnerabilities to: security@ralphloop.example.com
 
 ## 📞 Contact
 
-For security questions: security@ralphloop.example.com
+For security questions: <security@ralphloop.example.com>
 
 ---
 

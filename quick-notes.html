@@ -1,1433 +1,1461 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Quick Notes</title>
     <style>
-        /* CSS Custom Properties for theming */
-        :root {
-            --bg-gradient-start: #667eea;
-            --bg-gradient-end: #764ba2;
-            --bg-overlay: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
-            
-            --text-primary: #333;
-            --text-secondary: #6c757d;
-            --text-on-primary: white;
-            
-            --card-bg: white;
-            --card-shadow: rgba(0,0,0,0.1);
-            --card-border: #e1e5e9;
-            
-            --input-bg: white;
-            --input-border: #e1e5e9;
-            --input-focus: #667eea;
-            
-            --btn-primary: #667eea;
-            --btn-primary-hover: #5a6fd8;
-            --btn-secondary: #6c757d;
-            --btn-secondary-hover: #5a6268;
-            --btn-danger: #dc3545;
-            --btn-danger-hover: #c82333;
-            
-            --tag-bg: #e9ecef;
-            --tag-text: #495057;
-            --tag-active-bg: #667eea;
-            --tag-active-text: white;
-            
-            --note-bg: #f8f9fa;
-            --note-border: #e1e5e9;
-            
-            --highlight-bg: #fff3cd;
-            --highlight-text: #856404;
-            
-            --filter-border: #e1e5e9;
-            --filter-text: #6c757d;
-            --filter-hover: #667eea;
-            --filter-active-bg: #667eea;
-            --filter-active-text: white;
-            
-            --export-color: #28a745;
-            --export-border: #dee2e6;
-            
-            --header-border: #e1e5e9;
-            
-            --toast-bg: #28a745;
-            --toast-text: white;
-        }
+      /* CSS Custom Properties for theming */
+      :root {
+        --bg-gradient-start: #667eea;
+        --bg-gradient-end: #764ba2;
+        --bg-overlay: linear-gradient(
+          135deg,
+          var(--bg-gradient-start) 0%,
+          var(--bg-gradient-end) 100%
+        );
 
-        /* Dark theme */
-        [data-theme="dark"] {
-            --bg-gradient-start: #1a1a2e;
-            --bg-gradient-end: #16213e;
-            
-            --text-primary: #e0e0e0;
-            --text-secondary: #a0a0a0;
-            --text-on-primary: #ffffff;
-            
-            --card-bg: #2d2d44;
-            --card-shadow: rgba(0,0,0,0.3);
-            --card-border: #404060;
-            
-            --input-bg: #1a1a2e;
-            --input-border: #404060;
-            --input-focus: #667eea;
-            
-            --btn-primary: #667eea;
-            --btn-primary-hover: #5a6fd8;
-            --btn-secondary: #5a6268;
-            --btn-secondary-hover: #4a5258;
-            --btn-danger: #dc3545;
-            --btn-danger-hover: #c82333;
-            
-            --tag-bg: #404060;
-            --tag-text: #e0e0e0;
-            --tag-active-bg: #667eea;
-            --tag-active-text: white;
-            
-            --note-bg: #1a1a2e;
-            --note-border: #404060;
-            
-            --highlight-bg: #856404;
-            --highlight-text: #fff3cd;
-            
-            --filter-border: #404060;
-            --filter-text: #a0a0a0;
-            --filter-hover: #667eea;
-            --filter-active-bg: #667eea;
-            --filter-active-text: white;
-            
-            --export-color: #28a745;
-            --export-border: #404060;
-            
-            --header-border: #404060;
-            
-            --toast-bg: #28a745;
-            --toast-text: white;
-        }
+        --text-primary: #333;
+        --text-secondary: #6c757d;
+        --text-on-primary: white;
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        --card-bg: white;
+        --card-shadow: rgba(0, 0, 0, 0.1);
+        --card-border: #e1e5e9;
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--bg-overlay);
-            min-height: 100vh;
-            padding: 20px;
-            transition: background 0.3s ease;
-        }
+        --input-bg: white;
+        --input-border: #e1e5e9;
+        --input-focus: #667eea;
 
+        --btn-primary: #667eea;
+        --btn-primary-hover: #5a6fd8;
+        --btn-secondary: #6c757d;
+        --btn-secondary-hover: #5a6268;
+        --btn-danger: #dc3545;
+        --btn-danger-hover: #c82333;
+
+        --tag-bg: #e9ecef;
+        --tag-text: #495057;
+        --tag-active-bg: #667eea;
+        --tag-active-text: white;
+
+        --note-bg: #f8f9fa;
+        --note-border: #e1e5e9;
+
+        --highlight-bg: #fff3cd;
+        --highlight-text: #856404;
+
+        --filter-border: #e1e5e9;
+        --filter-text: #6c757d;
+        --filter-hover: #667eea;
+        --filter-active-bg: #667eea;
+        --filter-active-text: white;
+
+        --export-color: #28a745;
+        --export-border: #dee2e6;
+
+        --header-border: #e1e5e9;
+
+        --toast-bg: #28a745;
+        --toast-text: white;
+      }
+
+      /* Dark theme */
+      [data-theme='dark'] {
+        --bg-gradient-start: #1a1a2e;
+        --bg-gradient-end: #16213e;
+
+        --text-primary: #e0e0e0;
+        --text-secondary: #a0a0a0;
+        --text-on-primary: #ffffff;
+
+        --card-bg: #2d2d44;
+        --card-shadow: rgba(0, 0, 0, 0.3);
+        --card-border: #404060;
+
+        --input-bg: #1a1a2e;
+        --input-border: #404060;
+        --input-focus: #667eea;
+
+        --btn-primary: #667eea;
+        --btn-primary-hover: #5a6fd8;
+        --btn-secondary: #5a6268;
+        --btn-secondary-hover: #4a5258;
+        --btn-danger: #dc3545;
+        --btn-danger-hover: #c82333;
+
+        --tag-bg: #404060;
+        --tag-text: #e0e0e0;
+        --tag-active-bg: #667eea;
+        --tag-active-text: white;
+
+        --note-bg: #1a1a2e;
+        --note-border: #404060;
+
+        --highlight-bg: #856404;
+        --highlight-text: #fff3cd;
+
+        --filter-border: #404060;
+        --filter-text: #a0a0a0;
+        --filter-hover: #667eea;
+        --filter-active-bg: #667eea;
+        --filter-active-text: white;
+
+        --export-color: #28a745;
+        --export-border: #404060;
+
+        --header-border: #404060;
+
+        --toast-bg: #28a745;
+        --toast-text: white;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: var(--bg-overlay);
+        min-height: 100vh;
+        padding: 20px;
+        transition: background 0.3s ease;
+      }
+
+      .container {
+        max-width: 800px;
+        margin: 0 auto;
+      }
+
+      header {
+        text-align: center;
+        margin-bottom: 30px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 15px;
+      }
+
+      .header-left {
+        flex: 1;
+        text-align: left;
+      }
+
+      .header-right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      h1 {
+        color: white;
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      }
+
+      .theme-toggle {
+        padding: 10px 15px;
+        background: rgba(255, 255, 255, 0.2);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 16px;
+        color: white;
+        transition: all 0.3s;
+        backdrop-filter: blur(5px);
+      }
+
+      .theme-toggle:hover {
+        transform: scale(1.1);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+      }
+
+      [data-theme='dark'] .theme-toggle {
+        background: rgba(30, 30, 30, 0.9);
+        color: #ffd700;
+      }
+
+      .help-btn {
+        background: rgba(255, 255, 255, 0.9);
+        border: none;
+        border-radius: 20px;
+        padding: 8px 16px;
+        font-size: 14px;
+        cursor: pointer;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .help-btn:hover {
+        transform: scale(1.05);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+      }
+
+      [data-theme='dark'] .help-btn {
+        background: rgba(30, 30, 30, 0.9);
+        color: #e0e0e0;
+      }
+
+      /* Help Modal Styles */
+      .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 2000;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .modal.show {
+        display: flex;
+      }
+
+      .modal-content {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 24px;
+        max-width: 500px;
+        width: 90%;
+        max-height: 80vh;
+        overflow-y: auto;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        animation: modalSlideIn 0.3s ease;
+      }
+
+      @keyframes modalSlideIn {
+        from {
+          opacity: 0;
+          transform: translateY(-30px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid var(--header-border);
+      }
+
+      .modal-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0;
+      }
+
+      .modal-close {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: var(--text-secondary);
+        padding: 4px;
+        border-radius: 4px;
+        transition: all 0.2s;
+      }
+
+      .modal-close:hover {
+        background: var(--tag-bg);
+        color: var(--text-primary);
+      }
+
+      .shortcuts-grid {
+        display: grid;
+        gap: 12px;
+      }
+
+      .shortcut-item {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 12px;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--card-border);
+      }
+
+      .shortcut-item:last-child {
+        border-bottom: none;
+      }
+
+      .shortcut-keys {
+        display: flex;
+        gap: 4px;
+        align-items: center;
+      }
+
+      .key {
+        background: var(--tag-bg);
+        color: var(--text-primary);
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-family: monospace;
+        font-size: 12px;
+        font-weight: 600;
+        border: 1px solid var(--card-border);
+      }
+
+      .shortcut-description {
+        color: var(--text-secondary);
+        font-size: 14px;
+      }
+
+      .shortcuts-section {
+        margin-bottom: 20px;
+      }
+
+      .shortcuts-section-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 12px;
+      }
+
+      [data-theme='dark'] .theme-toggle {
+        background: rgba(255, 255, 255, 0.15);
+        border-color: rgba(255, 255, 255, 0.25);
+      }
+
+      .note-input-section {
+        background: var(--card-bg);
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px var(--card-shadow);
+        margin-bottom: 30px;
+        transition: all 0.3s ease;
+      }
+
+      .note-form {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+      }
+
+      .tag-input-container {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .tag-input-wrapper {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .tag-input {
+        flex: 1;
+        padding: 8px 12px;
+        border: 2px solid var(--input-border);
+        border-radius: 6px;
+        font-size: 14px;
+        background: var(--input-bg);
+        color: var(--text-primary);
+        transition:
+          border-color 0.2s,
+          background 0.3s,
+          color 0.3s;
+      }
+
+      .tag-input:focus {
+        outline: none;
+        border-color: var(--input-focus);
+      }
+
+      .add-tag-btn {
+        padding: 8px 12px;
+        background: var(--btn-primary);
+        color: var(--text-on-primary);
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 600;
+        transition: all 0.2s;
+      }
+
+      .add-tag-btn:hover {
+        background: var(--btn-primary-hover);
+        transform: translateY(-1px);
+      }
+
+      .tags-display {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        min-height: 24px;
+      }
+
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 8px;
+        background: var(--tag-bg);
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--tag-text);
+        transition: all 0.2s;
+      }
+
+      .tag-remove {
+        cursor: pointer;
+        color: var(--text-secondary);
+        font-weight: bold;
+        margin-left: 4px;
+        transition: color 0.2s;
+      }
+
+      .tag-remove:hover {
+        color: var(--btn-danger);
+      }
+
+      .note-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-top: 8px;
+      }
+
+      .note-tag {
+        padding: 2px 6px;
+        background: var(--tag-active-bg);
+        color: var(--tag-active-text);
+        border-radius: 8px;
+        font-size: 10px;
+        font-weight: 500;
+      }
+
+      .tag-filter-section {
+        background: var(--card-bg);
+        padding: 15px;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px var(--card-shadow);
+        margin-bottom: 20px;
+        transition: all 0.3s ease;
+      }
+
+      .tag-filter-title {
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 10px;
+        color: var(--text-primary);
+      }
+
+      .available-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .tag-filter {
+        padding: 4px 8px;
+        background: var(--note-bg);
+        border: 1px solid var(--card-border);
+        border-radius: 12px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+        color: var(--text-secondary);
+      }
+
+      .tag-filter:hover {
+        background: var(--tag-bg);
+      }
+
+      .tag-filter.active {
+        background: var(--tag-active-bg);
+        color: var(--tag-active-text);
+        border-color: var(--tag-active-bg);
+      }
+
+      textarea {
+        width: 100%;
+        min-height: 100px;
+        padding: 12px;
+        border: 2px solid var(--input-border);
+        border-radius: 6px;
+        font-size: 16px;
+        resize: vertical;
+        font-family: inherit;
+        background: var(--input-bg);
+        color: var(--text-primary);
+        transition:
+          border-color 0.2s,
+          background 0.3s,
+          color 0.3s;
+      }
+
+      textarea:focus {
+        outline: none;
+        border-color: var(--input-focus);
+      }
+
+      .button-group {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      button {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .btn-primary {
+        background: var(--btn-primary);
+        color: var(--text-on-primary);
+      }
+
+      .btn-primary:hover {
+        background: var(--btn-primary-hover);
+        transform: translateY(-1px);
+      }
+
+      .btn-secondary {
+        background: var(--btn-secondary);
+        color: var(--text-on-primary);
+      }
+
+      .btn-secondary:hover {
+        background: var(--btn-secondary-hover);
+      }
+
+      .btn-danger {
+        background: var(--btn-danger);
+        color: var(--text-on-primary);
+      }
+
+      .btn-danger:hover {
+        background: var(--btn-danger-hover);
+      }
+
+      .notes-section {
+        background: var(--card-bg);
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 4px 6px var(--card-shadow);
+        transition: all 0.3s ease;
+      }
+
+      .search-section {
+        margin-bottom: 20px;
+      }
+
+      .search-input {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid var(--input-border);
+        border-radius: 8px;
+        font-size: 16px;
+        margin-bottom: 15px;
+        font-family: inherit;
+        transition: border-color 0.2s;
+        background: var(--input-bg);
+        color: var(--text-primary);
+      }
+
+      .search-input:focus {
+        outline: none;
+        border-color: var(--input-focus);
+      }
+
+      .search-input:focus {
+        outline: none;
+        border-color: #667eea;
+      }
+
+      .filter-buttons {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 10px;
+      }
+
+      .filter-btn {
+        padding: 8px 16px;
+        border: 2px solid var(--filter-border);
+        background: var(--card-bg);
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        color: var(--filter-text);
+      }
+
+      .filter-btn:hover {
+        border-color: var(--filter-hover);
+        color: var(--filter-hover);
+      }
+
+      .filter-btn.active {
+        background: var(--filter-active-bg);
+        border-color: var(--filter-active-bg);
+        color: var(--filter-active-text);
+      }
+
+      .export-buttons {
+        display: flex;
+        gap: 8px;
+        margin-left: auto;
+      }
+
+      .export-btn {
+        padding: 6px 12px;
+        border: 1px solid var(--export-border);
+        border-radius: 20px;
+        background: var(--card-bg);
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        color: var(--export-color);
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .export-btn:hover {
+        border-color: var(--export-color);
+        background: var(--note-bg);
+        transform: translateY(-1px);
+      }
+
+      .header-info {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 4px;
+      }
+
+      .search-results {
+        font-size: 12px;
+        color: var(--input-focus);
+        font-weight: 500;
+      }
+
+      .highlight {
+        background: var(--highlight-bg);
+        color: var(--highlight-text);
+        padding: 1px 2px;
+        border-radius: 2px;
+        font-weight: 600;
+      }
+
+      .notes-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid var(--header-border);
+        transition: border-color 0.3s;
+      }
+
+      .notes-count {
+        color: var(--text-secondary);
+        font-size: 14px;
+      }
+
+      .notes-grid {
+        display: grid;
+        gap: 15px;
+      }
+
+      .note-item {
+        background: var(--note-bg);
+        border: 1px solid var(--card-border);
+        border-radius: 8px;
+        padding: 15px;
+        position: relative;
+        transition: all 0.2s;
+      }
+
+      .note-item:hover {
+        box-shadow: 0 2px 8px var(--card-shadow);
+        transform: translateY(-1px);
+      }
+
+      .note-content {
+        margin-bottom: 10px;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        color: var(--text-primary);
+      }
+
+      .note-content[contenteditable='true'] {
+        background: var(--input-bg);
+        border: 2px solid var(--input-focus);
+        padding: 10px;
+        border-radius: 4px;
+        outline: none;
+      }
+
+      .note-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 12px;
+        color: var(--text-secondary);
+      }
+
+      .note-actions {
+        display: flex;
+        gap: 8px;
+      }
+
+      .note-actions button {
+        padding: 4px 8px;
+        font-size: 12px;
+      }
+
+      .empty-state {
+        text-align: center;
+        padding: 40px;
+        color: var(--text-secondary);
+      }
+
+      .empty-state-icon {
+        font-size: 48px;
+        margin-bottom: 15px;
+        opacity: 0.5;
+      }
+
+      .toast {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: var(--toast-bg);
+        color: var(--toast-text);
+        padding: 12px 20px;
+        border-radius: 6px;
+        box-shadow: 0 4px 6px var(--card-shadow);
+        opacity: 0;
+        transform: translateY(20px);
+        transition: all 0.3s;
+        z-index: 1000;
+      }
+
+      .toast.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      @media (max-width: 640px) {
         .container {
-            max-width: 800px;
-            margin: 0 auto;
-        }
-
-        header {
-            text-align: center;
-            margin-bottom: 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 15px;
-        }
-
-        .header-left {
-            flex: 1;
-            text-align: left;
-        }
-
-        .header-right {
-            display: flex;
-            align-items: center;
-            gap: 10px;
+          padding: 10px;
         }
 
         h1 {
-            color: white;
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        }
-
-        .theme-toggle {
-            padding: 10px 15px;
-            background: rgba(255,255,255,0.2);
-            border: 2px solid rgba(255,255,255,0.3);
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 16px;
-            color: white;
-            transition: all 0.3s;
-            backdrop-filter: blur(5px);
-        }
-
-        .theme-toggle:hover {
-            transform: scale(1.1);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-        }
-
-        [data-theme="dark"] .theme-toggle {
-            background: rgba(30, 30, 30, 0.9);
-            color: #ffd700;
-        }
-
-        .help-btn {
-            background: rgba(255, 255, 255, 0.9);
-            border: none;
-            border-radius: 20px;
-            padding: 8px 16px;
-            font-size: 14px;
-            cursor: pointer;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .help-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-        }
-
-        [data-theme="dark"] .help-btn {
-            background: rgba(30, 30, 30, 0.9);
-            color: #e0e0e0;
-        }
-
-        /* Help Modal Styles */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            z-index: 2000;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .modal.show {
-            display: flex;
-        }
-
-        .modal-content {
-            background: var(--card-bg);
-            border-radius: 12px;
-            padding: 24px;
-            max-width: 500px;
-            width: 90%;
-            max-height: 80vh;
-            overflow-y: auto;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            animation: modalSlideIn 0.3s ease;
-        }
-
-        @keyframes modalSlideIn {
-            from {
-                opacity: 0;
-                transform: translateY(-30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid var(--header-border);
-        }
-
-        .modal-title {
-            font-size: 1.5rem;
-            font-weight: 600;
-            color: var(--text-primary);
-            margin: 0;
-        }
-
-        .modal-close {
-            background: none;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-            color: var(--text-secondary);
-            padding: 4px;
-            border-radius: 4px;
-            transition: all 0.2s;
-        }
-
-        .modal-close:hover {
-            background: var(--tag-bg);
-            color: var(--text-primary);
-        }
-
-        .shortcuts-grid {
-            display: grid;
-            gap: 12px;
-        }
-
-        .shortcut-item {
-            display: grid;
-            grid-template-columns: auto 1fr;
-            gap: 12px;
-            align-items: center;
-            padding: 8px 0;
-            border-bottom: 1px solid var(--card-border);
-        }
-
-        .shortcut-item:last-child {
-            border-bottom: none;
-        }
-
-        .shortcut-keys {
-            display: flex;
-            gap: 4px;
-            align-items: center;
-        }
-
-        .key {
-            background: var(--tag-bg);
-            color: var(--text-primary);
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-family: monospace;
-            font-size: 12px;
-            font-weight: 600;
-            border: 1px solid var(--card-border);
-        }
-
-        .shortcut-description {
-            color: var(--text-secondary);
-            font-size: 14px;
-        }
-
-        .shortcuts-section {
-            margin-bottom: 20px;
-        }
-
-        .shortcuts-section-title {
-            font-size: 16px;
-            font-weight: 600;
-            color: var(--text-primary);
-            margin-bottom: 12px;
-        }
-
-        [data-theme="dark"] .theme-toggle {
-            background: rgba(255,255,255,0.15);
-            border-color: rgba(255,255,255,0.25);
-        }
-
-        .note-input-section {
-            background: var(--card-bg);
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px var(--card-shadow);
-            margin-bottom: 30px;
-            transition: all 0.3s ease;
-        }
-
-        .note-form {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .tag-input-container {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .tag-input-wrapper {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-        }
-
-        .tag-input {
-            flex: 1;
-            padding: 8px 12px;
-            border: 2px solid var(--input-border);
-            border-radius: 6px;
-            font-size: 14px;
-            background: var(--input-bg);
-            color: var(--text-primary);
-            transition: border-color 0.2s, background 0.3s, color 0.3s;
-        }
-
-        .tag-input:focus {
-            outline: none;
-            border-color: var(--input-focus);
-        }
-
-        .add-tag-btn {
-            padding: 8px 12px;
-            background: var(--btn-primary);
-            color: var(--text-on-primary);
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 12px;
-            font-weight: 600;
-            transition: all 0.2s;
-        }
-
-        .add-tag-btn:hover {
-            background: var(--btn-primary-hover);
-            transform: translateY(-1px);
-        }
-
-        .tags-display {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            min-height: 24px;
-        }
-
-        .tag {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 4px 8px;
-            background: var(--tag-bg);
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 500;
-            color: var(--tag-text);
-            transition: all 0.2s;
-        }
-
-        .tag-remove {
-            cursor: pointer;
-            color: var(--text-secondary);
-            font-weight: bold;
-            margin-left: 4px;
-            transition: color 0.2s;
-        }
-
-        .tag-remove:hover {
-            color: var(--btn-danger);
-        }
-
-        .note-tags {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 4px;
-            margin-top: 8px;
-        }
-
-        .note-tag {
-            padding: 2px 6px;
-            background: var(--tag-active-bg);
-            color: var(--tag-active-text);
-            border-radius: 8px;
-            font-size: 10px;
-            font-weight: 500;
-        }
-
-        .tag-filter-section {
-            background: var(--card-bg);
-            padding: 15px;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px var(--card-shadow);
-            margin-bottom: 20px;
-            transition: all 0.3s ease;
-        }
-
-        .tag-filter-title {
-            font-size: 14px;
-            font-weight: 600;
-            margin-bottom: 10px;
-            color: var(--text-primary);
-        }
-
-        .available-tags {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-        }
-
-        .tag-filter {
-            padding: 4px 8px;
-            background: var(--note-bg);
-            border: 1px solid var(--card-border);
-            border-radius: 12px;
-            font-size: 12px;
-            cursor: pointer;
-            transition: all 0.2s;
-            color: var(--text-secondary);
-        }
-
-        .tag-filter:hover {
-            background: var(--tag-bg);
-        }
-
-        .tag-filter.active {
-            background: var(--tag-active-bg);
-            color: var(--tag-active-text);
-            border-color: var(--tag-active-bg);
-        }
-
-        textarea {
-            width: 100%;
-            min-height: 100px;
-            padding: 12px;
-            border: 2px solid var(--input-border);
-            border-radius: 6px;
-            font-size: 16px;
-            resize: vertical;
-            font-family: inherit;
-            background: var(--input-bg);
-            color: var(--text-primary);
-            transition: border-color 0.2s, background 0.3s, color 0.3s;
-        }
-
-        textarea:focus {
-            outline: none;
-            border-color: var(--input-focus);
+          font-size: 2rem;
         }
 
         .button-group {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
+          flex-direction: column;
         }
 
         button {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 6px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
+          width: 100%;
         }
-
-        .btn-primary {
-            background: var(--btn-primary);
-            color: var(--text-on-primary);
-        }
-
-        .btn-primary:hover {
-            background: var(--btn-primary-hover);
-            transform: translateY(-1px);
-        }
-
-        .btn-secondary {
-            background: var(--btn-secondary);
-            color: var(--text-on-primary);
-        }
-
-        .btn-secondary:hover {
-            background: var(--btn-secondary-hover);
-        }
-
-        .btn-danger {
-            background: var(--btn-danger);
-            color: var(--text-on-primary);
-        }
-
-        .btn-danger:hover {
-            background: var(--btn-danger-hover);
-        }
-
-        .notes-section {
-            background: var(--card-bg);
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0 4px 6px var(--card-shadow);
-            transition: all 0.3s ease;
-        }
-
-        .search-section {
-            margin-bottom: 20px;
-        }
-
-        .search-input {
-            width: 100%;
-            padding: 12px 16px;
-            border: 2px solid var(--input-border);
-            border-radius: 8px;
-            font-size: 16px;
-            margin-bottom: 15px;
-            font-family: inherit;
-            transition: border-color 0.2s;
-            background: var(--input-bg);
-            color: var(--text-primary);
-        }
-
-        .search-input:focus {
-            outline: none;
-            border-color: var(--input-focus);
-        }
-
-        .search-input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .filter-buttons {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            margin-bottom: 10px;
-        }
-
-        .filter-btn {
-            padding: 8px 16px;
-            border: 2px solid var(--filter-border);
-            background: var(--card-bg);
-            border-radius: 20px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-            color: var(--filter-text);
-        }
-
-        .filter-btn:hover {
-            border-color: var(--filter-hover);
-            color: var(--filter-hover);
-        }
-
-        .filter-btn.active {
-            background: var(--filter-active-bg);
-            border-color: var(--filter-active-bg);
-            color: var(--filter-active-text);
-        }
-
-        .export-buttons {
-            display: flex;
-            gap: 8px;
-            margin-left: auto;
-        }
-
-        .export-btn {
-            padding: 6px 12px;
-            border: 1px solid var(--export-border);
-            border-radius: 20px;
-            background: var(--card-bg);
-            font-size: 12px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-            color: var(--export-color);
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .export-btn:hover {
-            border-color: var(--export-color);
-            background: var(--note-bg);
-            transform: translateY(-1px);
-        }
-
-        .header-info {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            gap: 4px;
-        }
-
-        .search-results {
-            font-size: 12px;
-            color: var(--input-focus);
-            font-weight: 500;
-        }
-
-        .highlight {
-            background: var(--highlight-bg);
-            color: var(--highlight-text);
-            padding: 1px 2px;
-            border-radius: 2px;
-            font-weight: 600;
-        }
-
-        .notes-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid var(--header-border);
-            transition: border-color 0.3s;
-        }
-
-        .notes-count {
-            color: var(--text-secondary);
-            font-size: 14px;
-        }
-
-        .notes-grid {
-            display: grid;
-            gap: 15px;
-        }
-
-        .note-item {
-            background: var(--note-bg);
-            border: 1px solid var(--card-border);
-            border-radius: 8px;
-            padding: 15px;
-            position: relative;
-            transition: all 0.2s;
-        }
-
-        .note-item:hover {
-            box-shadow: 0 2px 8px var(--card-shadow);
-            transform: translateY(-1px);
-        }
-
-        .note-content {
-            margin-bottom: 10px;
-            line-height: 1.5;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            color: var(--text-primary);
-        }
-
-        .note-content[contenteditable="true"] {
-            background: var(--input-bg);
-            border: 2px solid var(--input-focus);
-            padding: 10px;
-            border-radius: 4px;
-            outline: none;
-        }
-
-        .note-meta {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 12px;
-            color: var(--text-secondary);
-        }
-
-        .note-actions {
-            display: flex;
-            gap: 8px;
-        }
-
-        .note-actions button {
-            padding: 4px 8px;
-            font-size: 12px;
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: 40px;
-            color: var(--text-secondary);
-        }
-
-        .empty-state-icon {
-            font-size: 48px;
-            margin-bottom: 15px;
-            opacity: 0.5;
-        }
-
-        .toast {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: var(--toast-bg);
-            color: var(--toast-text);
-            padding: 12px 20px;
-            border-radius: 6px;
-            box-shadow: 0 4px 6px var(--card-shadow);
-            opacity: 0;
-            transform: translateY(20px);
-            transition: all 0.3s;
-            z-index: 1000;
-        }
-
-        .toast.show {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        @media (max-width: 640px) {
-            .container {
-                padding: 10px;
-            }
-
-            h1 {
-                font-size: 2rem;
-            }
-
-            .button-group {
-                flex-direction: column;
-            }
-
-            button {
-                width: 100%;
-            }
-        }
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="container">
-        <header>
-            <div class="header-left">
-                <h1>📝 Quick Notes</h1>
-            </div>
-            <div class="header-right">
-                <button class="help-btn" id="helpBtn" title="Show keyboard shortcuts">
-                    ⌨️ Shortcuts
-                </button>
-                <button class="theme-toggle" id="themeToggle" title="Toggle dark/light mode">
-                    🌙 Dark Mode
-                </button>
-            </div>
-        </header>
+      <header>
+        <div class="header-left">
+          <h1>📝 Quick Notes</h1>
+        </div>
+        <div class="header-right">
+          <button class="help-btn" id="helpBtn" title="Show keyboard shortcuts">
+            ⌨️ Shortcuts
+          </button>
+          <button class="theme-toggle" id="themeToggle" title="Toggle dark/light mode">
+            🌙 Dark Mode
+          </button>
+        </div>
+      </header>
 
-        <section class="note-input-section">
-            <form class="note-form" id="noteForm">
-                <textarea 
-                    id="noteInput" 
-                    placeholder="Write your note here..."
-                    maxlength="1000"
-                ></textarea>
-                <div class="tag-input-container">
-                    <label for="tagInput" style="font-size: 14px; font-weight: 600; color: #333;">Tags:</label>
-                    <div class="tag-input-wrapper">
-                        <input type="text" id="tagInput" class="tag-input" placeholder="Add a tag...">
-                        <button type="button" id="addTagBtn" class="add-tag-btn">Add Tag</button>
-                    </div>
-                    <div id="tagsDisplay" class="tags-display"></div>
-                </div>
-                <div class="button-group">
-                    <button type="submit" class="btn-primary" id="saveBtn">
-                        💾 Save Note
-                    </button>
-                    <button type="button" class="btn-secondary" id="clearBtn">
-                        🗑️ Clear
-                    </button>
-                </div>
-            </form>
-        </section>
+      <section class="note-input-section">
+        <form class="note-form" id="noteForm">
+          <textarea
+            id="noteInput"
+            placeholder="Write your note here..."
+            maxlength="1000"
+          ></textarea>
+          <div class="tag-input-container">
+            <label for="tagInput" style="font-size: 14px; font-weight: 600; color: #333"
+              >Tags:</label
+            >
+            <div class="tag-input-wrapper">
+              <input type="text" id="tagInput" class="tag-input" placeholder="Add a tag..." />
+              <button type="button" id="addTagBtn" class="add-tag-btn">Add Tag</button>
+            </div>
+            <div id="tagsDisplay" class="tags-display"></div>
+          </div>
+          <div class="button-group">
+            <button type="submit" class="btn-primary" id="saveBtn">💾 Save Note</button>
+            <button type="button" class="btn-secondary" id="clearBtn">🗑️ Clear</button>
+          </div>
+        </form>
+      </section>
 
-        <section class="tag-filter-section" id="tagFilterSection" style="display: none;">
-            <div class="tag-filter-title">Filter by Tags:</div>
-            <div class="available-tags" id="availableTags"></div>
-        </section>
+      <section class="tag-filter-section" id="tagFilterSection" style="display: none">
+        <div class="tag-filter-title">Filter by Tags:</div>
+        <div class="available-tags" id="availableTags"></div>
+      </section>
 
-        <section class="notes-section">
-            <div class="search-section">
-                <input type="text" id="searchInput" placeholder="🔍 Search notes..." class="search-input">
-                <div class="filter-buttons">
-                    <button class="filter-btn active" data-filter="all">All</button>
-                    <button class="filter-btn" data-filter="today">Today</button>
-                    <button class="filter-btn" data-filter="week">This Week</button>
-                    <button class="filter-btn" data-filter="month">This Month</button>
-                </div>
-                <div class="export-buttons">
-                    <button class="export-btn" onclick="app.exportNotes('json')">📄 Export JSON</button>
-                    <button class="export-btn" onclick="app.exportNotes('txt')">📝 Export TXT</button>
-                </div>
-            </div>
-            <div class="notes-header">
-                <h2>📋 Your Notes</h2>
-                <div class="header-info">
-                    <span class="notes-count" id="notesCount">0 notes</span>
-                    <span class="search-results" id="searchResults"></span>
-                </div>
-            </div>
-            <div class="notes-grid" id="notesGrid">
-                <div class="empty-state">
-                    <div class="empty-state-icon">📭</div>
-                    <h3>No notes yet</h3>
-                    <p>Create your first note above to get started!</p>
-                </div>
-            </div>
-        </section>
+      <section class="notes-section">
+        <div class="search-section">
+          <input
+            type="text"
+            id="searchInput"
+            placeholder="🔍 Search notes..."
+            class="search-input"
+          />
+          <div class="filter-buttons">
+            <button class="filter-btn active" data-filter="all">All</button>
+            <button class="filter-btn" data-filter="today">Today</button>
+            <button class="filter-btn" data-filter="week">This Week</button>
+            <button class="filter-btn" data-filter="month">This Month</button>
+          </div>
+          <div class="export-buttons">
+            <button class="export-btn" onclick="app.exportNotes('json')">📄 Export JSON</button>
+            <button class="export-btn" onclick="app.exportNotes('txt')">📝 Export TXT</button>
+          </div>
+        </div>
+        <div class="notes-header">
+          <h2>📋 Your Notes</h2>
+          <div class="header-info">
+            <span class="notes-count" id="notesCount">0 notes</span>
+            <span class="search-results" id="searchResults"></span>
+          </div>
+        </div>
+        <div class="notes-grid" id="notesGrid">
+          <div class="empty-state">
+            <div class="empty-state-icon">📭</div>
+            <h3>No notes yet</h3>
+            <p>Create your first note above to get started!</p>
+          </div>
+        </div>
+      </section>
     </div>
 
     <div class="toast" id="toast"></div>
 
     <!-- Help Modal -->
     <div class="modal" id="helpModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">⌨️ Keyboard Shortcuts</h2>
-                <button class="modal-close" id="modalClose">×</button>
-            </div>
-            
-            <div class="shortcuts-section">
-                <h3 class="shortcuts-section-title">Global Shortcuts (when not typing)</h3>
-                <div class="shortcuts-grid">
-                    <div class="shortcut-item">
-                        <div class="shortcut-keys">
-                            <span class="key">Ctrl</span>
-                            <span class="key">+</span>
-                            <span class="key">N</span>
-                        </div>
-                        <span class="shortcut-description">New note</span>
-                    </div>
-                    <div class="shortcut-item">
-                        <div class="shortcut-keys">
-                            <span class="key">N</span>
-                        </div>
-                        <span class="shortcut-description">New note</span>
-                    </div>
-                    <div class="shortcut-item">
-                        <div class="shortcut-keys">
-                            <span class="key">Ctrl</span>
-                            <span class="key">+</span>
-                            <span class="key">F</span>
-                        </div>
-                        <span class="shortcut-description">Focus search</span>
-                    </div>
-                    <div class="shortcut-item">
-                        <div class="shortcut-keys">
-                            <span class="key">/</span>
-                        </div>
-                        <span class="shortcut-description">Focus search</span>
-                    </div>
-                    <div class="shortcut-item">
-                        <div class="shortcut-keys">
-                            <span class="key">Ctrl</span>
-                            <span class="key">+</span>
-                            <span class="key">T</span>
-                        </div>
-                        <span class="shortcut-description">Toggle theme</span>
-                    </div>
-                    <div class="shortcut-item">
-                        <div class="shortcut-keys">
-                            <span class="key">T</span>
-                        </div>
-                        <span class="shortcut-description">Toggle theme</span>
-                    </div>
-                    <div class="shortcut-item">
-                        <div class="shortcut-keys">
-                            <span class="key">Ctrl</span>
-                            <span class="key">+</span>
-                            <span class="key">E</span>
-                        </div>
-                        <span class="shortcut-description">Export notes (JSON)</span>
-                    </div>
-                    <div class="shortcut-item">
-                        <div class="shortcut-keys">
-                            <span class="key">Esc</span>
-                        </div>
-                        <span class="shortcut-description">Clear form and search</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="shortcuts-section">
-                <h3 class="shortcuts-section-title">While typing in note or search</h3>
-                <div class="shortcuts-grid">
-                    <div class="shortcut-item">
-                        <div class="shortcut-keys">
-                            <span class="key">Ctrl</span>
-                            <span class="key">+</span>
-                            <span class="key">S</span>
-                        </div>
-                        <span class="shortcut-description">Save note</span>
-                    </div>
-                    <div class="shortcut-item">
-                        <div class="shortcut-keys">
-                            <span class="key">Ctrl</span>
-                            <span class="key">+</span>
-                            <span class="key">Enter</span>
-                        </div>
-                        <span class="shortcut-description">Save note</span>
-                    </div>
-                </div>
-            </div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title">⌨️ Keyboard Shortcuts</h2>
+          <button class="modal-close" id="modalClose">×</button>
         </div>
+
+        <div class="shortcuts-section">
+          <h3 class="shortcuts-section-title">Global Shortcuts (when not typing)</h3>
+          <div class="shortcuts-grid">
+            <div class="shortcut-item">
+              <div class="shortcut-keys">
+                <span class="key">Ctrl</span>
+                <span class="key">+</span>
+                <span class="key">N</span>
+              </div>
+              <span class="shortcut-description">New note</span>
+            </div>
+            <div class="shortcut-item">
+              <div class="shortcut-keys">
+                <span class="key">N</span>
+              </div>
+              <span class="shortcut-description">New note</span>
+            </div>
+            <div class="shortcut-item">
+              <div class="shortcut-keys">
+                <span class="key">Ctrl</span>
+                <span class="key">+</span>
+                <span class="key">F</span>
+              </div>
+              <span class="shortcut-description">Focus search</span>
+            </div>
+            <div class="shortcut-item">
+              <div class="shortcut-keys">
+                <span class="key">/</span>
+              </div>
+              <span class="shortcut-description">Focus search</span>
+            </div>
+            <div class="shortcut-item">
+              <div class="shortcut-keys">
+                <span class="key">Ctrl</span>
+                <span class="key">+</span>
+                <span class="key">T</span>
+              </div>
+              <span class="shortcut-description">Toggle theme</span>
+            </div>
+            <div class="shortcut-item">
+              <div class="shortcut-keys">
+                <span class="key">T</span>
+              </div>
+              <span class="shortcut-description">Toggle theme</span>
+            </div>
+            <div class="shortcut-item">
+              <div class="shortcut-keys">
+                <span class="key">Ctrl</span>
+                <span class="key">+</span>
+                <span class="key">E</span>
+              </div>
+              <span class="shortcut-description">Export notes (JSON)</span>
+            </div>
+            <div class="shortcut-item">
+              <div class="shortcut-keys">
+                <span class="key">Esc</span>
+              </div>
+              <span class="shortcut-description">Clear form and search</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="shortcuts-section">
+          <h3 class="shortcuts-section-title">While typing in note or search</h3>
+          <div class="shortcuts-grid">
+            <div class="shortcut-item">
+              <div class="shortcut-keys">
+                <span class="key">Ctrl</span>
+                <span class="key">+</span>
+                <span class="key">S</span>
+              </div>
+              <span class="shortcut-description">Save note</span>
+            </div>
+            <div class="shortcut-item">
+              <div class="shortcut-keys">
+                <span class="key">Ctrl</span>
+                <span class="key">+</span>
+                <span class="key">Enter</span>
+              </div>
+              <span class="shortcut-description">Save note</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <script>
-        class QuickNotes {
-            constructor() {
-                this.notes = this.loadNotes();
-                this.editingId = null;
-                this.searchQuery = '';
-                this.currentFilter = 'all';
-                this.currentTags = [];
-                this.activeTagFilter = null;
-                this.currentTheme = this.loadTheme();
-                this.init();
+      class QuickNotes {
+        constructor() {
+          this.notes = this.loadNotes();
+          this.editingId = null;
+          this.searchQuery = '';
+          this.currentFilter = 'all';
+          this.currentTags = [];
+          this.activeTagFilter = null;
+          this.currentTheme = this.loadTheme();
+          this.init();
+        }
+
+        init() {
+          this.applyTheme();
+          this.bindEvents();
+          this.renderTags();
+          this.render();
+        }
+
+        bindEvents() {
+          const form = document.getElementById('noteForm');
+          const clearBtn = document.getElementById('clearBtn');
+          const searchInput = document.getElementById('searchInput');
+          const filterButtons = document.querySelectorAll('.filter-btn');
+          const tagInput = document.getElementById('tagInput');
+          const addTagBtn = document.getElementById('addTagBtn');
+          const tagsDisplay = document.getElementById('tagsDisplay');
+          const themeToggle = document.getElementById('themeToggle');
+
+          form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.saveNote();
+          });
+
+          clearBtn.addEventListener('click', () => {
+            this.clearForm();
+          });
+
+          // Search functionality
+          searchInput.addEventListener('input', (e) => {
+            this.searchQuery = e.target.value.toLowerCase();
+            this.render();
+          });
+
+          // Filter functionality
+          filterButtons.forEach((btn) => {
+            btn.addEventListener('click', (e) => {
+              // Remove active class from all buttons
+              filterButtons.forEach((b) => b.classList.remove('active'));
+              // Add active class to clicked button
+              e.target.classList.add('active');
+
+              this.currentFilter = e.target.dataset.filter;
+              this.render();
+            });
+          });
+
+          // Tag functionality
+          addTagBtn.addEventListener('click', () => {
+            this.addTag();
+          });
+
+          tagInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              this.addTag();
             }
+          });
 
-            init() {
-                this.applyTheme();
-                this.bindEvents();
-                this.renderTags();
-                this.render();
+          // Tag delegation for remove buttons
+          tagsDisplay.addEventListener('click', (e) => {
+            if (e.target.classList.contains('tag-remove')) {
+              const tagToRemove = e.target.dataset.tag;
+              this.removeTag(tagToRemove);
             }
+          });
 
-            bindEvents() {
-                const form = document.getElementById('noteForm');
-                const clearBtn = document.getElementById('clearBtn');
-                const searchInput = document.getElementById('searchInput');
-                const filterButtons = document.querySelectorAll('.filter-btn');
-                const tagInput = document.getElementById('tagInput');
-                const addTagBtn = document.getElementById('addTagBtn');
-                const tagsDisplay = document.getElementById('tagsDisplay');
-                const themeToggle = document.getElementById('themeToggle');
+          // Help modal functionality
+          const helpBtn = document.getElementById('helpBtn');
+          const helpModal = document.getElementById('helpModal');
+          const modalClose = document.getElementById('modalClose');
 
-                form.addEventListener('submit', (e) => {
+          helpBtn.addEventListener('click', () => {
+            helpModal.classList.add('show');
+          });
+
+          modalClose.addEventListener('click', () => {
+            helpModal.classList.remove('show');
+          });
+
+          helpModal.addEventListener('click', (e) => {
+            if (e.target === helpModal) {
+              helpModal.classList.remove('show');
+            }
+          });
+
+          // Theme toggle functionality
+          themeToggle.addEventListener('click', () => {
+            this.toggleTheme();
+          });
+
+          // Keyboard shortcuts
+          document.addEventListener('keydown', (e) => {
+            // Only apply shortcuts when not typing in input fields
+            if (
+              e.target.tagName === 'INPUT' ||
+              e.target.tagName === 'TEXTAREA' ||
+              e.target.contentEditable === 'true'
+            ) {
+              // Allow some shortcuts even in inputs
+              if (e.ctrlKey || e.metaKey) {
+                switch (e.key) {
+                  case 's':
                     e.preventDefault();
                     this.saveNote();
-                });
-
-                clearBtn.addEventListener('click', () => {
-                    this.clearForm();
-                });
-
-                // Search functionality
-                searchInput.addEventListener('input', (e) => {
-                    this.searchQuery = e.target.value.toLowerCase();
-                    this.render();
-                });
-
-                // Filter functionality
-                filterButtons.forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        // Remove active class from all buttons
-                        filterButtons.forEach(b => b.classList.remove('active'));
-                        // Add active class to clicked button
-                        e.target.classList.add('active');
-                        
-                        this.currentFilter = e.target.dataset.filter;
-                        this.render();
-                    });
-                });
-
-                // Tag functionality
-                addTagBtn.addEventListener('click', () => {
-                    this.addTag();
-                });
-
-                tagInput.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        this.addTag();
-                    }
-                });
-
-                // Tag delegation for remove buttons
-                tagsDisplay.addEventListener('click', (e) => {
-                    if (e.target.classList.contains('tag-remove')) {
-                        const tagToRemove = e.target.dataset.tag;
-                        this.removeTag(tagToRemove);
-                    }
-                });
-
-                // Help modal functionality
-                const helpBtn = document.getElementById('helpBtn');
-                const helpModal = document.getElementById('helpModal');
-                const modalClose = document.getElementById('modalClose');
-
-                helpBtn.addEventListener('click', () => {
-                    helpModal.classList.add('show');
-                });
-
-                modalClose.addEventListener('click', () => {
-                    helpModal.classList.remove('show');
-                });
-
-                helpModal.addEventListener('click', (e) => {
-                    if (e.target === helpModal) {
-                        helpModal.classList.remove('show');
-                    }
-                });
-
-                // Theme toggle functionality
-                themeToggle.addEventListener('click', () => {
-                    this.toggleTheme();
-                });
-
-                // Keyboard shortcuts
-                document.addEventListener('keydown', (e) => {
-                    // Only apply shortcuts when not typing in input fields
-                    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.contentEditable === 'true') {
-                        // Allow some shortcuts even in inputs
-                        if (e.ctrlKey || e.metaKey) {
-                            switch (e.key) {
-                                case 's':
-                                    e.preventDefault();
-                                    this.saveNote();
-                                    break;
-                                case 'Enter':
-                                    e.preventDefault();
-                                    this.saveNote();
-                                    break;
-                            }
-                        }
-                        return;
-                    }
-
-                    // Global shortcuts
-                    if (e.ctrlKey || e.metaKey) {
-                        switch (e.key) {
-                            case 'n':
-                                e.preventDefault();
-                                this.clearForm();
-                                document.getElementById('noteInput').focus();
-                                break;
-                            case 'f':
-                                e.preventDefault();
-                                document.getElementById('searchInput').focus();
-                                break;
-                            case 't':
-                                e.preventDefault();
-                                this.toggleTheme();
-                                break;
-                            case 'e':
-                                e.preventDefault();
-                                this.exportNotes('json');
-                                break;
-                        }
-                    } else {
-                        switch (e.key) {
-                            case 'n':
-                                e.preventDefault();
-                                this.clearForm();
-                                document.getElementById('noteInput').focus();
-                                break;
-                            case '/':
-                                e.preventDefault();
-                                document.getElementById('searchInput').focus();
-                                break;
-                            case '?':
-                                e.preventDefault();
-                                document.getElementById('helpModal').classList.add('show');
-                                break;
-                            case 't':
-                                e.preventDefault();
-                                this.toggleTheme();
-                                break;
-                            case 'Escape':
-                                e.preventDefault();
-                                this.clearForm();
-                                document.getElementById('searchInput').value = '';
-                                this.searchQuery = '';
-                                this.render();
-                                // Also close modal if open
-                                document.getElementById('helpModal').classList.remove('show');
-                                break;
-                        }
-                    }
-                });
-            }
-
-            loadNotes() {
-                const stored = localStorage.getItem('quickNotes');
-                return stored ? JSON.parse(stored) : [];
-            }
-
-            saveNotes() {
-                localStorage.setItem('quickNotes', JSON.stringify(this.notes));
-            }
-
-            saveNote() {
-                const input = document.getElementById('noteInput');
-                const content = input.value.trim();
-
-                if (!content) {
-                    this.showToast('Please enter a note', 'error');
-                    return;
+                    break;
+                  case 'Enter':
+                    e.preventDefault();
+                    this.saveNote();
+                    break;
                 }
-
-                if (this.editingId) {
-                    // Update existing note
-                    const noteIndex = this.notes.findIndex(n => n.id === this.editingId);
-                    if (noteIndex !== -1) {
-                        this.notes[noteIndex].content = content;
-                        this.notes[noteIndex].tags = [...this.currentTags];
-                        this.notes[noteIndex].updatedAt = new Date().toISOString();
-                        this.showToast('Note updated successfully!');
-                    }
-                    this.editingId = null;
-                } else {
-                    // Create new note
-                    const note = {
-                        id: Date.now().toString(),
-                        content: content,
-                        tags: [...this.currentTags],
-                        createdAt: new Date().toISOString(),
-                        updatedAt: new Date().toISOString()
-                    };
-                    this.notes.unshift(note);
-                    this.showToast('Note saved successfully!');
-                }
-
-                this.saveNotes();
-                this.clearForm();
-                this.render();
+              }
+              return;
             }
 
-            deleteNote(id) {
-                if (confirm('Are you sure you want to delete this note?')) {
-                    this.notes = this.notes.filter(note => note.id !== id);
-                    this.saveNotes();
-                    this.render();
-                    this.showToast('Note deleted successfully!');
-                }
+            // Global shortcuts
+            if (e.ctrlKey || e.metaKey) {
+              switch (e.key) {
+                case 'n':
+                  e.preventDefault();
+                  this.clearForm();
+                  document.getElementById('noteInput').focus();
+                  break;
+                case 'f':
+                  e.preventDefault();
+                  document.getElementById('searchInput').focus();
+                  break;
+                case 't':
+                  e.preventDefault();
+                  this.toggleTheme();
+                  break;
+                case 'e':
+                  e.preventDefault();
+                  this.exportNotes('json');
+                  break;
+              }
+            } else {
+              switch (e.key) {
+                case 'n':
+                  e.preventDefault();
+                  this.clearForm();
+                  document.getElementById('noteInput').focus();
+                  break;
+                case '/':
+                  e.preventDefault();
+                  document.getElementById('searchInput').focus();
+                  break;
+                case '?':
+                  e.preventDefault();
+                  document.getElementById('helpModal').classList.add('show');
+                  break;
+                case 't':
+                  e.preventDefault();
+                  this.toggleTheme();
+                  break;
+                case 'Escape':
+                  e.preventDefault();
+                  this.clearForm();
+                  document.getElementById('searchInput').value = '';
+                  this.searchQuery = '';
+                  this.render();
+                  // Also close modal if open
+                  document.getElementById('helpModal').classList.remove('show');
+                  break;
+              }
             }
+          });
+        }
 
-            editNote(id) {
-                const note = this.notes.find(n => n.id === id);
-                if (note) {
-                    const input = document.getElementById('noteInput');
-                    const saveBtn = document.getElementById('saveBtn');
-                    
-                    input.value = note.content;
-                    input.focus();
-                    this.editingId = id;
-                    
-                    // Load existing tags
-                    this.currentTags = note.tags ? [...note.tags] : [];
-                    this.renderTags();
-                    
-                    saveBtn.textContent = '💾 Update Note';
-                    this.showToast('Editing note - make changes and click Update');
-                }
+        loadNotes() {
+          const stored = localStorage.getItem('quickNotes');
+          return stored ? JSON.parse(stored) : [];
+        }
+
+        saveNotes() {
+          localStorage.setItem('quickNotes', JSON.stringify(this.notes));
+        }
+
+        saveNote() {
+          const input = document.getElementById('noteInput');
+          const content = input.value.trim();
+
+          if (!content) {
+            this.showToast('Please enter a note', 'error');
+            return;
+          }
+
+          if (this.editingId) {
+            // Update existing note
+            const noteIndex = this.notes.findIndex((n) => n.id === this.editingId);
+            if (noteIndex !== -1) {
+              this.notes[noteIndex].content = content;
+              this.notes[noteIndex].tags = [...this.currentTags];
+              this.notes[noteIndex].updatedAt = new Date().toISOString();
+              this.showToast('Note updated successfully!');
             }
+            this.editingId = null;
+          } else {
+            // Create new note
+            const note = {
+              id: Date.now().toString(),
+              content: content,
+              tags: [...this.currentTags],
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            };
+            this.notes.unshift(note);
+            this.showToast('Note saved successfully!');
+          }
 
-            clearForm() {
-                const input = document.getElementById('noteInput');
-                const saveBtn = document.getElementById('saveBtn');
-                
-                input.value = '';
-                this.editingId = null;
-                saveBtn.textContent = '💾 Save Note';
-                this.currentTags = [];
-                this.renderTags();
-            }
+          this.saveNotes();
+          this.clearForm();
+          this.render();
+        }
 
-            // Tag management methods
-            addTag() {
-                const tagInput = document.getElementById('tagInput');
-                const tag = tagInput.value.trim().toLowerCase();
-                
-                if (!tag) {
-                    this.showToast('Please enter a tag', 'error');
-                    return;
-                }
-                
-                if (this.currentTags.includes(tag)) {
-                    this.showToast('Tag already exists', 'error');
-                    return;
-                }
-                
-                this.currentTags.push(tag);
-                tagInput.value = '';
-                this.renderTags();
-            }
+        deleteNote(id) {
+          if (confirm('Are you sure you want to delete this note?')) {
+            this.notes = this.notes.filter((note) => note.id !== id);
+            this.saveNotes();
+            this.render();
+            this.showToast('Note deleted successfully!');
+          }
+        }
 
-            removeTag(tagToRemove) {
-                this.currentTags = this.currentTags.filter(tag => tag !== tagToRemove);
-                this.renderTags();
-            }
+        editNote(id) {
+          const note = this.notes.find((n) => n.id === id);
+          if (note) {
+            const input = document.getElementById('noteInput');
+            const saveBtn = document.getElementById('saveBtn');
 
-            renderTags() {
-                const tagsDisplay = document.getElementById('tagsDisplay');
-                
-                if (this.currentTags.length === 0) {
-                    tagsDisplay.innerHTML = '<span style="color: #6c757d; font-size: 12px;">No tags added</span>';
-                    return;
-                }
-                
-                tagsDisplay.innerHTML = this.currentTags.map(tag => 
-                    `<span class="tag">
+            input.value = note.content;
+            input.focus();
+            this.editingId = id;
+
+            // Load existing tags
+            this.currentTags = note.tags ? [...note.tags] : [];
+            this.renderTags();
+
+            saveBtn.textContent = '💾 Update Note';
+            this.showToast('Editing note - make changes and click Update');
+          }
+        }
+
+        clearForm() {
+          const input = document.getElementById('noteInput');
+          const saveBtn = document.getElementById('saveBtn');
+
+          input.value = '';
+          this.editingId = null;
+          saveBtn.textContent = '💾 Save Note';
+          this.currentTags = [];
+          this.renderTags();
+        }
+
+        // Tag management methods
+        addTag() {
+          const tagInput = document.getElementById('tagInput');
+          const tag = tagInput.value.trim().toLowerCase();
+
+          if (!tag) {
+            this.showToast('Please enter a tag', 'error');
+            return;
+          }
+
+          if (this.currentTags.includes(tag)) {
+            this.showToast('Tag already exists', 'error');
+            return;
+          }
+
+          this.currentTags.push(tag);
+          tagInput.value = '';
+          this.renderTags();
+        }
+
+        removeTag(tagToRemove) {
+          this.currentTags = this.currentTags.filter((tag) => tag !== tagToRemove);
+          this.renderTags();
+        }
+
+        renderTags() {
+          const tagsDisplay = document.getElementById('tagsDisplay');
+
+          if (this.currentTags.length === 0) {
+            tagsDisplay.innerHTML =
+              '<span style="color: #6c757d; font-size: 12px;">No tags added</span>';
+            return;
+          }
+
+          tagsDisplay.innerHTML = this.currentTags
+            .map(
+              (tag) =>
+                `<span class="tag">
                         ${tag}
                         <span class="tag-remove" data-tag="${tag}">×</span>
                     </span>`
-                ).join('');
-            }
+            )
+            .join('');
+        }
 
-            getAllTags() {
-                const tags = new Set();
-                this.notes.forEach(note => {
-                    if (note.tags) {
-                        note.tags.forEach(tag => tags.add(tag));
-                    }
-                });
-                return Array.from(tags).sort();
+        getAllTags() {
+          const tags = new Set();
+          this.notes.forEach((note) => {
+            if (note.tags) {
+              note.tags.forEach((tag) => tags.add(tag));
             }
+          });
+          return Array.from(tags).sort();
+        }
 
-            renderTagFilter() {
-                const tagFilterSection = document.getElementById('tagFilterSection');
-                const availableTags = document.getElementById('availableTags');
-                const allTags = this.getAllTags();
-                
-                if (allTags.length === 0) {
-                    tagFilterSection.style.display = 'none';
-                    return;
-                }
-                
-                tagFilterSection.style.display = 'block';
-                
-                availableTags.innerHTML = `
+        renderTagFilter() {
+          const tagFilterSection = document.getElementById('tagFilterSection');
+          const availableTags = document.getElementById('availableTags');
+          const allTags = this.getAllTags();
+
+          if (allTags.length === 0) {
+            tagFilterSection.style.display = 'none';
+            return;
+          }
+
+          tagFilterSection.style.display = 'block';
+
+          availableTags.innerHTML = `
                     <button class="tag-filter ${!this.activeTagFilter ? 'active' : ''}" data-tag="">
                         All Tags
                     </button>
-                    ${allTags.map(tag => 
-                        `<button class="tag-filter ${this.activeTagFilter === tag ? 'active' : ''}" data-tag="${tag}">
+                    ${allTags
+                      .map(
+                        (tag) =>
+                          `<button class="tag-filter ${this.activeTagFilter === tag ? 'active' : ''}" data-tag="${tag}">
                             ${tag}
                         </button>`
-                    ).join('')}
+                      )
+                      .join('')}
                 `;
-                
-                // Add click handlers to tag filters
-                availableTags.addEventListener('click', (e) => {
-                    if (e.target.classList.contains('tag-filter')) {
-                        // Remove active class from all tag filters
-                        availableTags.querySelectorAll('.tag-filter').forEach(btn => 
-                            btn.classList.remove('active')
-                        );
-                        
-                        // Add active class to clicked button
-                        e.target.classList.add('active');
-                        
-                        this.activeTagFilter = e.target.dataset.tag || null;
-                        this.render();
-                    }
-                });
+
+          // Add click handlers to tag filters
+          availableTags.addEventListener('click', (e) => {
+            if (e.target.classList.contains('tag-filter')) {
+              // Remove active class from all tag filters
+              availableTags
+                .querySelectorAll('.tag-filter')
+                .forEach((btn) => btn.classList.remove('active'));
+
+              // Add active class to clicked button
+              e.target.classList.add('active');
+
+              this.activeTagFilter = e.target.dataset.tag || null;
+              this.render();
             }
+          });
+        }
 
-            formatDate(dateString) {
-                const date = new Date(dateString);
-                const now = new Date();
-                const diffMs = now - date;
-                const diffMins = Math.floor(diffMs / 60000);
-                const diffHours = Math.floor(diffMs / 3600000);
-                const diffDays = Math.floor(diffMs / 86400000);
+        formatDate(dateString) {
+          const date = new Date(dateString);
+          const now = new Date();
+          const diffMs = now - date;
+          const diffMins = Math.floor(diffMs / 60000);
+          const diffHours = Math.floor(diffMs / 3600000);
+          const diffDays = Math.floor(diffMs / 86400000);
 
-                if (diffMins < 1) return 'just now';
-                if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
-                if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
-                if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
-                
-                return date.toLocaleDateString();
-            }
+          if (diffMins < 1) return 'just now';
+          if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+          if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+          if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
 
-            filterNotes() {
-                let filteredNotes = [...this.notes];
+          return date.toLocaleDateString();
+        }
 
-                // Apply date filter
-                if (this.currentFilter !== 'all') {
-                    const now = new Date();
-                    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                    
-                    filteredNotes = filteredNotes.filter(note => {
-                        const noteDate = new Date(note.updatedAt);
-                        
-                        switch (this.currentFilter) {
-                            case 'today':
-                                return noteDate >= today;
-                            case 'week':
-                                const weekAgo = new Date(today);
-                                weekAgo.setDate(weekAgo.getDate() - 7);
-                                return noteDate >= weekAgo;
-                            case 'month':
-                                const monthAgo = new Date(today);
-                                monthAgo.setMonth(monthAgo.getMonth() - 1);
-                                return noteDate >= monthAgo;
-                            default:
-                                return true;
-                        }
-                    });
-                }
+        filterNotes() {
+          let filteredNotes = [...this.notes];
 
-                // Apply search filter
-                if (this.searchQuery) {
-                    filteredNotes = filteredNotes.filter(note => 
-                        note.content.toLowerCase().includes(this.searchQuery) ||
-                        (note.tags && note.tags.some(tag => tag.toLowerCase().includes(this.searchQuery)))
-                    );
-                }
+          // Apply date filter
+          if (this.currentFilter !== 'all') {
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-                // Apply tag filter
-                if (this.activeTagFilter) {
-                    filteredNotes = filteredNotes.filter(note => 
-                        note.tags && note.tags.includes(this.activeTagFilter)
-                    );
-                }
+            filteredNotes = filteredNotes.filter((note) => {
+              const noteDate = new Date(note.updatedAt);
 
-                return filteredNotes;
-            }
+              switch (this.currentFilter) {
+                case 'today':
+                  return noteDate >= today;
+                case 'week':
+                  const weekAgo = new Date(today);
+                  weekAgo.setDate(weekAgo.getDate() - 7);
+                  return noteDate >= weekAgo;
+                case 'month':
+                  const monthAgo = new Date(today);
+                  monthAgo.setMonth(monthAgo.getMonth() - 1);
+                  return noteDate >= monthAgo;
+                default:
+                  return true;
+              }
+            });
+          }
 
-            highlightSearchTerm(text) {
-                if (!this.searchQuery) return this.escapeHtml(text);
-                
-                const escaped = this.escapeHtml(text);
-                const regex = new RegExp(`(${this.escapeRegex(this.searchQuery)})`, 'gi');
-                return escaped.replace(regex, '<span class="highlight">$1</span>');
-            }
+          // Apply search filter
+          if (this.searchQuery) {
+            filteredNotes = filteredNotes.filter(
+              (note) =>
+                note.content.toLowerCase().includes(this.searchQuery) ||
+                (note.tags && note.tags.some((tag) => tag.toLowerCase().includes(this.searchQuery)))
+            );
+          }
 
-            escapeRegex(string) {
-                return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            }
+          // Apply tag filter
+          if (this.activeTagFilter) {
+            filteredNotes = filteredNotes.filter(
+              (note) => note.tags && note.tags.includes(this.activeTagFilter)
+            );
+          }
 
-            render() {
-                const grid = document.getElementById('notesGrid');
-                const count = document.getElementById('notesCount');
-                const searchResults = document.getElementById('searchResults');
-                
-                // Render tag filter section
-                this.renderTagFilter();
-                
-                const filteredNotes = this.filterNotes();
-                const totalNotes = this.notes.length;
-                const showingNotes = filteredNotes.length;
+          return filteredNotes;
+        }
 
-                // Update count with tag filter info
-                const filterInfo = [];
-                if (this.searchQuery) filterInfo.push(`Search: "${this.searchQuery}"`);
-                if (this.currentFilter !== 'all') filterInfo.push(`Filter: ${this.currentFilter}`);
-                if (this.activeTagFilter) filterInfo.push(`Tag: ${this.activeTagFilter}`);
-                
-                if (filterInfo.length > 0) {
-                    count.textContent = `Showing ${showingNotes} of ${totalNotes} notes`;
-                    searchResults.textContent = filterInfo.join(' • ');
-                } else {
-                    count.textContent = `${totalNotes} note${totalNotes !== 1 ? 's' : ''}`;
-                    searchResults.textContent = '';
-                }
+        highlightSearchTerm(text) {
+          if (!this.searchQuery) return this.escapeHtml(text);
 
-                if (filteredNotes.length === 0) {
-                    if (this.searchQuery || this.currentFilter !== 'all') {
-                        grid.innerHTML = `
+          const escaped = this.escapeHtml(text);
+          const regex = new RegExp(`(${this.escapeRegex(this.searchQuery)})`, 'gi');
+          return escaped.replace(regex, '<span class="highlight">$1</span>');
+        }
+
+        escapeRegex(string) {
+          return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        render() {
+          const grid = document.getElementById('notesGrid');
+          const count = document.getElementById('notesCount');
+          const searchResults = document.getElementById('searchResults');
+
+          // Render tag filter section
+          this.renderTagFilter();
+
+          const filteredNotes = this.filterNotes();
+          const totalNotes = this.notes.length;
+          const showingNotes = filteredNotes.length;
+
+          // Update count with tag filter info
+          const filterInfo = [];
+          if (this.searchQuery) filterInfo.push(`Search: "${this.searchQuery}"`);
+          if (this.currentFilter !== 'all') filterInfo.push(`Filter: ${this.currentFilter}`);
+          if (this.activeTagFilter) filterInfo.push(`Tag: ${this.activeTagFilter}`);
+
+          if (filterInfo.length > 0) {
+            count.textContent = `Showing ${showingNotes} of ${totalNotes} notes`;
+            searchResults.textContent = filterInfo.join(' • ');
+          } else {
+            count.textContent = `${totalNotes} note${totalNotes !== 1 ? 's' : ''}`;
+            searchResults.textContent = '';
+          }
+
+          if (filteredNotes.length === 0) {
+            if (this.searchQuery || this.currentFilter !== 'all') {
+              grid.innerHTML = `
                             <div class="empty-state">
                                 <div class="empty-state-icon">🔍</div>
                                 <h3>No matching notes found</h3>
                                 <p>Try adjusting your search or filter criteria</p>
                             </div>
                         `;
-                    } else {
-                        grid.innerHTML = `
+            } else {
+              grid.innerHTML = `
                             <div class="empty-state">
                                 <div class="empty-state-icon">📭</div>
                                 <h3>No notes yet</h3>
                                 <p>Create your first note above to get started!</p>
                             </div>
                         `;
-                    }
-                    return;
-                }
+            }
+            return;
+          }
 
-                grid.innerHTML = filteredNotes.map(note => {
-                    const tagsHtml = note.tags && note.tags.length > 0 ? 
-                        `<div class="note-tags">
-                            ${note.tags.map(tag => `<span class="note-tag">${this.escapeHtml(tag)}</span>`).join('')}
-                        </div>` : '';
-                    
-                    return `
+          grid.innerHTML = filteredNotes
+            .map((note) => {
+              const tagsHtml =
+                note.tags && note.tags.length > 0
+                  ? `<div class="note-tags">
+                            ${note.tags.map((tag) => `<span class="note-tag">${this.escapeHtml(tag)}</span>`).join('')}
+                        </div>`
+                  : '';
+
+              return `
                         <div class="note-item" data-id="${note.id}">
                             <div class="note-content">${this.highlightSearchTerm(note.content)}</div>
                             ${tagsHtml}
@@ -1444,122 +1472,125 @@
                             </div>
                         </div>
                     `;
-                }).join('');
-                
-                // Update tag filter section
-                this.renderTagFilter();
-            }
+            })
+            .join('');
 
-            escapeHtml(text) {
-                const div = document.createElement('div');
-                div.textContent = text;
-                return div.innerHTML;
-            }
-
-            showToast(message, type = 'success') {
-                const toast = document.getElementById('toast');
-                toast.textContent = message;
-                toast.style.background = type === 'error' ? '#dc3545' : '#28a745';
-                toast.classList.add('show');
-
-                setTimeout(() => {
-                    toast.classList.remove('show');
-                }, 3000);
-            }
-
-            exportNotes(format) {
-                const notesToExport = this.searchQuery || this.currentFilter !== 'all' || this.activeTagFilter ? 
-                    this.filterNotes() : this.notes;
-
-                if (notesToExport.length === 0) {
-                    this.showToast('No notes to export', 'error');
-                    return;
-                }
-
-                let content, filename, mimeType;
-
-                if (format === 'json') {
-                    content = JSON.stringify(notesToExport, null, 2);
-                    filename = `quick-notes-${new Date().toISOString().split('T')[0]}.json`;
-                    mimeType = 'application/json';
-                } else if (format === 'txt') {
-                    content = this.generateTxtExport(notesToExport);
-                    filename = `quick-notes-${new Date().toISOString().split('T')[0]}.txt`;
-                    mimeType = 'text/plain';
-                }
-
-                this.downloadFile(content, filename, mimeType);
-                this.showToast(`Exported ${notesToExport.length} notes as ${format.toUpperCase()}`);
-            }
-
-            generateTxtExport(notes) {
-                let content = `Quick Notes Export\n`;
-                content += `Generated: ${new Date().toLocaleString()}\n`;
-                content += `Total Notes: ${notes.length}\n`;
-                content += `${'='.repeat(50)}\n\n`;
-
-                notes.forEach((note, index) => {
-                    content += `Note #${index + 1}\n`;
-                    content += `Created: ${new Date(note.createdAt).toLocaleString()}\n`;
-                    content += `Updated: ${new Date(note.updatedAt).toLocaleString()}\n`;
-                    if (note.tags && note.tags.length > 0) {
-                        content += `Tags: ${note.tags.join(', ')}\n`;
-                    }
-                    content += `${'-'.repeat(30)}\n`;
-                    content += `${note.content}\n\n`;
-                });
-
-                return content;
-            }
-
-            downloadFile(content, filename, mimeType) {
-                const blob = new Blob([content], { type: mimeType });
-                const url = window.URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = filename;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                window.URL.revokeObjectURL(url);
-            }
-
-            // Theme management methods
-            loadTheme() {
-                const storedTheme = localStorage.getItem('quickNotesTheme');
-                // Check for system preference if no stored theme
-                if (!storedTheme) {
-                    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                        return 'dark';
-                    }
-                }
-                return storedTheme || 'light';
-            }
-
-            saveTheme() {
-                localStorage.setItem('quickNotesTheme', this.currentTheme);
-            }
-
-            applyTheme() {
-                document.documentElement.setAttribute('data-theme', this.currentTheme);
-                const themeToggle = document.getElementById('themeToggle');
-                if (this.currentTheme === 'dark') {
-                    themeToggle.textContent = '☀️ Light Mode';
-                } else {
-                    themeToggle.textContent = '🌙 Dark Mode';
-                }
-            }
-
-            toggleTheme() {
-                this.currentTheme = this.currentTheme === 'dark' ? 'light' : 'dark';
-                this.saveTheme();
-                this.applyTheme();
-                this.showToast(`Switched to ${this.currentTheme} mode`);
-            }
+          // Update tag filter section
+          this.renderTagFilter();
         }
 
-        // Initialize the app
-        const app = new QuickNotes();
+        escapeHtml(text) {
+          const div = document.createElement('div');
+          div.textContent = text;
+          return div.innerHTML;
+        }
+
+        showToast(message, type = 'success') {
+          const toast = document.getElementById('toast');
+          toast.textContent = message;
+          toast.style.background = type === 'error' ? '#dc3545' : '#28a745';
+          toast.classList.add('show');
+
+          setTimeout(() => {
+            toast.classList.remove('show');
+          }, 3000);
+        }
+
+        exportNotes(format) {
+          const notesToExport =
+            this.searchQuery || this.currentFilter !== 'all' || this.activeTagFilter
+              ? this.filterNotes()
+              : this.notes;
+
+          if (notesToExport.length === 0) {
+            this.showToast('No notes to export', 'error');
+            return;
+          }
+
+          let content, filename, mimeType;
+
+          if (format === 'json') {
+            content = JSON.stringify(notesToExport, null, 2);
+            filename = `quick-notes-${new Date().toISOString().split('T')[0]}.json`;
+            mimeType = 'application/json';
+          } else if (format === 'txt') {
+            content = this.generateTxtExport(notesToExport);
+            filename = `quick-notes-${new Date().toISOString().split('T')[0]}.txt`;
+            mimeType = 'text/plain';
+          }
+
+          this.downloadFile(content, filename, mimeType);
+          this.showToast(`Exported ${notesToExport.length} notes as ${format.toUpperCase()}`);
+        }
+
+        generateTxtExport(notes) {
+          let content = `Quick Notes Export\n`;
+          content += `Generated: ${new Date().toLocaleString()}\n`;
+          content += `Total Notes: ${notes.length}\n`;
+          content += `${'='.repeat(50)}\n\n`;
+
+          notes.forEach((note, index) => {
+            content += `Note #${index + 1}\n`;
+            content += `Created: ${new Date(note.createdAt).toLocaleString()}\n`;
+            content += `Updated: ${new Date(note.updatedAt).toLocaleString()}\n`;
+            if (note.tags && note.tags.length > 0) {
+              content += `Tags: ${note.tags.join(', ')}\n`;
+            }
+            content += `${'-'.repeat(30)}\n`;
+            content += `${note.content}\n\n`;
+          });
+
+          return content;
+        }
+
+        downloadFile(content, filename, mimeType) {
+          const blob = new Blob([content], { type: mimeType });
+          const url = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(url);
+        }
+
+        // Theme management methods
+        loadTheme() {
+          const storedTheme = localStorage.getItem('quickNotesTheme');
+          // Check for system preference if no stored theme
+          if (!storedTheme) {
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+              return 'dark';
+            }
+          }
+          return storedTheme || 'light';
+        }
+
+        saveTheme() {
+          localStorage.setItem('quickNotesTheme', this.currentTheme);
+        }
+
+        applyTheme() {
+          document.documentElement.setAttribute('data-theme', this.currentTheme);
+          const themeToggle = document.getElementById('themeToggle');
+          if (this.currentTheme === 'dark') {
+            themeToggle.textContent = '☀️ Light Mode';
+          } else {
+            themeToggle.textContent = '🌙 Dark Mode';
+          }
+        }
+
+        toggleTheme() {
+          this.currentTheme = this.currentTheme === 'dark' ? 'light' : 'dark';
+          this.saveTheme();
+          this.applyTheme();
+          this.showToast(`Switched to ${this.currentTheme} mode`);
+        }
+      }
+
+      // Initialize the app
+      const app = new QuickNotes();
     </script>
-</body>
+  </body>
 </html>

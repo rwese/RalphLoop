@@ -11,7 +11,7 @@ pre-commit:
     # Secret scanning - CRITICAL: This MUST pass
     # NEVER skip this check with --no-verify
     secrets-scan:
-      run: gitleaks detect --staged --verbose --exit-code=1
+      run: gitleaks protect --staged --verbose --exit-code=1
       description: Scanning for secrets in staged changes
 
   # Formatting and linting (run after secrets scan)
