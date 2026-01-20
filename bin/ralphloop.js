@@ -22,7 +22,7 @@
  */
 
 import { spawn, spawnSync } from 'child_process';
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readFileSync, promises as fs } from 'fs';
 import { readFile } from 'fs/promises';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
@@ -32,6 +32,109 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // Configuration
 const DEFAULT_IMAGE = 'ghcr.io/rwese/ralphloop:latest';
 const DEFAULT_ITERATIONS = 1;
+const EXAMPLES_DIR = join(__dirname, '..', 'examples');
+
+/**
+ * Load examples dynamically from the examples directory
+ */
+async function loadExamples() {
+  const examples = [];
+
+  try {
+    const entries = await fs.readdir(EXAMPLES_DIR, { withFileTypes: true });
+
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        const promptPath = join(EXAMPLES_DIR, entry.name, 'prompt.md');
+
+        if (existsSync(promptPath)) {
+          // Try to read description from README.md or prompt.md
+          let description = 'Example project';
+          let iterations = '5-10';
+
+          const readmePath = join(EXAMPLES_DIR, entry.name, 'README.md');
+          if (existsSync(readmePath)) {
+            try {
+              const readmeContent = readFileSync(readmePath, 'utf8');
+              const firstLine = readmeContent.split('\n')[0];
+              if (firstLine && firstLine.length > 10) {
+                description = firstLine.replace(/^#+\s*/, '').trim();
+              }
+            } catch {}
+          }
+
+          examples.push({
+            name: entry.name,
+            description: description,
+            iterations: iterations,
+            quick: entry.name.split('-')[0], // First word as quick alias
+            prompt: `examples/${entry.name}/prompt.md`,
+          });
+        }
+      }
+    }
+  } catch (error) {
+    console.warn(`Warning: Could not load examples: ${error.message}`);
+  }
+
+  return examples;
+}
+
+/**
+ * PromptBuilder command - Interactive prompt engineering tool
+ */
+async function promptBuilderCommand() {
+  const idea = process.env.IDEA || '';
+
+  console.log('\n📝 PromptBuilder - Interactive Prompt Engineering Tool\n');
+  console.log('='.repeat(60));
+
+  if (idea) {
+    // Non-interactive mode with IDEA environment variable
+    console.log(`\n💡 Processing your idea: "${idea}"\n`);
+    console.log('Note: In non-interactive mode, PromptBuilder will generate a quality prompt.');
+    console.log(
+      'The implementing agent should ask clarifying questions and build a comprehensive prompt.\n'
+    );
+    console.log('='.repeat(60));
+    console.log('\n📄 Generated Prompt:\n');
+    console.log(`# Project Based on Your Idea: ${idea}\n`);
+    console.log(`Build a solution that addresses: ${idea}`);
+    console.log('\n## Core Features');
+    console.log('- [ ] Define primary functionality');
+    console.log('- [ ] Identify target users');
+    console.log('- [ ] Establish key requirements');
+    console.log('\n## Success Criteria');
+    console.log('- [ ] Project is functional and complete');
+    console.log('- [ ] All user needs are addressed');
+    console.log('- [ ] Code is well-structured and tested');
+    console.log('\n## Example Usage');
+    console.log('- [ ] User can interact with the solution');
+    console.log('- [ ] Features work as expected');
+    console.log('\n## Bonus Features');
+    console.log('- [ ] Additional nice-to-have features');
+    console.log('\n' + '='.repeat(60));
+    console.log(
+      '\n💡 Tip: The implementing agent should ask clarifying questions to refine this prompt.\n'
+    );
+  } else {
+    // Interactive mode
+    console.log('\n💡 What is your idea you want to have built?');
+    console.log('(This will be passed to RalphLoop for implementation)\n');
+    console.log('='.repeat(60));
+    console.log('\n✨ PromptBuilder generates a quality prompt that the implementing agent');
+    console.log('will use to build your project.\n');
+    console.log('The agent will ask clarifying questions to refine the prompt.');
+    console.log('\nFor now, just describe your high-level idea:\n');
+    console.log('Example: "Build a habit tracker for busy professionals"');
+    console.log('Example: "Create a personal finance dashboard with charts"');
+    console.log('Example: "Make a weather CLI tool with forecasts"\n');
+    console.log('='.repeat(60));
+    console.log('\n📝 Enter your idea (press Enter to continue with this description):\n');
+  }
+
+  return { shouldRun: true, iterations: 5 };
+}
 
 /**
  * Detect available container runtime (synchronous)
@@ -201,7 +304,8 @@ COMMANDS
   run          Run the autonomous development loop (default command)
   doctor       Check system requirements and diagnose issues
   examples     List available example projects with descriptions
-  quick        Quick-start with a built-in example (see usage below)
+  quick        Quick-start with an example (auto-detected from examples/)
+  prompt       Build a quality prompt from your idea
   help         Show this help message
 
 ARGUMENTS
@@ -218,20 +322,19 @@ OPTIONS
   --version, -V            Show version information
 
 QUICK-START EXAMPLES
-  # Run the todo-app example (10 iterations)
+  # List all available examples
+  npx ralphloop examples
+
+  # Quick-start any example (auto-detected from examples/ directory)
   npx ralphloop quick todo
-
-  # Run the book-collection example (15 iterations)
   npx ralphloop quick book
-
-  # Run the weather-cli example (5 iterations)
   npx ralphloop quick weather
-
-  # Run the finance-dashboard example (15 iterations)
   npx ralphloop quick finance
-
-  # Run the youtube-cli example (10 iterations)
   npx ralphloop quick youtube
+
+  # Build a prompt from your idea
+  npx ralphloop prompt
+  IDEA="Build a habit tracker" npx ralphloop prompt
 
 CUSTOM PROMPT USAGE
   # Using --ralph-prompt-file (recommended - reads file directly)
@@ -250,6 +353,7 @@ ENVIRONMENT VARIABLES
   OPENCODE_AUTH        OpenCode authentication data
   RALPH_PROMPT         Direct prompt text for the autonomous loop
   RALPH_PROMPT_FILE    Path to a prompt file
+  IDEA                 Idea for prompt-builder command
 
 DIAGNOSIS
   Run "npx ralphloop doctor" to check your system setup and diagnose issues.
@@ -479,58 +583,21 @@ async function doctorCommand() {
 }
 
 /**
- * Examples command - list available examples
+ * Examples command - list available examples (dynamically loaded)
  */
 async function examplesCommand() {
+  const examples = await loadExamples();
+
   console.log('\n📚 RalphLoop Example Projects\n');
   console.log('These are pre-built project templates you can start with:\n');
   console.log('='.repeat(60));
 
-  const examples = [
-    {
-      name: 'todo-app',
-      iterations: '10-15',
-      description: 'Modern task management web app with PWA support',
-      quick: 'todo',
-    },
-    {
-      name: 'book-collection',
-      iterations: '15-20',
-      description: 'Personal library management system',
-      quick: 'book',
-    },
-    {
-      name: 'finance-dashboard',
-      iterations: '15-20',
-      description: 'Personal finance tracking and budgeting',
-      quick: 'finance',
-    },
-    {
-      name: 'weather-cli',
-      iterations: '5-10',
-      description: 'Professional CLI weather tool',
-      quick: 'weather',
-    },
-    {
-      name: 'youtube-cli',
-      iterations: '10-15',
-      description: 'YouTube download and media management',
-      quick: 'youtube',
-    },
-    {
-      name: 'prompt-builder',
-      iterations: '5-10',
-      description: 'Interactive tool to craft quality prompts',
-      quick: 'prompt',
-    },
-  ];
-
-  examples.forEach((example) => {
+  for (const example of examples) {
     console.log(`\n📦 ${example.name}`);
     console.log(`   ${example.description}`);
     console.log(`   Estimated iterations: ${example.iterations}`);
     console.log(`   Quick start: npx ralphloop quick ${example.quick}`);
-  });
+  }
 
   console.log('\n' + '='.repeat(60));
   console.log('\n🚀 HOW TO USE AN EXAMPLE');
@@ -538,46 +605,41 @@ async function examplesCommand() {
   console.log('\nOption 1: Quick start (easiest)');
   console.log('   npx ralphloop quick todo\n');
 
-  console.log('Option 2: Using pre-installed examples (in container)');
-  console.log(
-    '   RALPH_PROMPT_FILE=/usr/share/ralphloop/examples/todo-app/prompt.md \\\\\n   npx ralphloop 10\n'
-  );
+  console.log('Option 2: Using --ralph-prompt-file');
+  console.log('   npx ralphloop -p examples/todo-app/prompt.md 10\n');
 
-  console.log('Option 3: Using local prompt file');
-  console.log('   RALPH_PROMPT_FILE=./examples/todo-app/prompt.md npx ralphloop 10\n');
+  console.log('Option 3: Using prompt-builder to craft your own');
+  console.log('   npx ralphloop prompt\n');
 
-  console.log('Option 4: Paste prompt directly');
-  console.log('   RALPH_PROMPT="$(< ./examples/todo-app/prompt.md)" npx ralphloop 10\n');
-
-  console.log('');
+  console.log('='.repeat(60));
+  console.log('\n💡 TIP: Use "npx ralphloop quick <name>" to start any example.');
+  console.log('   Run "npx ralphloop examples" to see all available examples.\n');
 }
 
 /**
- * Quick command - quick-start with an example
+ * Quick command - quick-start with an example (dynamically loaded)
  */
 async function quickCommand(exampleName) {
-  const examples = {
-    todo: { name: 'todo-app', prompt: 'examples/todo-app/prompt.md', iterations: 10 },
-    book: { name: 'book-collection', prompt: 'examples/book-collection/prompt.md', iterations: 15 },
-    finance: {
-      name: 'finance-dashboard',
-      prompt: 'examples/finance-dashboard/prompt.md',
-      iterations: 15,
-    },
-    weather: { name: 'weather-cli', prompt: 'examples/weather-cli/prompt.md', iterations: 5 },
-    youtube: { name: 'youtube-cli', prompt: 'examples/youtube-cli/prompt.md', iterations: 10 },
-    prompt: { name: 'prompt-builder', prompt: 'examples/prompt-builder/prompt.md', iterations: 5 },
-  };
+  const examples = await loadExamples();
 
-  const example = examples[exampleName.toLowerCase()];
+  // Build a lookup map from dynamically loaded examples
+  const exampleMap = {};
+  for (const example of examples) {
+    // Add by quick alias (first word of name)
+    exampleMap[example.quick.toLowerCase()] = example;
+    // Also add by full name
+    exampleMap[example.name.toLowerCase()] = example;
+  }
+
+  const example = exampleMap[exampleName.toLowerCase()];
 
   if (!example) {
     console.log(`\n❌ Unknown example: "${exampleName}"\n`);
     console.log('Available examples:');
-    Object.keys(examples).forEach((key) => {
-      console.log(`  ${key.padEnd(10)} - ${examples[key].name}`);
-    });
-    console.log('\nUse "npx ralphloop examples" to see details.\n');
+    for (const ex of examples) {
+      console.log(`  ${ex.quick.padEnd(10)} - ${ex.name}`);
+    }
+    console.log('\nUse "npx ralphloop examples" to see all examples.\n');
     return false;
   }
 
@@ -587,7 +649,7 @@ async function quickCommand(exampleName) {
 
   // Set the environment variable and continue with run
   process.env.RALPH_PROMPT_FILE = example.prompt;
-  return { shouldRun: true, iterations: example.iterations };
+  return { shouldRun: true, iterations: parseInt(example.iterations.split('-')[0]) || 5 };
 }
 
 /**
@@ -675,7 +737,7 @@ async function main() {
   }
 
   // Parse command - detect known commands first
-  const knownCommands = ['run', 'doctor', 'examples', 'quick', 'help'];
+  const knownCommands = ['run', 'doctor', 'examples', 'quick', 'prompt', 'help'];
   let command = 'run'; // default
   let commandArgs = args;
 
@@ -694,7 +756,8 @@ async function main() {
     }
   }
 
-  // Initialize env overrides array early for commands that need it
+  // Initialize variables early for command handlers
+  let iterations = DEFAULT_ITERATIONS;
   const envOverrides = [];
 
   // Handle commands before options parsing
@@ -724,26 +787,37 @@ async function main() {
     process.exit(0);
   }
 
+  // PromptBuilder command - interactive prompt engineering tool
+  if (command === 'prompt') {
+    const result = await promptBuilderCommand();
+    if (result && result.shouldRun) {
+      // Continue to run the loop with the prompt-builder prompt
+      process.env.RALPH_PROMPT_FILE = 'examples/prompt-builder/prompt.md';
+      commandArgs[0] = (result.iterations || 5).toString();
+    } else {
+      process.exit(0);
+    }
+  }
+
   if (command === 'quick') {
     const exampleName = commandArgs[0];
     if (!exampleName) {
       console.log('\n❌ Please specify an example name\n');
       console.log('Usage: npx ralphloop quick [example]\n');
       console.log('Available examples:');
-      console.log('  todo     - Task management web app');
-      console.log('  book     - Book collection manager');
-      console.log('  finance  - Personal finance dashboard');
-      console.log('  weather  - Weather CLI tool');
-      console.log('  youtube  - YouTube downloader');
-      console.log('\nRun "npx ralphloop examples" for details.\n');
+      const examples = await loadExamples();
+      for (const ex of examples) {
+        console.log(`  ${ex.quick.padEnd(10)} - ${ex.name}`);
+      }
+      console.log('\nRun "npx ralphloop examples" for all details.\n');
       process.exit(1);
     }
     const result = await quickCommand(exampleName);
     if (!result) {
       process.exit(1);
     }
-    // Continue with run command using result.iterations
-    commandArgs[0] = result.iterations.toString();
+    // Continue to run command with the result
+    iterations = result.iterations;
   }
 
   if (command === 'help') {
@@ -754,7 +828,6 @@ async function main() {
   // Parse options
   let runtime = null;
   let image = DEFAULT_IMAGE;
-  let iterations = DEFAULT_ITERATIONS;
   let pullImageFlag = true; // Default to pulling latest image
   let extraArgs = [];
 
