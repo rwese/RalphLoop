@@ -100,7 +100,7 @@ function spawnCheckSync(command, args) {
     return {
       success: result.status === 0,
       output: result.stdout?.trim() || '',
-      error: result.stderr?.trim() || ''
+      error: result.stderr?.trim() || '',
     };
   } catch (error) {
     return { success: false, output: '', error: error.message };
@@ -408,7 +408,14 @@ async function doctorCommand() {
   console.log('\n🌐 Network Connectivity');
   console.log('-'.repeat(30));
   try {
-    const ghcrCheck = spawnCheckSync('curl', ['-s', '-o', '/dev/null', '-w', '%{http_code}', 'https://ghcr.io']);
+    const ghcrCheck = spawnCheckSync('curl', [
+      '-s',
+      '-o',
+      '/dev/null',
+      '-w',
+      '%{http_code}',
+      'https://ghcr.io',
+    ]);
     if (ghcrCheck.success && ghcrCheck.output === '200') {
       console.log('  ✅ ghcr.io: Connected');
       checks.push('Network: ghcr.io accessible');
@@ -490,32 +497,32 @@ async function examplesCommand() {
       name: 'todo-app',
       iterations: '10-15',
       description: 'Modern task management web app with PWA support',
-      quick: 'todo'
+      quick: 'todo',
     },
     {
       name: 'book-collection',
       iterations: '15-20',
       description: 'Personal library management system',
-      quick: 'book'
+      quick: 'book',
     },
     {
       name: 'finance-dashboard',
       iterations: '15-20',
       description: 'Personal finance tracking and budgeting',
-      quick: 'finance'
+      quick: 'finance',
     },
     {
       name: 'weather-cli',
       iterations: '5-10',
       description: 'Professional CLI weather tool',
-      quick: 'weather'
+      quick: 'weather',
     },
     {
       name: 'youtube-cli',
       iterations: '10-15',
       description: 'YouTube download and media management',
-      quick: 'youtube'
-    }
+      quick: 'youtube',
+    },
   ];
 
   examples.forEach((example) => {
@@ -532,7 +539,9 @@ async function examplesCommand() {
   console.log('   npx ralphloop quick todo\n');
 
   console.log('Option 2: Using pre-installed examples (in container)');
-  console.log('   RALPH_PROMPT_FILE=/usr/share/ralphloop/examples/todo-app/prompt.md \\\\\n   npx ralphloop 10\n');
+  console.log(
+    '   RALPH_PROMPT_FILE=/usr/share/ralphloop/examples/todo-app/prompt.md \\\\\n   npx ralphloop 10\n'
+  );
 
   console.log('Option 3: Using local prompt file');
   console.log('   RALPH_PROMPT_FILE=./examples/todo-app/prompt.md npx ralphloop 10\n');
@@ -550,9 +559,13 @@ async function quickCommand(exampleName) {
   const examples = {
     todo: { name: 'todo-app', prompt: 'examples/todo-app/prompt.md', iterations: 10 },
     book: { name: 'book-collection', prompt: 'examples/book-collection/prompt.md', iterations: 15 },
-    finance: { name: 'finance-dashboard', prompt: 'examples/finance-dashboard/prompt.md', iterations: 15 },
+    finance: {
+      name: 'finance-dashboard',
+      prompt: 'examples/finance-dashboard/prompt.md',
+      iterations: 15,
+    },
     weather: { name: 'weather-cli', prompt: 'examples/weather-cli/prompt.md', iterations: 5 },
-    youtube: { name: 'youtube-cli', prompt: 'examples/youtube-cli/prompt.md', iterations: 10 }
+    youtube: { name: 'youtube-cli', prompt: 'examples/youtube-cli/prompt.md', iterations: 10 },
   };
 
   const example = examples[exampleName.toLowerCase()];

@@ -57,15 +57,42 @@ npx ralphloop 5
 
 ### CLI Options
 
-| Option                                                 | Description                      |
-| ------------------------------------------------------ | -------------------------------- |
-| `npx ralphloop`                                        | Run with default (1 iteration)   |
-| `npx ralphloop 10`                                     | Run 10 iterations                |
-| `npx https://github.com/rwese/RalphLoop.git 10`        | Run directly from GitHub         |
-| `npx ralphloop --docker 5`                             | Force Docker instead of Podman   |
-| `npx ralphloop --image ghcr.io/rwese/ralphloop:v1.0.0` | Use specific image tag           |
-| `npx ralphloop --pull`                                 | Pull latest image before running |
-| `npx ralphloop --help`                                 | Show help                        |
+| Option                                                 | Description                       |
+| ------------------------------------------------------ | --------------------------------- |
+| `npx ralphloop`                                        | Run with default (1 iteration)    |
+| `npx ralphloop 10`                                     | Run 10 iterations                 |
+| `npx https://github.com/rwese/RalphLoop.git 10`        | Run directly from GitHub          |
+| `npx ralphloop --docker 5`                             | Force Docker instead of Podman    |
+| `npx ralphloop --image ghcr.io/rwese/ralphloop:v1.0.0` | Use specific image tag            |
+| `npx ralphloop --pull`                                 | Pull latest image before running  |
+| `npx ralphloop --help`                                 | Show help                         |
+| `npx ralphloop doctor`                                 | Diagnose system requirements      |
+| `npx ralphloop examples`                               | List available example projects   |
+| `npx ralphloop quick todo`                             | Quick-start with todo-app example |
+| `npx ralphloop -p ./prompt.md 10`                      | Read prompt from file directly    |
+| `npx ralphloop --env "VAR=value"`                      | Set environment variable          |
+
+### CLI Commands
+
+RalphLoop CLI includes convenience commands:
+
+```bash
+# Diagnose system setup
+npx ralphloop doctor
+
+# List available examples
+npx ralphloop examples
+
+# Quick-start an example (todo, book, finance, weather, youtube)
+npx ralphloop quick todo
+
+# Read prompt from file (recommended for large prompts)
+npx ralphloop --ralph-prompt-file ./prompt.md 10
+npx ralphloop -p ./prompt.md 5
+
+# Set environment variables
+npx ralphloop --env "RALPH_PROMPT=build a todo app" 5
+```
 
 ### Environment Variables
 
@@ -187,8 +214,8 @@ RalphLoop includes ready-to-use project prompts in the `examples/` directory. Ea
 
 ### Available Examples
 
-| Example                                           | Description                                     | Iterations |
-| ------------------------------------------------- | ----------------------------------------------- | ---------- |
+| Example                                            | Description                                     | Iterations |
+| -------------------------------------------------- | ----------------------------------------------- | ---------- |
 | [todo-app](./examples/todo-app/)                   | Modern task management web app with PWA support | 10-15      |
 | [book-collection](./examples/book-collection/)     | Personal library management system              | 15-20      |
 | [finance-dashboard](./examples/finance-dashboard/) | Personal finance tracking and budgeting         | 15-20      |
@@ -200,7 +227,12 @@ See the [Examples README](./examples/README.md) for detailed usage instructions.
 ### Running an Example
 
 ```bash
-# Run the todo app example with 10 iterations
+# Using --ralph-prompt-file (recommended - reads file directly)
+npx ralphloop --ralph-prompt-file examples/todo-app/prompt.md 10
+
+# Using short form
+npx ralphloop -p examples/todo-app/prompt.md 10
+
 # Note: RALPH_PROMPT_FILE paths are relative to /workspace inside the container
 RALPH_PROMPT_FILE=/workspace/examples/todo-app/prompt.md npm run container:run 10
 
@@ -216,7 +248,7 @@ cd my-project
 RALPH_PROMPT="$(cat prompt.md)" npm run container:run 10
 ```
 
-> **Note:** `RALPH_PROMPT_FILE` must be a path relative to `/workspace` inside the container (where your project is mounted).
+> **Note:** `RALPH_PROMPT_FILE` must be a path relative to `/workspace` inside the container (where your project is mounted). For local development, `--ralph-prompt-file` or `-p` is recommended as it reads the file directly.
 
 ### Environment Variables for Prompts
 
@@ -224,6 +256,18 @@ RALPH_PROMPT="$(cat prompt.md)" npm run container:run 10
 | ------------------- | ------------------------------------------------------------- |
 | `RALPH_PROMPT`      | Direct prompt text for the autonomous loop                    |
 | `RALPH_PROMPT_FILE` | Path to a prompt file (relative to `/workspace` in container) |
+
+> **Tip:** Use `--ralph-prompt-file` or `-p` to read prompt files directly without shell quoting issues:
+>
+> ```bash
+> npx ralphloop -p ./prompt.md 10
+> ```
+>
+> Or use `--env` to set variables inline:
+>
+> ```bash
+> npx ralphloop --env "RALPH_PROMPT=build a REST API" 5
+> ```
 
 ### Creating Your Own
 

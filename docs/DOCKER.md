@@ -72,8 +72,8 @@ podman run -it --rm \
 
 ## Available Examples
 
-| Example                                            | Description                                     | Iterations |
-| -------------------------------------------------- | ----------------------------------------------- | ---------- |
+| Example                                             | Description                                     | Iterations |
+| --------------------------------------------------- | ----------------------------------------------- | ---------- |
 | [todo-app](../examples/todo-app/)                   | Modern task management web app with PWA support | 10-15      |
 | [book-collection](../examples/book-collection/)     | Personal library management system              | 15-20      |
 | [finance-dashboard](../examples/finance-dashboard/) | Personal finance tracking and budgeting         | 15-20      |
