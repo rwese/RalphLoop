@@ -1,0 +1,395 @@
+#!/usr/bin/env bash
+
+# ralph-trigger - Custom command trigger for RalphLoop evaluation loops
+# Usage: ralph-trigger [options]
+#
+# This script can be called by external CLIs (Claude Code, Codex, Kilo)
+# to trigger RalphLoop evaluation loops with custom configuration.
+#
+# Options:
+#   --iterations, -n <number>  Number of iterations to run (default: 1)
+#   --prompt, -p <file>        Path to prompt file
+#   --mode, -m <mode>          Evaluation mode: autonomous, interactive, validation
+#   --backend, -b <backend>    Backend to use: claude-code, codex, kilo
+#   --config, -c <file>        Path to backend config file
+#   --status                    Show current status
+#   --config-get <key>         Get configuration value
+#   --config-set <key>=<value> Set configuration value
+#   --help, -h                 Show this help message
+#
+# Examples:
+#   ralph-trigger --iterations 5 --mode autonomous
+#   ralph-trigger --prompt ./prompt.md --backend claude-code
+#   ralph-trigger --status
+#   ralph-trigger --config-get evaluation.maxIterations
+
+set -e -u -o pipefail
+
+# Configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BACKENDS_DIR="${SCRIPT_DIR}/../backends"
+CONFIG_FILE="${BACKENDS_DIR}/index.json"
+RALPH_SCRIPT="${SCRIPT_DIR}/../ralph"
+
+# Default values
+ITERATIONS=1
+MODE="autonomous"
+PROMPT_FILE=""
+BACKEND=""
+STATUS_MODE=false
+CONFIG_GET=""
+CONFIG_SET=""
+
+# Help function
+show_help() {
+  cat << EOF
+ralph-trigger - Custom command trigger for RalphLoop evaluation loops
+
+USAGE
+    ralph-trigger [options]
+
+OPTIONS
+    --iterations, -n <number>  Number of iterations to run (default: 1)
+    --prompt, -p <file>        Path to prompt file
+    --mode, -m <mode>          Evaluation mode: autonomous, interactive, validation
+    --backend, -b <backend>    Backend to use: claude-code, codex, kilo
+    --config, -c <file>        Path to backend config file
+    --status                    Show current status
+    --config-get <key>         Get configuration value
+    --config-set <key>=<value> Set configuration value
+    --help, -h                 Show this help message
+
+MODES
+    autonomous   Run full autonomous development loop (default)
+    interactive  Run with interactive prompts and user feedback
+    validation   Run validation checks only
+
+BACKENDS
+    claude-code  Use Claude Code CLI integration
+    codex        Use OpenAI Codex CLI integration
+    kilo         Use Kilo CLI integration
+
+EXAMPLES
+    # Run autonomous development for 5 iterations
+    ralph-trigger --iterations 5
+
+    # Run with specific prompt file
+    ralph-trigger --prompt ./my-prompt.md --iterations 10
+
+    # Use Claude Code backend
+    ralph-trigger --backend claude-code --mode autonomous
+
+    # Check current status
+    ralph-trigger --status
+
+    # Get configuration value
+    ralph-trigger --config-get evaluation.maxIterations
+
+    # Set configuration value
+    ralph-trigger --config-set evaluation.maxIterations=50
+
+ENVIRONMENT VARIABLES
+    RALPH_PROMPT         Direct prompt text
+    RALPH_PROMPT_FILE    Path to prompt file
+    RALPH_BACKEND        Default backend to use
+    RALPH_ITERATIONS     Default number of iterations
+    RALPH_MODE           Default evaluation mode
+
+FILES
+    backends/index.json  Main backend configuration
+    backends/*/config.json  Backend-specific configurations
+    progress.md          Current progress tracking
+
+For more information, see: https://github.com/rwese/RalphLoop
+EOF
+}
+
+# Parse command line arguments
+parse_args() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --iterations|-n)
+        ITERATIONS="$2"
+        shift 2
+        ;;
+      --prompt|-p)
+        PROMPT_FILE="$2"
+        shift 2
+        ;;
+      --mode|-m)
+        MODE="$2"
+        shift 2
+        ;;
+      --backend|-b)
+        BACKEND="$2"
+        shift 2
+        ;;
+      --config|-c)
+        CONFIG_FILE="$2"
+        shift 2
+        ;;
+      --status)
+        STATUS_MODE=true
+        shift
+        ;;
+      --config-get)
+        CONFIG_GET="$2"
+        shift 2
+        ;;
+      --config-set)
+        CONFIG_SET="$2"
+        shift 2
+        ;;
+      --help|-h)
+        show_help
+        exit 0
+        ;;
+      *)
+        echo "Unknown option: $1" >&2
+        echo "Use --help for usage information" >&2
+        exit 1
+        ;;
+    esac
+  done
+}
+
+# Validate arguments
+validate_args() {
+  # Validate iterations
+  if ! [[ "$ITERATIONS" =~ ^[0-9]+$ ]]; then
+    echo "Error: Iterations must be a positive number, got: '$ITERATIONS'" >&2
+    exit 1
+  fi
+
+  # Validate mode
+  if [[ ! "$MODE" =~ ^(autonomous|interactive|validation)$ ]]; then
+    echo "Error: Mode must be one of: autonomous, interactive, validation" >&2
+    echo "Got: '$MODE'" >&2
+    exit 1
+  fi
+
+  # Validate backend
+  if [[ -n "$BACKEND" ]]; then
+    if [[ ! "$BACKEND" =~ ^(claude-code|codex|kilo)$ ]]; then
+      echo "Error: Backend must be one of: claude-code, codex, kilo" >&2
+      echo "Got: '$BACKEND'" >&2
+      exit 1
+    fi
+  fi
+
+  # Validate prompt file if specified
+  if [[ -n "$PROMPT_FILE" ]]; then
+    if [[ ! -f "$PROMPT_FILE" ]]; then
+      echo "Error: Prompt file not found: '$PROMPT_FILE'" >&2
+      exit 1
+    fi
+  fi
+
+  # Validate config file if specified
+  if [[ -n "$CONFIG_FILE" ]] && [[ -f "$CONFIG_FILE" ]]; then
+    # Validate JSON format
+    if ! jq empty "$CONFIG_FILE" 2>/dev/null; then
+      echo "Error: Invalid JSON in config file: '$CONFIG_FILE'" >&2
+      exit 1
+    fi
+  fi
+}
+
+# Get configuration value using jq
+get_config() {
+  local key="$1"
+  local config="${2:-$CONFIG_FILE}"
+
+  if [[ ! -f "$config" ]]; then
+    echo "Error: Config file not found: '$config'" >&2
+    exit 1
+  fi
+
+  # Convert dot notation to jq path
+  local jq_path
+  jq_path=$(echo "$key" | sed 's/\./ /g' | awk '{
+    path = ""
+    for (i = 1; i <= NF; i++) {
+      if (path == "") path = $i;
+      else if ($i ~ /^[0-9]+$/) path = path "["$i"]";
+      else path = path "." $i;
+    }
+    print path
+  }')
+
+  jq -r ".$jq_path // empty" "$config" 2>/dev/null
+}
+
+# Set configuration value using jq
+set_config() {
+  local key="$1"
+  local value="$2"
+  local config="${3:-$CONFIG_FILE}"
+
+  if [[ ! -f "$config" ]]; then
+    echo "Error: Config file not found: '$config'" >&2
+    exit 1
+  fi
+
+  # Convert dot notation to jq path
+  local jq_path
+  jq_path=$(echo "$key" | sed 's/\./ /g' | awk '{
+    path = ""
+    for (i = 1; i <= NF; i++) {
+      if (path == "") path = $i;
+      else if ($i ~ /^[0-9]+$/) path = path "["$i"]";
+      else path = path "." $i;
+    }
+    print path
+  }')
+
+  # Create backup
+  cp "$config" "${config}.bak"
+
+  # Update config using jq
+  if jq ".$jq_path = $value" "$config" > "${config}.tmp"; then
+    mv "${config}.tmp" "$config"
+    echo "Updated configuration: $key = $value"
+  else
+    echo "Error: Failed to update configuration" >&2
+    rm -f "${config}.tmp"
+    exit 1
+  fi
+}
+
+# Show current status
+show_status() {
+  echo "========================================"
+  echo "🔍 RalphLoop Status"
+  echo "========================================"
+
+  # Check if RalphLoop is available
+  if [[ -x "$RALPH_SCRIPT" ]]; then
+    echo "✅ RalphLoop script: Available"
+  else
+    echo "❌ RalphLoop script: Not found or not executable"
+  fi
+
+  # Check backends directory
+  if [[ -d "$BACKENDS_DIR" ]]; then
+    echo "✅ Backends directory: $BACKENDS_DIR"
+  else
+    echo "❌ Backends directory: Not found"
+  fi
+
+  # List available backends
+  echo ""
+  echo "📦 Available Backends:"
+  if [[ -d "$BACKENDS_DIR" ]]; then
+    for backend_dir in "$BACKENDS_DIR"/*/; do
+      if [[ -d "$backend_dir" ]]; then
+        local backend_name
+        backend_name=$(basename "$backend_dir")
+        local backend_config="${backend_dir}config.json"
+
+        if [[ -f "$backend_config" ]]; then
+          local enabled
+          enabled=$(get_config "enabled" "$backend_config" 2>/dev/null || echo "false")
+          if [[ "$enabled" == "true" ]]; then
+            echo "  ✅ $backend_name (enabled)"
+          else
+            echo "  ○ $backend_name (disabled)"
+          fi
+        else
+          echo "  ○ $backend_name (no config)"
+        fi
+      fi
+    done
+  fi
+
+  # Show current configuration
+  echo ""
+  echo "⚙️  Current Configuration:"
+  echo "  Iterations: $ITERATIONS"
+  echo "  Mode: $MODE"
+  echo "  Backend: ${BACKEND:-not set}"
+
+  # Check for progress file
+  if [[ -f "progress.md" ]]; then
+    echo ""
+    echo "📊 Progress File:"
+    echo "  Found: progress.md ($(wc -l < progress.md) lines)"
+  else
+    echo ""
+    echo "📊 Progress File:"
+    echo "  Not found: progress.md"
+  fi
+
+  # Check for prompt file
+  if [[ -n "$PROMPT_FILE" ]]; then
+    if [[ -f "$PROMPT_FILE" ]]; then
+      echo ""
+      echo "📝 Prompt File:"
+      echo "  Found: $PROMPT_FILE"
+    fi
+  elif [[ -f "prompt.md" ]]; then
+    echo ""
+    echo "📝 Prompt File:"
+    echo "  Found: prompt.md"
+  fi
+
+  echo ""
+  echo "========================================"
+}
+
+# Trigger evaluation loop
+trigger_evaluation() {
+  echo "========================================"
+  echo "🚀 Triggering RalphLoop Evaluation"
+  echo "========================================"
+  echo "  Iterations: $ITERATIONS"
+  echo "  Mode: $MODE"
+  echo "  Backend: ${BACKEND:-default}"
+  echo "  Prompt: ${PROMPT_FILE:-default}"
+  echo "========================================"
+
+  # Set environment variables
+  export RALPH_MODE="$MODE"
+  export RALPH_BACKEND="$BACKEND"
+
+  if [[ -n "$PROMPT_FILE" ]]; then
+    export RALPH_PROMPT_FILE="$PROMPT_FILE"
+  fi
+
+  # Check if RalphLoop script exists
+  if [[ ! -x "$RALPH_SCRIPT" ]]; then
+    echo "Error: RalphLoop script not found or not executable: $RALPH_SCRIPT" >&2
+    exit 1
+  fi
+
+  # Run RalphLoop with specified iterations
+  echo ""
+  "$RALPH_SCRIPT" "$ITERATIONS"
+}
+
+# Main function
+main() {
+  parse_args "$@"
+  validate_args
+
+  # Apply environment variable defaults
+  ITERATIONS="${RALPH_ITERATIONS:-$ITERATIONS}"
+  MODE="${RALPH_MODE:-$MODE}"
+  BACKEND="${RALPH_BACKEND:-$BACKEND}"
+
+  # Handle different modes
+  if [[ "$STATUS_MODE" == "true" ]]; then
+    show_status
+  elif [[ -n "$CONFIG_GET" ]]; then
+    get_config "$CONFIG_GET"
+  elif [[ -n "$CONFIG_SET" ]]; then
+    local key value
+    key=$(echo "$CONFIG_SET" | cut -d'=' -f1)
+    value=$(echo "$CONFIG_SET" | cut -d'=' -f2-)
+    set_config "$key" "$value"
+  else
+    trigger_evaluation
+  fi
+}
+
+main "$@"

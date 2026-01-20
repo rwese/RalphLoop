@@ -457,6 +457,169 @@ RalphLoop implements an independent validation system to ensure quality:
 
 This ensures agents cannot prematurely exit without meeting all requirements.
 
+## Backend Integration
+
+RalphLoop supports integration with various CLI tools for custom command execution and evaluation loops.
+
+### Supported Backends
+
+RalphLoop includes backend configurations for the following CLI tools:
+
+- **Claude Code**: Anthropic's CLI for autonomous development
+- **OpenAI Codex**: OpenAI's code generation and analysis CLI
+- **Kilo CLI**: Autonomous development workflow CLI
+
+### Backend Configuration
+
+Backend configurations are stored in the `backends/` directory:
+
+```
+backends/
+├── index.json              # Main backend configuration
+├── claude-code/
+│   ├── config.json         # Claude Code specific settings
+│   └── README.md           # Claude Code integration guide
+├── codex/
+│   ├── config.json         # Codex specific settings
+│   └── README.md           # Codex integration guide
+└── kilo/
+    ├── config.json         # Kilo specific settings
+    └── README.md           # Kilo integration guide
+```
+
+### Custom Command Triggers
+
+The `@ralph` tool supports custom command calls to trigger evaluation loops:
+
+```bash
+# Trigger evaluation with custom settings
+ralph-trigger --iterations 5 --mode autonomous --backend claude-code
+
+# Check RalphLoop status
+ralph-status --progress --state --backends
+
+# Configure RalphLoop settings
+ralph-config --get evaluation.maxIterations
+ralph-config --set evaluation.maxIterations=50
+ralph-config --enable claude-code
+```
+
+### Environment Variables
+
+Custom command configuration via environment variables:
+
+```bash
+# Set evaluation mode
+export RALPH_MODE=autonomous  # autonomous, interactive, validation
+
+# Set backend to use
+export RALPH_BACKEND=claude-code  # claude-code, codex, kilo
+
+# Set custom command
+export RALPH_COMMAND=evaluate  # Custom command to execute
+
+# Direct prompt
+export RALPH_PROMPT="Build a REST API for user management"
+
+# Prompt file path
+export RALPH_PROMPT_FILE=/path/to/prompt.md
+```
+
+### Backend Integration Features
+
+1. **Configuration Management**: Each backend has its own configuration file with settings for:
+   - CLI commands and paths
+   - Environment variables
+   - Custom command definitions
+   - Integration hooks
+
+2. **Custom Commands**: Define custom commands that trigger RalphLoop:
+
+   ```json
+   {
+     "customCommands": [
+       {
+         "name": "evaluate",
+         "command": "ralph",
+         "arguments": ["$ITERATIONS"],
+         "description": "Start evaluation loop",
+         "mode": "autonomous"
+       }
+     ]
+   }
+   ```
+
+3. **Evaluation Modes**:
+   - **autonomous**: Full autonomous development loop
+   - **interactive**: Loop with interactive prompts
+   - **validation**: Run validation checks only
+
+### Using Backends
+
+1. **Enable a Backend**:
+
+   ```bash
+   ralf-config --enable claude-code
+   ```
+
+2. **Trigger Evaluation via Backend**:
+
+   ```bash
+   claude ralf-trigger --iterations 5 --mode autonomous
+   codex ralf-trigger --iterations 10 --prompt ./prompt.md
+   kilo ralf-trigger --mode validation
+   ```
+
+3. **Check Status via Backend**:
+
+   ```bash
+   claude ralf-status --progress
+   codex ralf-status --backends
+   kilo ralf-status --state
+   ```
+
+4. **Configure via Backend**:
+   ```bash
+   claude ralf-config --get evaluation.maxIterations
+   codex ralf-config --set evaluation.maxIterations=50
+   kilo ralf-config --list
+   ```
+
+### Backend-Specific Setup
+
+#### Claude Code
+
+```bash
+# Install Claude Code CLI
+npm install -g @anthropic-ai/claude-code-cli
+
+# Configure RalphLoop integration
+ralph-config --backend claude-code --set enabled=true
+export CLAUDE_API_KEY=your_api_key
+```
+
+#### OpenAI Codex
+
+```bash
+# Install Codex CLI
+npm install -g openai-codex
+
+# Configure RalphLoop integration
+ralph-config --backend codex --set enabled=true
+export OPENAI_API_KEY=your_api_key
+```
+
+#### Kilo CLI
+
+```bash
+# Install Kilo CLI
+npm install -g kilo-cli
+
+# Configure RalphLoop integration
+ralph-config --backend kilo --set enabled=true
+export KILO_API_KEY=your_api_key
+```
+
 ## Quick Reference
 
 ### Essential Commands

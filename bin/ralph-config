@@ -1,0 +1,387 @@
+#!/usr/bin/env bash
+
+# ralph-config - Configure RalphLoop settings
+# Usage: ralph-config [options]
+#
+# Options:
+#   --get <key>          Get configuration value
+#   --set <key>=<value>  Set configuration value
+#   --list, -l           List all configuration
+#   --backend <name>     Backend to configure
+#   --enable <backend>   Enable a backend
+#   --disable <backend>  Disable a backend
+#   --reset              Reset to defaults
+#   --help, -h           Show this help message
+
+set -e -u -o pipefail
+
+# Configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BACKENDS_DIR="${SCRIPT_DIR}/../backends"
+CONFIG_FILE="${BACKENDS_DIR}/index.json"
+
+# Default values
+GET_KEY=""
+SET_PAIR=""
+LIST_ALL=false
+BACKEND_NAME=""
+ENABLE_BACKEND=""
+DISABLE_BACKEND=""
+RESET_CONFIG=false
+
+# Help function
+show_help() {
+  cat << EOF
+ralph-config - Configure RalphLoop settings
+
+USAGE
+    ralph-config [options]
+
+OPTIONS
+    --get <key>          Get configuration value
+    --set <key>=<value>  Set configuration value
+    --list, -l           List all configuration
+    --backend <name>     Backend to configure (claude-code, codex, kilo)
+    --enable <backend>   Enable a backend
+    --disable <backend>  Disable a backend
+    --reset              Reset to defaults
+    --help, -h           Show this help message
+
+KEYS (dot notation)
+    backends.claude-code.enabled
+    backends.claude-code.environment.RALPH_LOOP_ENABLED
+    evaluation.maxIterations
+    evaluation.defaultMode
+    evaluation.validationEnabled
+    customCommands.enabled
+
+EXAMPLES
+    # List all configuration
+    ralph-config --list
+
+    # Get a value
+    ralph-config --get evaluation.maxIterations
+
+    # Set a value
+    ralph-config --set evaluation.maxIterations=50
+
+    # Enable Claude Code backend
+    ralph-config --enable claude-code
+
+    # Disable a backend
+    ralph-config --disable codex
+
+    # Configure specific backend
+    ralph-config --backend claude-code --set environment.RALPH_LOOP_ENABLED=true
+
+FILES
+    backends/index.json          Main configuration file
+    backends/*/config.json       Backend-specific configurations
+
+For more information, see: https://github.com/rwese/RalphLoop
+EOF
+}
+
+# Parse command line arguments
+parse_args() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --get)
+        GET_KEY="$2"
+        shift 2
+        ;;
+      --set)
+        SET_PAIR="$2"
+        shift 2
+        ;;
+      --list|-l)
+        LIST_ALL=true
+        shift
+        ;;
+      --backend)
+        BACKEND_NAME="$2"
+        shift 2
+        ;;
+      --enable)
+        ENABLE_BACKEND="$2"
+        shift 2
+        ;;
+      --disable)
+        DISABLE_BACKEND="$2"
+        shift 2
+        ;;
+      --reset)
+        RESET_CONFIG=true
+        shift
+        ;;
+      --help|-h)
+        show_help
+        exit 0
+        ;;
+      *)
+        echo "Unknown option: $1" >&2
+        echo "Use --help for usage information" >&2
+        exit 1
+        ;;
+    esac
+  done
+}
+
+# Validate arguments
+validate_args() {
+  # Check for jq or json-query availability
+  local json_query_path="${SCRIPT_DIR}/json-query.js"
+  if ! command -v jq &> /dev/null && [[ ! -x "$json_query_path" ]]; then
+    echo "Error: Neither jq nor json-query.js is available for configuration management" >&2
+    echo "Please install jq: https://stedolan.github.io/jq/" >&2
+    echo "Or ensure json-query.js is in the PATH" >&2
+    exit 1
+  fi
+
+  # Validate backend name if specified
+  if [[ -n "$BACKEND_NAME" ]]; then
+    if [[ ! "$BACKEND_NAME" =~ ^(claude-code|codex|kilo)$ ]]; then
+      echo "Error: Invalid backend name: $BACKEND_NAME" >&2
+      echo "Must be one of: claude-code, codex, kilo" >&2
+      exit 1
+    fi
+  fi
+
+  # Validate enable/disable backend names
+  if [[ -n "$ENABLE_BACKEND" ]]; then
+    if [[ ! "$ENABLE_BACKEND" =~ ^(claude-code|codex|kilo)$ ]]; then
+      echo "Error: Invalid backend name: $ENABLE_BACKEND" >&2
+      exit 1
+    fi
+  fi
+
+  if [[ -n "$DISABLE_BACKEND" ]]; then
+    if [[ ! "$DISABLE_BACKEND" =~ ^(claude-code|codex|kilo)$ ]]; then
+      echo "Error: Invalid backend name: $DISABLE_BACKEND" >&2
+      exit 1
+    fi
+  fi
+}
+
+# Get configuration value
+get_config() {
+  local key="$1"
+  local config="${2:-$CONFIG_FILE}"
+
+  if [[ ! -f "$config" ]]; then
+    echo "Error: Config file not found: $config" >&2
+    exit 1
+  fi
+
+  # Use jq if available, otherwise use json-query.js
+  local json_query="${SCRIPT_DIR}/json-query.js"
+  if command -v jq &> /dev/null; then
+    # Convert dot notation to jq path
+    local jq_path
+    jq_path=$(echo "$key" | sed 's/\./ /g' | awk '{
+      path = ""
+      for (i = 1; i <= NF; i++) {
+        if (path == "") path = $i;
+        else if ($i ~ /^[0-9]+$/) path = path "["$i"]";
+        else path = path "." $i;
+      }
+      print path
+    }')
+
+    jq -r ".$jq_path // \"Not set\"" "$config" 2>/dev/null
+  else
+    # Use json-query.js
+    "$json_query" "$config" "$key" --get
+  fi
+}
+
+# Set configuration value
+set_config() {
+  local key="$1"
+  local value="$2"
+  local config="${3:-$CONFIG_FILE}"
+
+  if [[ ! -f "$config" ]]; then
+    echo "Error: Config file not found: $config" >&2
+    exit 1
+  fi
+
+  # Use jq if available, otherwise use json-query.js
+  local json_query="${SCRIPT_DIR}/json-query.js"
+  if command -v jq &> /dev/null; then
+    # Convert dot notation to jq path
+    local jq_path
+    jq_path=$(echo "$key" | sed 's/\./ /g' | awk '{
+      path = ""
+      for (i = 1; i <= NF; i++) {
+        if (path == "") path = $i;
+        else if ($i ~ /^[0-9]+$/) path = path "["$i"]";
+        else path = path "." $i;
+      }
+      print path
+    }')
+
+    # Determine value type
+    local value_type
+    if [[ "$value" =~ ^".*"$ ]]; then
+      value_type="string"
+    elif [[ "$value" =~ ^(true|false)$ ]]; then
+      value_type="boolean"
+    elif [[ "$value" =~ ^[0-9]+$ ]]; then
+      value_type="number"
+    else
+      value_type="string"
+    fi
+
+    # Create backup
+    cp "$config" "${config}.bak"
+
+    # Update config
+    if jq ".$jq_path = $value" "$config" > "${config}.tmp" 2>/dev/null; then
+      mv "${config}.tmp" "$config"
+      echo "✅ Set $key = $value"
+    else
+      echo "Error: Failed to set configuration" >&2
+      rm -f "${config}.tmp"
+      mv "${config}.bak" "$config"
+      exit 1
+    fi
+
+    rm -f "${config}.bak"
+  else
+    # Use json-query.js
+    "$json_query" "$config" "$key" --set "$value"
+  fi
+}
+
+# List all configuration
+list_config() {
+  echo "========================================"
+  echo "⚙️  RalphLoop Configuration"
+  echo "========================================"
+
+  if [[ ! -f "$CONFIG_FILE" ]]; then
+    echo ""
+    echo "Config file not found: $CONFIG_FILE"
+    echo ""
+    return
+  fi
+
+  echo ""
+  echo "Main Configuration:"
+  echo "-------------------"
+  jq -r 'to_entries | .[] | "\(.key): \(.value)"' "$CONFIG_FILE" 2>/dev/null | head -20
+
+  echo ""
+  echo "Backends:"
+  echo "---------"
+  jq -r '.backends | to_entries | .[] | "- \(.key): enabled=\(.value.enabled)"' "$CONFIG_FILE" 2>/dev/null
+
+  echo ""
+  echo "Evaluation Settings:"
+  echo "--------------------"
+  jq -r '.evaluation | to_entries | .[] | "\(.key): \(.value)"' "$CONFIG_FILE" 2>/dev/null
+
+  echo ""
+  echo "Custom Commands:"
+  echo "----------------"
+  jq -r '.customCommands | to_entries | .[] | "\(.key): \(.value)"' "$CONFIG_FILE" 2>/dev/null
+
+  echo ""
+  echo "========================================"
+}
+
+# Enable a backend
+enable_backend() {
+  local backend="$1"
+  local backend_config="${BACKENDS_DIR}/${backend}/config.json"
+
+  if [[ ! -f "$backend_config" ]]; then
+    echo "Error: Backend config not found: $backend_config" >&2
+    exit 1
+  fi
+
+  set_config "enabled" "true" "$backend_config"
+  echo "✅ Backend '$backend' enabled"
+}
+
+# Disable a backend
+disable_backend() {
+  local backend="$1"
+  local backend_config="${BACKENDS_DIR}/${backend}/config.json"
+
+  if [[ ! -f "$backend_config" ]]; then
+    echo "Error: Backend config not found: $backend_config" >&2
+    exit 1
+  fi
+
+  set_config "enabled" "false" "$backend_config"
+  echo "✅ Backend '$backend' disabled"
+}
+
+# Reset configuration to defaults
+reset_config() {
+  if [[ ! -f "$CONFIG_FILE" ]]; then
+    echo "Error: Config file not found: $CONFIG_FILE" >&2
+    exit 1
+  fi
+
+  # Create backup
+  cp "$CONFIG_FILE" "${CONFIG_FILE}.bak"
+
+  echo "Resetting configuration to defaults..."
+
+  # Reset main config values
+  set_config "customCommands.enabled" "true"
+  set_config "evaluation.maxIterations" "100"
+  set_config "evaluation.defaultMode" "\"autonomous\""
+  set_config "evaluation.validationEnabled" "true"
+
+  # Disable all backends
+  for backend in claude-code codex kilo; do
+    local backend_config="${BACKENDS_DIR}/${backend}/config.json"
+    if [[ -f "$backend_config" ]]; then
+      set_config "enabled" "false" "$backend_config"
+    fi
+  done
+
+  echo "✅ Configuration reset to defaults"
+
+  rm -f "${CONFIG_FILE}.bak"
+}
+
+# Main function
+main() {
+  parse_args "$@"
+  validate_args
+
+  if [[ "$RESET_CONFIG" == "true" ]]; then
+    reset_config
+  elif [[ "$LIST_ALL" == "true" ]]; then
+    list_config
+  elif [[ -n "$GET_KEY" ]]; then
+    if [[ -n "$BACKEND_NAME" ]]; then
+      get_config "$GET_KEY" "${BACKENDS_DIR}/${BACKEND_NAME}/config.json"
+    else
+      get_config "$GET_KEY"
+    fi
+  elif [[ -n "$SET_PAIR" ]]; then
+    local key value
+    key=$(echo "$SET_PAIR" | cut -d'=' -f1)
+    value=$(echo "$SET_PAIR" | cut -d'=' -f2-)
+
+    if [[ -n "$BACKEND_NAME" ]]; then
+      set_config "$key" "$value" "${BACKENDS_DIR}/${BACKEND_NAME}/config.json"
+    else
+      set_config "$key" "$value"
+    fi
+  elif [[ -n "$ENABLE_BACKEND" ]]; then
+    enable_backend "$ENABLE_BACKEND"
+  elif [[ -n "$DISABLE_BACKEND" ]]; then
+    disable_backend "$DISABLE_BACKEND"
+  else
+    show_help
+  fi
+}
+
+main "$@"

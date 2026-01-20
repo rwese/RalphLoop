@@ -16,7 +16,7 @@ RUN mkdir -p /root/.local/state && \
     mkdir -p /workspace
 
 RUN set -ex && \
-    apt-get update && apt-get install -y --no-install-recommends curl ca-certificates sudo git libnss3 unzip ripgrep fd-find 7zip && \
+    apt-get update && apt-get install -y --no-install-recommends curl ca-certificates sudo git libnss3 unzip ripgrep fd-find 7zip jq && \
     curl -fsSL https://deb.nodesource.com/setup_23.x | bash - && \
     apt-get update && apt-get install -y --no-install-recommends \
       nodejs \

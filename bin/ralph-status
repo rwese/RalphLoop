@@ -1,0 +1,273 @@
+#!/usr/bin/env bash
+
+# ralph-status - Check RalphLoop status and progress
+# Usage: ralph-status [options]
+#
+# Options:
+#   --progress, -p  Show detailed progress information
+#   --state, -s     Show current state summary
+#   --backends, -b  Show backend status
+#   --verbose, -v   Show detailed information
+#   --help, -h      Show this help message
+
+set -e -u -o pipefail
+
+# Configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BACKENDS_DIR="${SCRIPT_DIR}/../backends"
+PROGRESS_FILE="progress.md"
+PROMPT_FILE="prompt.md"
+
+# Default values
+SHOW_PROGRESS=false
+SHOW_STATE=false
+SHOW_BACKENDS=false
+VERBOSE=false
+
+# Help function
+show_help() {
+  cat << EOF
+ralph-status - Check RalphLoop status and progress
+
+USAGE
+    ralph-status [options]
+
+OPTIONS
+    --progress, -p   Show detailed progress information
+    --state, -s      Show current state summary
+    --backends, -b   Show backend status
+    --verbose, -v    Show detailed information
+    --help, -h       Show this help message
+
+EXAMPLES
+    # Show current state summary
+    ralph-status --state
+
+    # Show detailed progress
+    ralf-status --progress
+
+    # Show backend status
+    ralph-status --backends
+
+    # Show all information
+    ralph-status --state --progress --backends --verbose
+
+For more information, see: https://github.com/rwese/RalphLoop
+EOF
+}
+
+# Parse command line arguments
+parse_args() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --progress|-p)
+        SHOW_PROGRESS=true
+        shift
+        ;;
+      --state|-s)
+        SHOW_STATE=true
+        shift
+        ;;
+      --backends|-b)
+        SHOW_BACKENDS=true
+        shift
+        ;;
+      --verbose|-v)
+        VERBOSE=true
+        shift
+        ;;
+      --help|-h)
+        show_help
+        exit 0
+        ;;
+      *)
+        echo "Unknown option: $1" >&2
+        echo "Use --help for usage information" >&2
+        exit 1
+        ;;
+    esac
+  done
+}
+
+# Show current state summary
+show_state_summary() {
+  echo "========================================"
+  echo "📊 RalphLoop State Summary"
+  echo "========================================"
+
+  # Check for RalphLoop files
+  echo ""
+  echo "📁 Project Files:"
+
+  if [[ -f "ralph" ]]; then
+    echo "  ✅ ralph (main script)"
+  else
+    echo "  ❌ ralph (main script not found)"
+  fi
+
+  if [[ -f "$PROMPT_FILE" ]]; then
+    echo "  ✅ $PROMPT_FILE ($(wc -l < "$PROMPT_FILE" 2>/dev/null || echo 0) lines)"
+  else
+    echo "  ○ $PROMPT_FILE (not found)"
+  fi
+
+  if [[ -f "$PROGRESS_FILE" ]]; then
+    echo "  ✅ $PROGRESS_FILE ($(wc -l < "$PROGRESS_FILE" 2>/dev/null || echo 0) lines)"
+  else
+    echo "  ○ $PROGRESS_FILE (not found)"
+  fi
+
+  if [[ -d "$BACKENDS_DIR" ]]; then
+    echo "  ✅ $BACKENDS_DIR/ (backends directory)"
+  else
+    echo "  ○ $BACKENDS_DIR/ (backends directory not found)"
+  fi
+
+  # Environment information
+  echo ""
+  echo "🔧 Environment:"
+
+  if [[ -n "${RALPH_PROMPT:-}" ]]; then
+    echo "  ✅ RALPH_PROMPT (set)"
+  else
+    echo "  ○ RALPH_PROMPT (not set)"
+  fi
+
+  if [[ -n "${RALPH_PROMPT_FILE:-}" ]]; then
+    echo "  ✅ RALPH_PROMPT_FILE=${RALPH_PROMPT_FILE}"
+  else
+    echo "  ○ RALPH_PROMPT_FILE (not set)"
+  fi
+
+  if [[ -n "${RALPH_BACKEND:-}" ]]; then
+    echo "  ✅ RALPH_BACKEND=${RALPH_BACKEND}"
+  else
+    echo "  ○ RALPH_BACKEND (not set)"
+  fi
+
+  echo ""
+  echo "========================================"
+}
+
+# Show detailed progress information
+show_progress_info() {
+  echo "========================================"
+  echo "📈 RalphLoop Progress"
+  echo "========================================"
+
+  if [[ ! -f "$PROGRESS_FILE" ]]; then
+    echo ""
+    echo "No progress file found. Run RalphLoop to start tracking progress."
+    echo ""
+    return
+  fi
+
+  # Count iterations in progress file
+  local iterations
+  iterations=$(grep -c "^### Iteration" "$PROGRESS_FILE" 2>/dev/null || echo 0)
+
+  echo ""
+  echo "Completed Iterations: $iterations"
+
+  # Show recent iterations
+  echo ""
+  echo "Recent Iterations:"
+  tail -20 "$PROGRESS_FILE" | head -15
+
+  # Show goal if available
+  echo ""
+  echo "Current Goal:"
+  if [[ -f "$PROMPT_FILE" ]]; then
+    head -5 "$PROMPT_FILE" | tail -3
+  fi
+
+  echo ""
+  echo "========================================"
+}
+
+# Show backend status
+show_backend_status() {
+  echo "========================================"
+  echo "🔌 Backend Status"
+  echo "========================================"
+
+  if [[ ! -d "$BACKENDS_DIR" ]]; then
+    echo ""
+    echo "Backends directory not found: $BACKENDS_DIR"
+    echo ""
+    return
+  fi
+
+  echo ""
+  echo "📦 Configured Backends:"
+
+  for backend_dir in "$BACKENDS_DIR"/*/; do
+    if [[ -d "$backend_dir" ]]; then
+      local backend_name
+      backend_name=$(basename "$backend_dir")
+      local backend_config="${backend_dir}config.json"
+
+      echo ""
+      echo "  $backend_name:"
+
+      if [[ -f "$backend_config" ]]; then
+        # Get backend details using jq if available
+        if command -v jq &> /dev/null; then
+          local name version enabled
+          name=$(jq -r '.name // "Unknown"' "$backend_config" 2>/dev/null || echo "Unknown")
+          version=$(jq -r '.version // "Unknown"' "$backend_config" 2>/dev/null || echo "Unknown")
+          enabled=$(jq -r '.enabled // false' "$backend_config" 2>/dev/null || echo "false")
+
+          echo "    Name: $name"
+          echo "    Version: $version"
+          echo "    Enabled: $enabled"
+
+          if [[ "$enabled" == "true" ]]; then
+            echo "    Status: 🟢 Active"
+          else
+            echo "    Status: 🔴 Disabled"
+          fi
+        else
+          echo "    Config: $backend_config"
+          echo "    Status: (jq not available for details)"
+        fi
+      else
+        echo "    Config: Not found"
+        echo "    Status: ❌ Missing configuration"
+      fi
+    fi
+  done
+
+  echo ""
+  echo "========================================"
+}
+
+# Main function
+main() {
+  parse_args "$@"
+
+  # Default to state summary if nothing specified
+  if [[ "$SHOW_PROGRESS" == "false" ]] && [[ "$SHOW_STATE" == "false" ]] && [[ "$SHOW_BACKENDS" == "false" ]]; then
+    SHOW_STATE=true
+  fi
+
+  if [[ "$VERBOSE" == "true" ]]; then
+    SHOW_PROGRESS=true
+    SHOW_STATE=true
+    SHOW_BACKENDS=true
+  fi
+
+  if [[ "$SHOW_STATE" == "true" ]]; then
+    show_state_summary
+  fi
+
+  if [[ "$SHOW_PROGRESS" == "true" ]]; then
+    show_progress_info
+  fi
+
+  if [[ "$SHOW_BACKENDS" == "true" ]]; then
+    show_backend_status
+  fi
+}
+
+main "$@"

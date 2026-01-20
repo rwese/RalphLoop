@@ -1,66 +1,84 @@
-# OS files
+# ==========================================
+# RalphLoop Git Ignore Configuration
+# ==========================================
+
+# --- Runtime & Generated ---
+
+# Progress tracking (per-iteration updates)
+progress.md
+
+# npm
+node_modules/
+package-lock.json
+npm-debug.log
+yarn-error.log
+.pnpm-debug.log
+
+# Python
+.venv/
+venv/
+.env
+.env.local
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# macOS
 .DS_Store
-Thumbs.db
+AppleDouble
+.LSOverride
+._*
+
+# IDEs and Editors
+.vscode/
+.idea/
 *.swp
 *.swo
 *~
-
-# Editor files
-.vscode/
-.idea/
-*.sublime-*
 .project
 .classpath
+.settings/
+*.sublime-workspace
+*.sublime-project
+
+# Docker
+.docker/
+docker-compose.override.yml
+.dockerenv
 
 # Logs
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+logs/
+*.log.*
 
-# Dependencies
-node_modules/
-bower_components/
+# Temporary files
+.tmp/
+.temp/
+*~
+.#*
+.#*.*
+*.bak
+*.orig
+*.rej
 
-# Build outputs
-dist/
-build/
-*.egg-info/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg
-
-# Environment
-.env
-.env.local
-.env.*.local
-*.local
-
-# IDE
-.idea/
-.vscode/
-*.code-workspace
-
-# OS
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
+# OS generated
 Thumbs.db
+ehthumbs.db
+Desktop.ini
 
-# Testing
+# Test/Coverage
 coverage/
 .nyc_output/
+*.lcov
 
 # Misc
-*.pem
-.cache/
-.temp/
-tmp/
+*.tmp
+*.temp

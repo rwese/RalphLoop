@@ -7,6 +7,16 @@
 # 1. prompt.md file (default)
 # 2. RALPH_PROMPT environment variable (direct prompt text)
 # 3. RALPH_PROMPT_FILE environment variable (path to prompt file)
+#
+# Custom commands can trigger evaluation loops via:
+# - RALPH_COMMAND: Execute a specific command mode
+# - RALPH_BACKEND: Use a specific backend configuration
+# - RALPH_MODE: Set evaluation mode (autonomous, interactive, validation)
+#
+# Supported custom commands:
+#   ralf-trigger --iterations N --mode MODE --backend BACKEND
+#   ralf-status [--progress] [--state] [--backends]
+#   ralf-config [--get key] [--set key=value] [--list]
 
 set -e -u -o pipefail
 
@@ -15,6 +25,56 @@ MAX_ROUNDS=${1:-100}
 PROGRESS_FILE="progress.md"
 PROMPT_FILE="prompt.md"
 VALIDATION_ISSUES_FILE=".ralph_validation_issues.txt"
+BACKENDS_DIR="backends"
+
+# Custom command configuration
+RALPH_COMMAND="${RALPH_COMMAND:-}"
+RALPH_BACKEND="${RALPH_BACKEND:-}"
+RALPH_MODE="${RALPH_MODE:-autonomous}"
+
+# Handle custom command mode
+handle_custom_command() {
+  if [[ -n "$RALPH_COMMAND" ]]; then
+    echo "========================================"
+    echo "🔧 Custom Command Mode: $RALPH_COMMAND"
+    echo "========================================"
+    echo "  Backend: ${RALPH_BACKEND:-default}"
+    echo "  Mode: $RALPH_MODE"
+    echo "========================================"
+
+    # Export backend and mode for the agent
+    export RALPH_BACKEND="$RALPH_BACKEND"
+    export RALPH_MODE="$RALPH_MODE"
+  fi
+}
+
+# Load backend configuration if available
+load_backend_config() {
+  if [[ -n "$RALPH_BACKEND" ]]; then
+    local backend_config="${BACKENDS_DIR}/${RALPH_BACKEND}/config.json"
+    if [[ -f "$backend_config" ]]; then
+      echo "📦 Loading backend configuration: $RALPH_BACKEND"
+
+      # Load backend-specific settings if jq is available
+      if command -v jq &> /dev/null; then
+        local backend_enabled
+        backend_enabled=$(jq -r '.enabled // false' "$backend_config" 2>/dev/null || echo "false")
+
+        if [[ "$backend_enabled" == "true" ]]; then
+          echo "✅ Backend '$RALPH_BACKEND' enabled and configured"
+        else
+          echo "⚠️ Backend '$RALPH_BACKEND' is disabled in configuration"
+        fi
+      fi
+    else
+      echo "⚠️ Backend configuration not found: $backend_config"
+    fi
+  fi
+}
+
+# Initialize custom command support
+handle_custom_command
+load_backend_config
 
 # Validate MAX_ROUNDS is a positive integer
 validate_max_rounds() {
@@ -133,9 +193,23 @@ After fixing, mark complete with <promise>COMPLETE</promise> for re-validation.
 "
   fi
 
+  # Build backend context section if using custom backend
+  BACKEND_CONTEXT=""
+  if [ -n "$RALPH_BACKEND" ]; then
+    BACKEND_CONTEXT="
+## 🔧 Backend Configuration
+
+**Active Backend**: ${RALPH_BACKEND}
+**Evaluation Mode**: ${RALPH_MODE}
+**Custom Command**: ${RALPH_COMMAND:-none}
+
+This iteration is running with backend integration. Be aware of any backend-specific requirements or constraints.
+"
+  fi
+
   # Run OpenCode agent with current context
   result=$(
-    opencode run --agent AGENT_RALPH <<RALPH_EOF_XYZ123
+    opencode run --agent AGENT_RALPH <<RALPH_EOF_XYZ123 | tee /dev/stderr
 # Goals and Resources
 
 ## Project plan
@@ -146,6 +220,7 @@ ${SANITIZED_PROMPT}
 
 ${SANITIZED_PROGRESS}
 ${CONTEXT_SECTION}
+${BACKEND_CONTEXT}
 
 ## Your Priorities
 
@@ -213,7 +288,7 @@ RALPH_EOF_XYZ123
 
     # Run validation prompt to verify completion criteria are truly met
     validation_result=$(
-      opencode run --agent AGENT_RALPH <<RALPH_VALIDATE_EOF
+      opencode run --agent AGENT_RALPH <<RALPH_VALIDATE_EOF | tee /dev/stderr
 # Validation Task
 
 The agent previously indicated completion with <promise>COMPLETE</promise>.
@@ -225,6 +300,13 @@ $(get_prompt)
 
 ## Current Progress:
 $(cat "$PROGRESS_FILE")
+
+## Backend Context (if applicable):
+#if [ -n "$RALPH_BACKEND" ]; then
+**Backend**: ${RALPH_BACKEND}
+**Mode**: ${RALPH_MODE}
+**Custom Command**: ${RALPH_COMMAND:-none}
+#end if
 
 ## Your Validation Task:
 
