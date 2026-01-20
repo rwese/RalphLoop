@@ -28,10 +28,11 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint:markdown": "markdownlint '**/*.md' --ignore 'node_modules' --ignore '.git'",
-    "container:build": "docker build -t ${image:-ralphloop}:${image_tag:-latest} .",
-    "container:pull": "docker pull ${image:-ralphloop}:${image_tag:-latest}",
-    "container:push": "docker push ${image:-ralphloop}:${image_tag:-latest}",
-    "container:run": "docker run -it --rm -v \"$(pwd):/workspace\" -w \"/workspace\" ${image:-ralphloop}:${image_tag:-latest}",
+    "container:build": "./bin/container.sh build",
+    "container:pull": "./bin/container.sh pull",
+    "container:push": "./bin/container.sh push",
+    "container:run": "./bin/container.sh run",
+    "container:info": "./bin/container.sh info",
     "prepare": "husky"
   },
   "lint-staged": {
