@@ -1445,6 +1445,9 @@
                         </div>
                     `;
                 }).join('');
+                
+                // Update tag filter section
+                this.renderTagFilter();
             }
 
             escapeHtml(text) {
@@ -1465,7 +1468,7 @@
             }
 
             exportNotes(format) {
-                const notesToExport = this.searchQuery || this.currentFilter !== 'all' ? 
+                const notesToExport = this.searchQuery || this.currentFilter !== 'all' || this.activeTagFilter ? 
                     this.filterNotes() : this.notes;
 
                 if (notesToExport.length === 0) {
