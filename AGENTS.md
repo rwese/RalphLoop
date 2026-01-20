@@ -91,14 +91,16 @@ RalphLoop/
 ├── .opencode/               # OpenCode configuration
 │   ├── prompts/agent/AGENT_RALPH.md  # Agent configuration
 │   └── opencode.jsonc        # OpenCode CLI configuration
-├── DOCKER.md             # Docker/Podman run commands
-├── example/              # Ready-to-use project examples
+├── docs/                 # Documentation
+│   ├── DOCKER.md         # Docker/Podman run commands
+│   ├── DOCKER_HUB.md     # Docker Hub publishing guide
+│   └── SECURITY.md       # Security policy
+├── examples/             # Ready-to-use project examples
 │   ├── todo-app/         # Task management web app
 │   ├── book-collection/  # Personal library manager
 │   ├── finance-dashboard/# Personal finance tracker
 │   ├── weather-cli/      # CLI weather tool
 │   └── youtube-cli/      # YouTube download tool
-├── quick-notes/          # Quick Notes web application (MVP product)
 └── docs/                 # Documentation
 ```
 

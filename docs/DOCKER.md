@@ -74,11 +74,11 @@ podman run -it --rm \
 
 | Example                                            | Description                                     | Iterations |
 | -------------------------------------------------- | ----------------------------------------------- | ---------- |
-| [todo-app](../example/todo-app/)                   | Modern task management web app with PWA support | 10-15      |
-| [book-collection](../example/book-collection/)     | Personal library management system              | 15-20      |
-| [finance-dashboard](../example/finance-dashboard/) | Personal finance tracking and budgeting         | 15-20      |
-| [weather-cli](../example/weather-cli/)             | Professional CLI weather tool                   | 5-10       |
-| [youtube-cli](../example/youtube-cli/)             | YouTube download and media management           | 10-15      |
+| [todo-app](../examples/todo-app/)                   | Modern task management web app with PWA support | 10-15      |
+| [book-collection](../examples/book-collection/)     | Personal library management system              | 15-20      |
+| [finance-dashboard](../examples/finance-dashboard/) | Personal finance tracking and budgeting         | 15-20      |
+| [weather-cli](../examples/weather-cli/)             | Professional CLI weather tool                   | 5-10       |
+| [youtube-cli](../examples/youtube-cli/)             | YouTube download and media management           | 10-15      |
 
 ## Interactive Shell
 

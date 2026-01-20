@@ -15,10 +15,10 @@ Build a comprehensive YouTube download and management tool with:
 
 ```bash
 # Run with 10 iterations (path is relative to /workspace inside container)
-RALPH_PROMPT_FILE=/workspace/example/youtube-cli/prompt.md npm run container:run 10
+RALPH_PROMPT_FILE=/workspace/examples/youtube-cli/prompt.md npm run container:run 10
 
 # Or set RALPH_PROMPT directly from the file
-RALPH_PROMPT="$(cat example/youtube-cli/prompt.md)" npm run container:run 10
+RALPH_PROMPT="$(cat examples/youtube-cli/prompt.md)" npm run container:run 10
 ```
 
 > **Note:** `RALPH_PROMPT_FILE` paths are relative to `/workspace` inside the container.

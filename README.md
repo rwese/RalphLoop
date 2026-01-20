@@ -10,7 +10,7 @@ Pre-commit hooks are CRITICAL for security and MUST run on every commit. Secret 
 
 - ❌ Never skip hooks: `git commit -n` or `git commit --no-verify`
 - ✅ Commits with exposed secrets will be REJECTED by CI
-- ✅ See [SECURITY.md](./SECURITY.md) for full security policy
+- ✅ See [SECURITY.md](./docs/SECURITY.md) for full security policy
 
 ## Quick Start
 
@@ -183,35 +183,35 @@ docker run -it --rm \
 
 ## Examples
 
-RalphLoop includes ready-to-use project prompts in the `example/` directory. Each example is a complete project specification that RalphLoop can build for you.
+RalphLoop includes ready-to-use project prompts in the `examples/` directory. Each example is a complete project specification that RalphLoop can build for you.
 
 ### Available Examples
 
 | Example                                           | Description                                     | Iterations |
 | ------------------------------------------------- | ----------------------------------------------- | ---------- |
-| [todo-app](./example/todo-app/)                   | Modern task management web app with PWA support | 10-15      |
-| [book-collection](./example/book-collection/)     | Personal library management system              | 15-20      |
-| [finance-dashboard](./example/finance-dashboard/) | Personal finance tracking and budgeting         | 15-20      |
-| [weather-cli](./example/weather-cli/)             | Professional CLI weather tool                   | 5-10       |
-| [youtube-cli](./example/youtube-cli/)             | YouTube download and media management           | 10-15      |
+| [todo-app](./examples/todo-app/)                   | Modern task management web app with PWA support | 10-15      |
+| [book-collection](./examples/book-collection/)     | Personal library management system              | 15-20      |
+| [finance-dashboard](./examples/finance-dashboard/) | Personal finance tracking and budgeting         | 15-20      |
+| [weather-cli](./examples/weather-cli/)             | Professional CLI weather tool                   | 5-10       |
+| [youtube-cli](./examples/youtube-cli/)             | YouTube download and media management           | 10-15      |
 
-See the [Examples README](./example/README.md) for detailed usage instructions.
+See the [Examples README](./examples/README.md) for detailed usage instructions.
 
 ### Running an Example
 
 ```bash
 # Run the todo app example with 10 iterations
 # Note: RALPH_PROMPT_FILE paths are relative to /workspace inside the container
-RALPH_PROMPT_FILE=/workspace/example/todo-app/prompt.md npm run container:run 10
+RALPH_PROMPT_FILE=/workspace/examples/todo-app/prompt.md npm run container:run 10
 
 # Or use the container script directly
-RALPH_PROMPT_FILE=/workspace/example/todo-app/prompt.md ./bin/container.sh run 10
+RALPH_PROMPT_FILE=/workspace/examples/todo-app/prompt.md ./bin/container.sh run 10
 
 # Set RALPH_PROMPT directly from the file (no path conversion needed)
-RALPH_PROMPT="$(cat example/todo-app/prompt.md)" npm run container:run 10
+RALPH_PROMPT="$(cat examples/todo-app/prompt.md)" npm run container:run 10
 
 # Copy the prompt to your project and run there
-cp example/todo-app/prompt.md my-project/
+cp examples/todo-app/prompt.md my-project/
 cd my-project
 RALPH_PROMPT="$(cat prompt.md)" npm run container:run 10
 ```
@@ -227,9 +227,9 @@ RALPH_PROMPT="$(cat prompt.md)" npm run container:run 10
 
 ### Creating Your Own
 
-1. Create a new folder in `example/`
+1. Create a new folder in `examples/`
 2. Add your project prompt as `prompt.md`
-3. See [example/README.md](./example/README.md) for full instructions
+3. See [examples/README.md](./examples/README.md) for full instructions
 
 ## License
 

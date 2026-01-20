@@ -15,10 +15,10 @@ Build a terminal-based weather tool with:
 
 ```bash
 # Run with 5 iterations (path is relative to /workspace inside container)
-RALPH_PROMPT_FILE=/workspace/example/weather-cli/prompt.md npm run container:run 5
+RALPH_PROMPT_FILE=/workspace/examples/weather-cli/prompt.md npm run container:run 5
 
 # Or set RALPH_PROMPT directly from the file
-RALPH_PROMPT="$(cat example/weather-cli/prompt.md)" npm run container:run 5
+RALPH_PROMPT="$(cat examples/weather-cli/prompt.md)" npm run container:run 5
 ```
 
 > **Note:** `RALPH_PROMPT_FILE` paths are relative to `/workspace` inside the container.

@@ -15,10 +15,10 @@ Build a modern fintech-style application with:
 
 ```bash
 # Run with 15 iterations (path is relative to /workspace inside container)
-RALPH_PROMPT_FILE=/workspace/example/finance-dashboard/prompt.md npm run container:run 15
+RALPH_PROMPT_FILE=/workspace/examples/finance-dashboard/prompt.md npm run container:run 15
 
 # Or set RALPH_PROMPT directly from the file
-RALPH_PROMPT="$(cat example/finance-dashboard/prompt.md)" npm run container:run 15
+RALPH_PROMPT="$(cat examples/finance-dashboard/prompt.md)" npm run container:run 15
 ```
 
 > **Note:** `RALPH_PROMPT_FILE` paths are relative to `/workspace` inside the container.

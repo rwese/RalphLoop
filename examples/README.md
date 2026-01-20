@@ -139,7 +139,7 @@ You can also use prompts from your local project:
 
 ```bash
 # Using a local prompt file (path relative to mounted workspace at /workspace)
-RALPH_PROMPT_FILE=/workspace/example/my-custom-prompt/prompt.md npm run container:run 10
+RALPH_PROMPT_FILE=/workspace/examples/my-custom-prompt/prompt.md npm run container:run 10
 
 # Or set the prompt directly
 RALPH_PROMPT="Build a new feature X for my app" npm run container:run 5
@@ -170,5 +170,5 @@ RALPH_PROMPT="Build a new feature X for my app" npm run container:run 5
 4. Run with:
 
 ```bash
-RALPH_PROMPT_FILE=/workspace/example/your-project/prompt.md npm run container:run
+RALPH_PROMPT_FILE=/workspace/examples/your-project/prompt.md npm run container:run
 ```

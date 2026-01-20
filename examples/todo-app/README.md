@@ -15,10 +15,10 @@ Build a todo app that feels like a mini-product, not just a coding exercise. Thi
 
 ```bash
 # Run with 10 iterations (path is relative to /workspace inside container)
-RALPH_PROMPT_FILE=/workspace/example/todo-app/prompt.md npm run container:run 10
+RALPH_PROMPT_FILE=/workspace/examples/todo-app/prompt.md npm run container:run 10
 
 # Or set RALPH_PROMPT directly from the file
-RALPH_PROMPT="$(cat example/todo-app/prompt.md)" npm run container:run 10
+RALPH_PROMPT="$(cat examples/todo-app/prompt.md)" npm run container:run 10
 ```
 
 > **Note:** `RALPH_PROMPT_FILE` paths are relative to `/workspace` inside the container.

@@ -16,10 +16,10 @@ Build a complete library management system with:
 
 ```bash
 # Run with 15 iterations (path is relative to /workspace inside container)
-RALPH_PROMPT_FILE=/workspace/example/book-collection/prompt.md npm run container:run 15
+RALPH_PROMPT_FILE=/workspace/examples/book-collection/prompt.md npm run container:run 15
 
 # Or set RALPH_PROMPT directly from the file
-RALPH_PROMPT="$(cat example/book-collection/prompt.md)" npm run container:run 15
+RALPH_PROMPT="$(cat examples/book-collection/prompt.md)" npm run container:run 15
 ```
 
 > **Note:** `RALPH_PROMPT_FILE` paths are relative to `/workspace` inside the container.
