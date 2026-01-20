@@ -2,7 +2,7 @@
 
 ## Current Goal
 
-Analyze current project state and identify next objectives after completing the Quick Notes MVP experiment.
+Create a sophisticated Weather Dashboard CLI tool that demonstrates RalphLoop's ability to build command-line applications with external API integration, data processing, and configuration management.
 
 ## Project Status: ✅ COMPLETE
 
@@ -406,4 +406,46 @@ The Quick Notes MVP successfully demonstrates RalphLoop's autonomous development
 4. **Documentation**: Create comprehensive project documentation
 5. **Examples**: Build new example projects for the repository
 
-**Recommended Next Goal**: Begin a new autonomous development experiment to further validate RalphLoop's capabilities with a different type of project.
+**Recommended Next Goal**: ✅ **SELECTED** - Weather Dashboard CLI Tool
+
+### New Experiment: Weather Dashboard CLI
+
+**Objective**: Create a sophisticated command-line weather tool that tests RalphLoop's ability to:
+
+- Build CLI applications with proper package management
+- Integrate with external APIs (weather services)
+- Handle configuration and environment variables
+- Process and format data effectively
+- Implement comprehensive error handling
+- Create proper documentation and testing
+
+**Key Challenges**:
+
+1. External API integration with authentication
+2. Command-line interface design with multiple subcommands
+3. Configuration management and user preferences
+4. Data processing and formatting for terminal display
+5. Package publishing and version management
+
+**Success Metrics**:
+
+- Functional CLI tool with multiple commands
+- Proper error handling and user feedback
+- Complete documentation and examples
+- Unit test coverage for core functionality
+- Publishable npm package structure
+
+---
+
+### Iteration 8 - 2026-01-20
+
+**Goal**: Define new Weather Dashboard CLI experiment and set project structure
+**Status**: ✅ COMPLETED
+**Accomplishments**:
+
+- Updated prompt.md with new Weather Dashboard CLI objectives
+- Defined 10 specific acceptance criteria for CLI application
+- Established technical requirements and technology stack
+- Identified key challenges and success metrics
+- Set scope for Node.js CLI application with external API integration
+- Planned comprehensive feature set including testing and documentation

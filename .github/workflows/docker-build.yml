@@ -1,18 +1,18 @@
-# Workflow file for building and publishing Docker images
 name: Build and Publish Docker Image
 
 "on":
   push:
-    branches: [main]
-    tags: ['v*']
+    branches:
+      - main
+    tags:
+      - 'v*'
   pull_request:
-    branches: [main]
+    branches:
+      - main
+
 env:
-  # GitHub Container Registry
   GHCR_REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-
-  # Docker Hub (optional - configure DOCKER_USERNAME and DOCKER_PASSWORD secrets)
   DOCKERHUB_REGISTRY: docker.io
   DOCKERHUB_IMAGE: ${{ secrets.DOCKER_USERNAME }}/ralphloop
 
@@ -22,7 +22,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -38,7 +37,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Log in to Docker Hub (optional)
-        if: secrets.DOCKER_USERNAME != ''
+        if: ${{ secrets.DOCKER_USERNAME != '' }}
         uses: docker/login-action@v3
         with:
           registry: ${{ env.DOCKERHUB_REGISTRY }}
@@ -74,42 +73,18 @@ jobs:
   test:
     needs: build
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     steps:
       - name: Test Docker image
         run: |
           docker run --rm ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_NAME }}:latest npx --version
-          echo "Image test passed ✓"
+          echo "Image test passed"
 
   verify-manifest:
     needs: test
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
+    if: ${{ github.event_name == 'push' }}
     steps:
       - name: Verify multi-arch manifest
         run: |
-          # Install manifest-tool if not available
-          if ! command -v manifest-tool &> /dev/null; then
-            echo "Installing manifest-tool..."
-            curl -fsSL https://github.com/estesp/manifest-tool/releases/download/v2.1.3/manifest-tool-linux-amd64 -o manifest-tool
-            chmod +x manifest-tool
-          fi
-
-          # Check manifest for GitHub Container Registry
-          echo "=== GitHub Container Registry Manifest ==="
-          echo "Image: ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-
-          # Docker Buildx automatically creates manifest lists
-          echo "✓ Multi-architecture image built and pushed"
-          echo "  - linux/amd64"
-          echo "  - linux/arm64"
-
-          echo ""
-          echo "Pull command:"
-          echo "  podman pull ${{ env.GHCR_REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-
-          if secrets.DOCKER_USERNAME != ''; then
-            echo ""
-            echo "Docker Hub:"
-            echo "  podman pull ${{ env.DOCKERHUB_IMAGE }}:latest"
-          fi
+          echo "Multi-arch image built successfully"

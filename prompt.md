@@ -1,15 +1,27 @@
-# Resilience experiment
+# Advanced autonomous development experiment
 
 ## Goal
 
-Create a simple Quick Notes web application MVP that demonstrates RalphLoop's autonomous development capabilities. The app should allow users to create, view, edit, and delete short text notes.
+Create a sophisticated Weather Dashboard CLI tool that demonstrates RalphLoop's ability to build command-line applications with external API integration, data processing, and configuration management.
 
 ## Acceptance Criteria
 
-1. **Functional Web Application**: A working web app accessible via browser
-2. **CRUD Operations**: Users can create, read, update, and delete notes
-3. **Persistent Storage**: Notes persist across browser sessions using localStorage
-4. **Clean UI**: Simple, intuitive interface with responsive design
-5. **No Build Tools**: Use vanilla HTML, CSS, and JavaScript (no frameworks)
-6. **Single Page App**: Everything works from one HTML file
-7. **Git History**: Show progression of autonomous development through commits
+1. **Functional CLI Application**: Working command-line tool accessible via terminal
+2. **API Integration**: Connects to real weather API service with proper error handling
+3. **Data Processing**: Processes and formats weather data in user-friendly ways
+4. **Configuration Management**: Supports configuration files and environment variables
+5. **Multiple Commands**: Different commands for current weather, forecasts, and location search
+6. **Error Handling**: Robust error handling with helpful user messages
+7. **Documentation**: Complete README with installation and usage instructions
+8. **Testing**: Unit tests for core functionality
+9. **Package Management**: Published as npm package with proper versioning
+10. **Git History**: Show progression of autonomous development through commits
+
+## Technical Requirements
+
+- Language: JavaScript/Node.js
+- Package Manager: npm
+- Framework: Commander.js for CLI interface
+- API: OpenWeatherMap or similar weather service
+- Testing: Jest or similar testing framework
+- Documentation: Markdown README with examples
