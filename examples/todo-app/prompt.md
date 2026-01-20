@@ -81,7 +81,75 @@ Build a feature-rich, production-ready todo application that you would actually 
 - **Semantic HTML**: Proper landmarks, ARIA labels, focus management
 - **Responsive**: Mobile-first, works from 320px to 4K screens
 - **Error Handling**: Graceful degradation, error boundaries, meaningful error messages
-- **Testing**: Include simple test suite (can run in browser console)
+- **Testing**: Include comprehensive test suite validating core functionality
+
+## Testing Requirements
+
+### Test Suite Structure
+
+Create a `tests/` directory with the following test files:
+
+- **`tests/core.test.js`** - Core CRUD operations tests
+  - Task creation with all fields (title, description, due date, priority)
+  - Task editing and inline editing
+  - Task deletion (soft and permanent)
+  - Task completion toggle
+  - Bulk operations (select, delete, complete)
+
+- **`tests/organization.test.js`** - Organization system tests
+  - Nested project creation and navigation
+  - Smart list filtering (Today, This Week, Overdue, etc.)
+  - Tag creation and assignment
+  - Priority setting and filtering
+  - Recurring task handling
+  - Task dependencies (blocking)
+
+- **`tests/data.test.js`** - Data persistence tests
+  - localStorage save/load
+  - IndexedDB operations for large data
+  - Data export/import functionality
+  - Undo/redo functionality
+  - Conflict resolution
+
+- **`tests/ui.test.js`** - UI/UX tests
+  - Dark/light mode toggle
+  - Keyboard shortcuts functionality
+  - Drag and drop operations
+  - Responsive layout on different screen sizes
+  - Focus management and accessibility
+
+### Running Tests
+
+```bash
+# Run all tests
+npm test
+
+# Run specific test file
+npm test -- tests/core.test.js
+
+# Run with coverage
+npm test -- --coverage
+```
+
+### Browser Test Execution
+
+Tests should be runnable in browser console:
+
+```javascript
+// Include test runner in app
+if (window.location.search.includes('runTests')) {
+  TestRunner.runAll();
+}
+```
+
+### Success Criteria
+
+- [ ] **Tests Pass**: All test suites pass with 100% pass rate
+- [ ] **Coverage**: Minimum 80% code coverage on core functionality
+- [ ] **Critical Paths**: CRUD operations fully tested
+- [ ] **Data Safety**: All persistence operations tested
+- [ ] **No Regressions**: Tests catch breaking changes
+- [ ] **Documented**: Test usage documented in README
 
 ### Security
 
@@ -135,6 +203,7 @@ Build a feature-rich, production-ready todo application that you would actually 
 - [ ] **Keyboard Pro**: Power user keyboard shortcuts that feel natural
 - [ ] **No Errors**: Zero console errors, graceful error handling
 - [ ] **Documented**: Inline code comments, keyboard shortcut reference in-app
+- [ ] **Tested**: All core functionality has automated tests
 
 ## Bonus Features (if time permits)
 

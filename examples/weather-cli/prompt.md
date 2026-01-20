@@ -148,6 +148,98 @@ Optional: WeatherAPI.com (free tier), OpenWeatherMap (free tier)
 - **Invalid Location**: Search suggestions, nearby matches
 - **Invalid Units**: Sanitize input, show available options
 
+## Testing Requirements
+
+### Test Suite Structure
+
+Create a `tests/` directory with the following test files:
+
+- **`tests/unit/api.test.ts`** - API integration tests
+  - Open-Meteo API calls
+  - WeatherAPI integration (if configured)
+  - Response parsing and validation
+  - Error handling for API failures
+  - Rate limiting behavior
+
+- **`tests/unit/location.test.ts`** - Location management tests
+  - Location search (city, ZIP, coordinates, airport)
+  - Location parsing and validation
+  - Saved location CRUD operations
+  - Location aliases
+  - Distance calculations
+
+- **`tests/unit/formatting.test.ts`** - Output formatting tests
+  - Temperature formatting (C/F conversion)
+  - Wind formatting (speed + direction)
+  - Date/time formatting
+  - ASCII art and chart generation
+  - Color output handling
+
+- **`tests/unit/config.test.ts`** - Configuration tests
+  - Config file reading/writing
+  - Default value handling
+  - Environment variable overrides
+  - Theme configuration
+
+- **`tests/integration/cli.test.ts`** - CLI integration tests
+  - Command parsing and argument handling
+  - All CLI flags and options
+  - JSON output format
+  - Interactive mode behavior
+  - Exit codes
+
+- **`tests/fixtures/`** - Test fixtures
+  - Sample API responses
+  - Mock weather data
+  - Location test cases
+
+### Running Tests
+
+```bash
+# Run all tests
+npm test
+
+# Run unit tests only
+npm run test:unit
+
+# Run integration tests only
+npm run test:integration
+
+# Run with coverage
+npm run test:coverage
+
+# Watch mode for development
+npm run test:watch
+```
+
+### CI Configuration
+
+```yaml
+# .github/workflows/test.yml
+name: Tests
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '23'
+      - run: npm ci
+      - run: npm run test:coverage
+```
+
+### Success Criteria
+
+- [ ] **Tests Pass**: All test suites pass with 100% pass rate
+- [ ] **Coverage**: Minimum 80% code coverage
+- [ ] **API Coverage**: All API integrations tested
+- [ ] **CLI Coverage**: All commands and options tested
+- [ ] **No Regressions**: CI catches breaking changes
+- [ ] **Fast Tests**: Full test suite runs in under 1 minute
+- [ ] **Offline Tests**: Tests work without network access
+
 ## Example Usage Scenarios
 
 ### Scenario 1: Quick Morning Check
@@ -256,6 +348,7 @@ $ weather --watch
 - [ ] **Helpful Errors**: Clear messages when things go wrong
 - [ ] **Cross-Platform**: Works on macOS, Linux, WSL, Windows
 - [ ] **Low Memory**: Minimal resource usage
+- [ ] **Tested**: All functionality has automated tests
 
 ## Bonus Features
 

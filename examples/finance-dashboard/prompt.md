@@ -96,6 +96,78 @@ Build a beautiful, functional personal finance dashboard that helps users unders
 - **Accessibility**: WCAG 2.1 AA, screen reader support
 - **Privacy**: Explicit privacy policy, no analytics, no tracking
 - **Backup**: One-click encrypted backup to file
+- **Testing**: Include comprehensive test suite validating core functionality
+
+## Testing Requirements
+
+### Test Suite Structure
+
+Create a `tests/` directory with the following test files:
+
+- **`tests/transactions.test.js`** - Transaction management tests
+  - Transaction creation (all fields)
+  - Transaction editing
+  - Transaction deletion
+  - Split transaction handling
+  - Recurring transaction setup
+  - Transaction search and filtering
+  - Import from CSV
+
+- **`tests/accounts.test.js`** - Account management tests
+  - Account creation and types
+  - Balance updates
+  - Net worth calculation
+  - Multi-account handling
+  - Account synchronization
+
+- **`tests/budgets.test.js`** - Budgeting system tests
+  - Budget creation and updates
+  - Envelope allocation
+  - Spending tracking against budget
+  - Budget alerts (80%, 100%)
+  - Rolling budget handling
+  - Budget history comparison
+
+- **`tests/goals.test.js`** - Goals and planning tests
+  - Savings goal creation
+  - Progress tracking
+  - Debt payoff calculations
+  - Bill tracking and alerts
+  - Subscription tracking
+
+- **`tests/analytics.test.js`** - Analytics and insights tests
+  - Spending breakdown calculations
+  - Chart data generation
+  - Insight generation
+  - Anomaly detection logic
+  - Trend calculations
+
+- **`tests/security.test.js`** - Security and privacy tests
+  - Data encryption/decryption
+  - Secure storage operations
+  - Backup creation and restore
+  - Data validation
+
+### Browser Test Execution
+
+Tests should be runnable in browser console:
+
+```javascript
+// Include test runner in app
+if (window.location.search.includes('runTests')) {
+  TestRunner.runAll();
+}
+```
+
+### Success Criteria
+
+- [ ] **Tests Pass**: All test suites pass with 100% pass rate
+- [ ] **Coverage**: Minimum 80% code coverage on core functionality
+- [ ] **Critical Paths**: All CRUD operations fully tested
+- [ ] **Calculations**: All financial calculations verified
+- [ ] **Security**: Encryption and backup tested
+- [ ] **No Regressions**: Tests catch breaking changes
+- [ ] **Data Safety**: No data loss during operations
 
 ## Example Usage Scenarios
 
@@ -150,6 +222,7 @@ Build a beautiful, functional personal finance dashboard that helps users unders
 - [ ] **Import/Export**: Can migrate data, backup safely
 - [ ] **No Errors**: Zero data corruption, handles edge cases
 - [ ] **Helpful**: Tooltips, onboarding, FAQ built-in
+- [ ] **Tested**: All core functionality has automated tests
 
 ## Bonus Features
 

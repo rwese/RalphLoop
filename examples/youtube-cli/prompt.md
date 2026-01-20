@@ -167,6 +167,118 @@ Config file location: `~/.config/tubemaster/config.json`
 - **Disk Space Alerts**: Warn when low disk space, auto-pause
 - **Network Retry**: Exponential backoff for network errors (max 3 retries)
 
+## Testing Requirements
+
+### Test Suite Structure
+
+Create a `tests/` directory with the following test files:
+
+- **`tests/unit/download.test.ts`** - Download engine unit tests
+  - URL parsing and validation
+  - Format selection logic
+  - Quality detection
+  - Retry mechanism behavior
+  - Rate limiting calculations
+
+- **`tests/unit/library.test.ts`** - Library management unit tests
+  - Database operations (SQLite)
+  - Metadata parsing and generation
+  - Deduplication algorithms
+  - Tag management
+  - Search functionality
+
+- **`tests/unit/metadata.test.ts`** - Metadata tests
+  - ID3v2 tag generation
+  - Album art embedding
+  - Thumbnail processing
+  - Transcript extraction
+  - Chapter detection
+
+- **`tests/integration/cli.test.ts`** - CLI integration tests
+  - Command parsing and argument handling
+  - All CLI commands (download, playlist, channel, library, etc.)
+  - Option processing
+  - Exit codes
+  - Help output validation
+
+- **`tests/integration/download.test.ts`** - Download integration tests
+  - Full download workflow
+  - Playlist downloading
+  - Channel downloading
+  - Resume from interruption
+  - Multiple concurrent downloads
+
+- **`tests/fixtures/`** - Test fixtures
+  - Sample video metadata
+  - Sample playlists
+  - Mock API responses
+  - Test media files
+
+### Test Configuration
+
+```typescript
+// vitest.config.ts
+export default defineConfig({
+  test: {
+    globals: true,
+    environment: 'node',
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+      include: ['src/**/*.ts'],
+      exclude: ['src/**/*.d.ts'],
+    },
+  },
+});
+```
+
+### Running Tests
+
+```bash
+# Run all tests
+npm test
+
+# Run unit tests only
+npm run test:unit
+
+# Run integration tests only
+npm run test:integration
+
+# Run with coverage
+npm run test:coverage
+
+# Watch mode for development
+npm run test:watch
+```
+
+### CI Configuration
+
+```yaml
+# .github/workflows/test.yml
+name: Tests
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '23'
+      - run: npm ci
+      - run: npm run test:coverage
+```
+
+### Success Criteria
+
+- [ ] **Tests Pass**: All test suites pass with 100% pass rate
+- [ ] **Coverage**: Minimum 80% code coverage
+- [ ] **Unit Tests**: All utility functions and logic tested
+- [ ] **Integration Tests**: CLI commands fully tested
+- [ ] **No Regressions**: CI catches breaking changes
+- [ ] **Fast Tests**: Full test suite runs in under 2 minutes
+- [ ] **Isolated**: Tests don't require network or external services
+
 ### Performance
 
 - **Smart Queue**: Prioritize downloads, queue management
@@ -248,6 +360,7 @@ tubemaster download downloads.txt \
 - [ ] **Robust**: Handles errors, network issues, partial downloads
 - [ ] **Well documented**: --help for every command, examples in README
 - [ ] **Configurable**: Sensible defaults, easy customization
+- [ ] **Tested**: All functionality has automated tests
 
 ## Bonus Features
 
