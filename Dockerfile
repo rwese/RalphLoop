@@ -19,6 +19,7 @@ RUN apt-get update && \
     ca-certificates \
     sudo \
     git \
+    # Playwright dependencies
     libnss3 \
     libnspr4 \
     libatk1.0-0 \
@@ -34,6 +35,12 @@ RUN apt-get update && \
     libpango-1.0-0 \
     libasound2t64 \
     libatspi2.0-0 \
+    # Additional dependencies for Chromium
+    libxshmfence1 \
+    libgtk-3-0 \
+    libnotify4 \
+    libx11-xcb1 \
+    libxtst6 \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js (v23.x - latest) for npx support
@@ -62,9 +69,18 @@ ENV PATH=/root/.local/bin:/root/.opencode/bin:$PATH
 RUN curl -fsSL https://opencode.ai/install | bash
 
 # Install Playwright and browsers for browser automation
-RUN npm install -g playwright && \
-    npx playwright install chromium --with-deps 2>/dev/null || \
-    npx playwright install chromium
+# First install the playwright npm package
+RUN npm install -g playwright
+
+# Install Playwright system dependencies and Chromium browser
+# playwright install-deps chromium handles all system-level dependencies
+RUN npx playwright install-deps chromium 2>&1 | grep -v "WARNING" || true
+
+# Install Chromium browser
+RUN npx playwright install chromium
+
+# Verify installation
+RUN npx playwright --version && echo "Playwright installation verified"
 # Configure npm for better user experience
 # Note: init.author.name/email/license are deprecated in npm and cannot be set via config
 # They can only be set during `npm init` with --init-author-name/email/license flags
