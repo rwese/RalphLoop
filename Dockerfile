@@ -16,7 +16,7 @@ RUN mkdir -p /root/.local/state && \
     mkdir -p /workspace
 
 RUN set -ex && \
-    apt-get update && apt-get install -y --no-install-recommends curl ca-certificates sudo git libnss3 && \
+    apt-get update && apt-get install -y --no-install-recommends curl ca-certificates sudo git libnss3 unzip ripgrep fd-find 7zip && \
     curl -fsSL https://deb.nodesource.com/setup_23.x | bash - && \
     apt-get update && apt-get install -y --no-install-recommends \
       nodejs \
@@ -40,6 +40,7 @@ RUN set -ex && \
       libx11-xcb1 \
       libxtst6 && \
     curl -fsSL https://opencode.ai/install | bash && \
+    curl -fsSL https://bun.com/install | bash && \
     npm install -g playwright && \
     npx playwright install-deps chromium && \
     npx playwright install chromium && \
@@ -52,13 +53,14 @@ RUN set -ex && \
 
 COPY backend/opencode /root/.opencode
 COPY examples /usr/share/ralphloop/examples
-COPY share/opencode-pty /usr/share/ralphloop/opencode-pty
 
 COPY ralph /usr/local/bin/ralph
 RUN chmod +x /usr/local/bin/ralph
 
 COPY entrance.sh /usr/local/bin/entrance.sh
 RUN chmod +x /usr/local/bin/entrance.sh
+
+RUN RESULT=$(opencode debug config 2>&1) || echo 'Opencode install failed:' "$RESULT"
 
 ENTRYPOINT ["/usr/local/bin/entrance.sh"]
 
