@@ -76,6 +76,15 @@ export RALPH_TIMEOUT=1200  # 20 minutes
 # Memory limit in KB (default: 2097152 = 2GB)
 export RALPH_MEMORY_LIMIT=3145728  # 3GB
 
+# Progress refactoring threshold in lines (default: 1000)
+export RALPH_PROGRESS_MAX_SIZE=2000
+
+# Number of recent iterations to keep during refactoring (default: 5)
+export RALPH_PROGRESS_KEEP=10
+
+# Directory for archived progress entries (default: .progress-archive)
+export RALPH_PROGRESS_ARCHIVE_DIR=".progress-archive"
+
 # Example: Run with longer timeout for complex tasks
 RALPH_TIMEOUT=1800 ./ralph 10  # 30 minute timeout
 ```
@@ -84,6 +93,9 @@ RALPH_TIMEOUT=1800 ./ralph 10  # 30 minute timeout
 
 - **RALPH_TIMEOUT**: If opencode commands are timing out (especially for complex tasks), increase this value
 - **RALPH_MEMORY_LIMIT**: If you're getting exit code 137 (OOM kill), increase this value
+- **RALPH_PROGRESS_MAX_SIZE**: To control when progress.md gets refactored/archived (default: 1000 lines)
+- **RALPH_PROGRESS_KEEP**: Number of recent iterations to keep in main progress.md after refactoring (default: 5)
+- **RALPH_PROGRESS_ARCHIVE_DIR**: Directory where archived progress entries are stored (default: .progress-archive)
 
 **Common configurations:**
 
@@ -158,9 +170,13 @@ RalphLoop/
 ├── Dockerfile            # Container definition
 ├── entrance.sh           # Container entrypoint (auth handling)
 ├── .env.dist             # Environment variables template
-├── backend/opencode/         # OpenCode configuration
-│   ├── prompts/agent/AGENT_RALPH.md  # Agent configuration
-│   └── opencode.jsonc        # OpenCode CLI configuration
+├── backends/              # Backend configurations (claude-code, codex, kilo, opencode)
+│   ├── opencode/          # OpenCode configuration
+│   │   ├── prompts/agent/AGENT_RALPH.md  # Agent configuration
+│   │   └── opencode.jsonc        # OpenCode CLI configuration
+│   ├── claude-code/       # Claude Code backend configuration
+│   ├── codex/             # OpenAI Codex backend configuration
+│   └── kilo/              # Kilo CLI backend configuration
 ├── share/opencode-pty/       # OpenCode PTY plugin (git submodule)
 │   ├── src/                  # Plugin source code
 │   ├── index.ts              # Plugin entry point

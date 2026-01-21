@@ -55,7 +55,8 @@ RUN set -xe && \
     set +x && \
     rm -rf /var/lib/apt/lists/*
 
-COPY backend/opencode /root/.opencode
+COPY backends/opencode/opencode.jsonc /root/.config/opencode/opencode.jsonc
+COPY backends/opencode/prompts /root/.config/opencode/prompts
 COPY examples /usr/share/ralphloop/examples
 
 COPY ralph /usr/local/bin/ralph
