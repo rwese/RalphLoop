@@ -1,0 +1,20 @@
+{
+  "name": "simple-todo-cli",
+  "version": "1.0.0",
+  "description": "A simple Todo List CLI application",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test src/*.test.js"
+  },
+  "keywords": [
+    "todo",
+    "cli",
+    "task-manager"
+  ],
+  "author": "RalphLoop",
+  "license": "MIT",
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
