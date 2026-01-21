@@ -27,8 +27,7 @@ test_sanitize_multiple_eof() {
     local content="EOF some content EOF more content EOF"
     local sanitized=$(echo "$content" | bash -c "source '$RALPH_SCRIPT' 2>/dev/null; sanitize_for_heredoc" 2>/dev/null)
 
-    local eof_count=$(echo "$sanitized" | grep -c "EOF" || echo "0")
-    assert_equal "0" "$eof_count" "All EOF markers should be replaced"
+    assert_not_contains "$sanitized" "EOF" "All EOF markers should be replaced"
 }
 
 # ============================================================================
