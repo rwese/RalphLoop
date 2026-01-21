@@ -35,7 +35,7 @@
 set -e -u -o pipefail
 
 # Configuration
-MAX_ROUNDS=${1:-100}
+MAX_ROUNDS=${1:-${MAX_ROUNDS:-100}}
 PROGRESS_FILE="progress.md"
 PROMPT_FILE="prompt.md"
 VALIDATION_ISSUES_FILE=".ralph_validation_issues.txt"
@@ -136,7 +136,10 @@ display_config() {
   fi
   echo "========================================"
 }
-# display_config  # Commented out - causes output when sourcing ralph for tests
+# Display configuration info (only when not sourcing for tests)
+if [ "${RALPH_SOURCED_FOR_TEST:-0}" != "1" ]; then
+  display_config
+fi
 
 # Validate MAX_ROUNDS is a positive integer
 validate_max_rounds() {
@@ -149,7 +152,11 @@ validate_max_rounds() {
     exit 1
   fi
 }
-validate_max_rounds
+
+# Skip initialization when sourcing for testing
+if [ "${RALPH_SOURCED_FOR_TEST:-0}" != "1" ]; then
+  validate_max_rounds
+fi
 
 # Determine prompt source
 get_prompt() {
@@ -329,7 +336,10 @@ fi
 # Clear previous validation issues at start
 rm -f "$VALIDATION_ISSUES_FILE"
 
-# Main loop
+# Main loop - skip if RALPH_SOURCED_FOR_TEST is set
+if [ "${RALPH_SOURCED_FOR_TEST:-0}" = "1" ]; then
+    :  # Skip main loop when sourcing for testing
+else
 for ((i = 1; i <= MAX_ROUNDS; i++)); do
   echo "========================================"
   echo "🔄 RalphLoop Iteration $i of $MAX_ROUNDS"
@@ -458,9 +468,13 @@ The loop succeeds when:
 If the current goal is complete, output <promise>COMPLETE</promise>.
 RALPH_EOF_XYZ123
 
-  EXIT_CODE=${PIPESTATUS[0]}  # Get exit code from timeout/opencode command
+  # Read output from file BEFORE checking PIPESTATUS (trap may delete the file)
+  result=$(cat "$OUTPUT_FILE" 2>/dev/null | tr -d '\0' || echo "")
+
+  # Get exit code from timeout/opencode command
+  EXIT_CODE=${PIPESTATUS[0]}
   set -e  # Re-enable exit on error
-  
+
   # Check if timeout or error occurred
   if [ $EXIT_CODE -eq 124 ]; then
     echo "❌ TIMEOUT: opencode command exceeded ${RALPH_TIMEOUT}s ($(($RALPH_TIMEOUT / 60)) minutes) - killed to prevent memory issues" >> "$OUTPUT_FILE"
@@ -471,7 +485,7 @@ RALPH_EOF_XYZ123
   fi
 
   # Check if result is empty or indicates an error
-  if [ ! -s "$OUTPUT_FILE" ]; then
+  if [ -z "$result" ]; then
     echo "⚠️ WARNING: Empty output from opencode agent - may indicate memory or execution issue"
     rm -f "$OUTPUT_FILE"
     echo "Continuing to next iteration..."
@@ -620,7 +634,8 @@ RALPH_VALIDATE_EOF
   echo ""
 done
 
-echo "========================================"
-echo "🏁 Max iterations ($MAX_ROUNDS) reached."
-echo "   RalphLoop will rest for now."
-echo "========================================"
+  echo "========================================"
+  echo "🏁 Max iterations ($MAX_ROUNDS) reached."
+  echo "   RalphLoop will rest for now."
+  echo "========================================"
+fi
