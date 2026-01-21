@@ -30,7 +30,21 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Configuration
-const DEFAULT_IMAGE = 'ghcr.io/rwese/ralphloop:latest';
+const DEFAULT_BASE_IMAGE = 'ghcr.io/rwese/ralphloop';
+const DEFAULT_IMAGE_TAG = 'latest';
+
+// Build image with proper tag handling (support RALPH_IMAGE with or without tag)
+function getDefaultImage() {
+  const image = process.env.RALPH_IMAGE || DEFAULT_BASE_IMAGE;
+  const tag = process.env.RALPH_IMAGE_TAG || DEFAULT_IMAGE_TAG;
+
+  // If image already has a tag (contains :), don't add another
+  if (image.includes(':')) {
+    return image;
+  }
+  return `${image}:${tag}`;
+}
+const DEFAULT_IMAGE = getDefaultImage();
 const DEFAULT_ITERATIONS = 1;
 const EXAMPLES_DIR = join(__dirname, '..', 'examples');
 
@@ -313,9 +327,9 @@ ARGUMENTS
 
 OPTIONS
   --runtime, -r            Container runtime: podman or docker (auto-detected)
-  --image, -i              Docker image to use (default: ghcr.io/rwese/ralphloop:latest)
+  --image, -i              Docker image to use (default: ghcr.io/rwese/ralphloop:latest, can be overridden with RALPH_IMAGE/RALPH_IMAGE_TAG env vars)
   --pull                   Pull the latest image before running (default)
-  --no-pull                Skip pulling the image, use cached version
+  --no-pull                Use cached image if available, pull only if missing
   --ralph-prompt-file, -p  Read prompt from file and pass to container
   --env                    Set environment variable (can be used multiple times)
   --help, -h               Show this help message
@@ -353,7 +367,24 @@ ENVIRONMENT VARIABLES
   OPENCODE_AUTH        OpenCode authentication data
   RALPH_PROMPT         Direct prompt text for the autonomous loop
   RALPH_PROMPT_FILE    Path to a prompt file
-  IDEA                 Idea for prompt-builder command
+  RALPH_IMAGE          Container image name (e.g., 'localhost/ralphloop')
+  RALPH_IMAGE_TAG      Image tag (e.g., 'v1-fix', 'latest')
+                       Note: If RALPH_IMAGE contains a tag (e.g., 'image:tag'),
+                       RALPH_IMAGE_TAG is ignored
+
+CUSTOM IMAGE USAGE
+  # Build and use local image (recommended for testing)
+  podman build -t my-local-image:latest .
+  RALPH_IMAGE=my-local-image npx ralphloop 1
+  
+  # Or with full image reference (RALPH_IMAGE_TAG will be ignored)
+  RALPH_IMAGE=localhost/ralphloop:v1-fix npx ralphloop 1
+  
+  # Use --no-pull to skip updating existing images (still pulls if missing)
+  RALPH_IMAGE=my-local-image npx ralphloop --no-pull 1
+  
+  # Use RALPH_IMAGE and RALPH_IMAGE_TAG separately
+  RALPH_IMAGE=localhost/ralphloop RALPH_IMAGE_TAG=dev npx ralphloop 1
 
 DIAGNOSIS
   Run "npx ralphloop doctor" to check your system setup and diagnose issues.
@@ -910,8 +941,16 @@ async function main() {
   console.log(`Working directory: ${cwd}`);
   console.log(`Git repository: ${isGitRepo ? 'Yes' : 'No'}`);
 
-  // Pull image if requested
-  if (pullImageFlag) {
+  // Pull image if needed
+  // Always pull if image doesn't exist locally (--no-pull only skips updating existing images)
+  if (imageExistsLocally(finalRuntime, image)) {
+    if (pullImageFlag) {
+      console.log(`  ℹ️  Image cached: ${image} (use --no-pull to skip future pulls)`);
+    } else {
+      console.log(`  ✓ Using cached image: ${image}`);
+    }
+  } else {
+    console.log(`  📦 Image not found locally, attempting to pull: ${image}`);
     await pullImage(finalRuntime, image);
   }
 
