@@ -72,9 +72,6 @@ RALPH_MODE="${RALPH_MODE:-autonomous}"
 # Note: ulimit commands cause opencode to crash in containers, so they are disabled.
 # Container memory limits are handled by Docker/Podman, not by ulimit.
 # The RALPH_MEMORY_LIMIT env var is kept for backwards compatibility but is not used.
-if command -v ulimit &> /dev/null; then
-  echo "⚠️  Note: ulimit disabled (causes opencode crashes in containers)"
-fi
 
 # Cleanup temp files on exit
 trap 'rm -f /tmp/ralph_output_*.txt /tmp/ralph_validation_*.txt 2>/dev/null' EXIT
