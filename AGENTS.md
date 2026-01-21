@@ -138,15 +138,66 @@ export RALPH_PRINT_LOGS=true
 # Debug mode with real-time logs (verbose but helpful for troubleshooting)
 RALPH_LOG_LEVEL=DEBUG RALPH_PRINT_LOGS=true ./ralph 1
 
-# Info level logging without printing (balanced)
-RALPH_LOG_LEVEL=INFO ./ralph 10
-
 # Quiet mode (default behavior)
 RALPH_LOG_LEVEL=WARN ./ralph 10
 
 # Minimal logging, show everything to stderr
 RALPH_LOG_LEVEL=ERROR RALPH_PRINT_LOGS=true ./ralph 10
 ```
+
+### Docker Runtime
+
+```bash
+# Podman (default on this system)
+podman build -t ralphloop .
+podman run -it --rm -v "$(pwd):/workspace" ralphloop bash ./ralph 1
+
+# Docker (alternative)
+docker build -t ralphloop .
+docker run -it --rm -v "$(pwd):/workspace" ralphloop bash ./ralph 1
+```
+
+### Container Image Configuration
+
+```bash
+# Use a custom local image (recommended for development/testing)
+RALPH_IMAGE=my-local-image RALPH_IMAGE_TAG=v1-fix ./ralph 10
+
+# Use image with tag already in RALPH_IMAGE (RALPH_IMAGE_TAG will be ignored)
+RALPH_IMAGE=localhost/ralphloop:v1.0.0 ./ralph 10
+
+# Use default image from GitHub Container Registry
+RALPH_IMAGE=ghcr.io/rwese/ralphloop ./ralph 10
+
+# Use --no-pull to skip updating cached images (still pulls if missing)
+RALPH_IMAGE=localhost/ralphloop ./ralph --no-pull 10
+```
+
+**With npx CLI:**
+
+```bash
+# Using environment variables
+RALPH_IMAGE=localhost/ralphloop npx ralphloop 1
+
+# Using --image flag (alternative)
+npx ralphloop --image localhost/ralphloop 1
+```
+
+**Why configure these?**
+
+- **RALPH_IMAGE**: Override the container image used for running RalphLoop
+  - Useful for testing local builds
+  - Supports full image references (e.g., `localhost/image:tag`)
+  - Defaults to `ghcr.io/rwese/ralphloop:latest`
+
+- **RALPH_IMAGE_TAG**: Override just the image tag
+  - Only used if RALPH_IMAGE doesn't contain a tag
+  - Defaults to `latest`
+
+- **--no-pull**: Control image pulling behavior
+  - Use cached image if available
+  - Always attempts to pull if image doesn't exist locally
+  - Useful for local development to avoid unnecessary network requests
 
 ### Docker Runtime
 
