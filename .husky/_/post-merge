@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# RalphLoop Post-Merge Hook
+# Runs after git merge or pull to ensure the environment is ready
+#
+# This hook:
+# - Makes test scripts executable
+# - Verifies the test infrastructure is in place
+# - Reports the status of the test suite
+
+set -e -u -o pipefail
+
+# Colors
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+HUSKY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$HUSKY_DIR/../.." && pwd)"
+TEST_SCRIPT="$PROJECT_ROOT/tests/run-tests.sh"
+
+# Make scripts executable
+make_executable() {
+    local files=(
+        "$PROJECT_ROOT/ralph"
+        "$TEST_SCRIPT"
+        "$PROJECT_ROOT/backends/mock/bin/mock-opencode"
+    )
+
+    for file in "${files[@]}"; do
+        if [ -f "$file" ]; then
+            chmod +x "$file" 2>/dev/null || true
+        fi
+    done
+}
+
+# Verify test infrastructure
+verify_tests() {
+    if [ ! -f "$TEST_SCRIPT" ]; then
+        echo -e "${YELLOW}⚠️  Test script not found${NC}"
+        echo "Test suite may not be fully installed."
+        return 1
+    fi
+
+    echo -e "${BLUE}[INFO]${NC} Test script found at: $TEST_SCRIPT"
+
+    # Make executable
+    chmod +x "$TEST_SCRIPT" 2>/dev/null || true
+
+    echo -e "${GREEN}✅ Test infrastructure verified${NC}"
+    return 0
+}
+
+# Show test status
+show_status() {
+    echo ""
+    echo "========================================"
+    echo "Test Suite Status"
+    echo "========================================"
+    echo ""
+    echo "To run tests:"
+    echo "  ./tests/run-tests.sh --all        # Run all tests"
+    echo "  ./tests/run-tests.sh --quick      # Quick smoke tests"
+    echo "  ./tests/run-tests.sh --unit       # Unit tests"
+    echo "  ./tests/run-tests.sh --mock       # Mock backend tests"
+    echo ""
+}
+
+# Main
+main() {
+    echo "========================================"
+    echo "RalphLoop Post-Merge Setup"
+    echo "========================================"
+
+    make_executable
+    verify_tests
+    show_status
+}
+
+main
