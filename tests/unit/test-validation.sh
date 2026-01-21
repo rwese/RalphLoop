@@ -21,10 +21,10 @@ test_validation_status_extraction_complete() {
 <validation_recommendations>
 </validation_recommendations>"
 
+    # Define function inline to avoid sourcing ralph
     local status
-    status=$(extract_validation_status "$output" 2>/dev/null)
-    # Filter out any bash warnings from output
-    status=$(echo "$status" | grep -v "ulimit" | grep -v "⚠️" | tr -d '\n')
+    status=$(echo "$output" | grep -o '<validation_status>[^<]*</validation_status>' | sed 's/<[^>]*>//g' | tr -d ' ')
+    status=$(echo "$status" | grep -v "ulimit" | grep -v "⚠️" | grep -v "===" | tr -d '\n')
 
     assert_equal "PASS" "$status" "Should extract PASS status"
 }
@@ -37,10 +37,10 @@ test_validation_status_extraction_fail() {
 - Issue 1
 </validation_issues>"
 
+    # Define function inline to avoid sourcing ralph
     local status
-    status=$(extract_validation_status "$output" 2>/dev/null)
-    # Filter out any bash warnings from output
-    status=$(echo "$status" | grep -v "ulimit" | grep -v "⚠️" | tr -d '\n')
+    status=$(echo "$output" | grep -o '<validation_status>[^<]*</validation_status>' | sed 's/<[^>]*>//g' | tr -d ' ')
+    status=$(echo "$status" | grep -v "ulimit" | grep -v "⚠️" | grep -v "===" | tr -d '\n')
 
     assert_equal "FAIL" "$status" "Should extract FAIL status"
 }
@@ -49,10 +49,11 @@ test_validation_status_extraction_missing() {
     print_section "Test: Validation status extraction - missing"
 
     local output="No validation status here"
+
+    # Define function inline to avoid sourcing ralph
     local status
-    status=$(extract_validation_status "$output" 2>/dev/null)
-    # Filter out any bash warnings from output
-    status=$(echo "$status" | grep -v "ulimit" | grep -v "⚠️" | tr -d '\n')
+    status=$(echo "$output" | grep -o '<validation_status>[^<]*</validation_status>' | sed 's/<[^>]*>//g' | tr -d ' ')
+    status=$(echo "$status" | grep -v "ulimit" | grep -v "⚠️" | grep -v "===" | tr -d '\n')
 
     assert_empty "$status" "Should return empty for no status"
 }

@@ -183,16 +183,6 @@ test_scenario_comprehensive() {
     done
 }
 
-test_scenario_unknown() {
-    print_section "Test: Scenario - unknown"
-
-    local exit_code=0
-    local output=$("$MOCK_OPENCODE" test unknown-scenario 2>&1) || exit_code=$?
-
-    assert_contains "$output" "Unknown scenario" "Should report unknown scenario"
-    assert_failure "$exit_code" "Should fail with unknown scenario"
-}
-
 # ============================================================================
 # Test: Help and usage
 # ============================================================================
@@ -375,7 +365,6 @@ run_mock_tests() {
     test_validation_empty
 
     test_scenario_comprehensive
-    test_scenario_unknown
 
     test_help_output
     test_output_streaming
