@@ -366,16 +366,18 @@ See [tests/README.md](./tests/README.md) for full testing documentation.
 
 ### Pre-Push Checks
 
-RalphLoop includes automatic pre-push checks that run before code is pushed to the remote repository:
+RalphLoop includes automatic pre-push checks via [lefthook](https://github.com/evilmartians/lefthook) that run before code is pushed to the remote repository:
 
 ```bash
 # Pre-push checks run automatically when you run:
 git push
 
 # The following checks are performed:
-# 1. Quick tests (--quick)
-# 2. Lint checks (shellcheck if available)
+# 1. Quick tests (--quick) - REJECTS push if tests fail
+# 2. Shell linting with shellcheck
 ```
+
+Pre-push checks are configured in `lefthook.yml` and are **mandatory** - they cannot be bypassed.
 
 **Note:** Pre-push checks are critical for maintaining code quality and are required before every push.
 

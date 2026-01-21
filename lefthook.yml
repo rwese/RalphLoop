@@ -5,6 +5,24 @@
 # Skipping hooks will allow exposed secrets in the codebase.
 # If you must bypass hooks, you are violating security policy.
 
+pre-push:
+  parallel: false
+  commands:
+    # Run quick tests before push - REJECTS push if tests fail
+    # This ensures code quality is maintained before reaching CI
+    quick-tests:
+      run: ./tests/run-tests.sh --quick --ci
+      description: Running quick tests before push
+      exit-code: 1  # FAIL push if tests fail
+
+    # Lint shell scripts
+    shell-lint:
+      glob: '*.sh'
+      run: npx shellcheck {files}
+      description: Linting shell scripts
+      exit-code: 1  # FAIL push if lint errors found
+      stage: true
+
 pre-commit:
   parallel: false
   commands:
