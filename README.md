@@ -323,6 +323,47 @@ RALPH_PROMPT="$(cat prompt.md)" npm run container:run 10
 2. Add your project prompt as `prompt.md`
 3. See [examples/README.md](./examples/README.md) for full instructions
 
+## Testing
+
+RalphLoop includes a comprehensive test suite to ensure reliability and prevent regressions:
+
+```bash
+# Run all tests
+./tests/run-tests.sh --all
+
+# Run specific test categories
+./tests/run-tests.sh --unit           # Unit tests
+./tests/run-tests.sh --integration    # Integration tests
+./tests/run-tests.sh --e2e           # End-to-end tests
+./tests/run-tests.sh --mock          # Mock backend tests
+
+# Quick smoke tests
+./tests/run-tests.sh --quick
+
+# With verbose output
+./tests/run-tests.sh --all --verbose
+```
+
+### Mock Backend for Testing
+
+The test suite includes a mock backend that simulates OpenCode responses without requiring API calls:
+
+```bash
+# Quick success scenario
+RALPH_MOCK_RESPONSE=success ./ralph 1
+
+# Test validation failure
+RALPH_MOCK_RESPONSE=fail ./ralph 1
+
+# Simulate slow processing
+RALPH_MOCK_DELAY=3 ./ralph 1
+
+# Test timeout handling
+RALPH_MOCK_EXIT_CODE=124 ./ralph 1
+```
+
+See [tests/README.md](./tests/README.md) for full testing documentation.
+
 ## License
 
 MIT

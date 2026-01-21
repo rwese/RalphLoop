@@ -221,13 +221,14 @@ RalphLoop/
 ├── Dockerfile            # Container definition
 ├── entrance.sh           # Container entrypoint (auth handling)
 ├── .env.dist             # Environment variables template
-├── backends/              # Backend configurations (claude-code, codex, kilo, opencode)
+├── backends/              # Backend configurations (claude-code, codex, kilo, opencode, mock)
 │   ├── opencode/          # OpenCode configuration
 │   │   ├── prompts/agent/AGENT_RALPH.md  # Agent configuration
 │   │   └── opencode.jsonc        # OpenCode CLI configuration
 │   ├── claude-code/       # Claude Code backend configuration
 │   ├── codex/             # OpenAI Codex backend configuration
-│   └── kilo/              # Kilo CLI backend configuration
+│   ├── kilo/              # Kilo CLI backend configuration
+│   └── mock/              # Mock backend for testing (simulates OpenCode without API calls)
 ├── share/opencode-pty/       # OpenCode PTY plugin (git submodule)
 │   ├── src/                  # Plugin source code
 │   ├── index.ts              # Plugin entry point
@@ -512,7 +513,7 @@ Environment variable template for:
 
 ### Patterns to Improve
 
-1. **Testing automation** - Add test suite and CI/CD pipeline
+1. **Testing automation** - Test suite and CI/CD pipeline now implemented in `.github/workflows/tests.yml`
 2. **Error recovery** - Implement better retry and recovery mechanisms
 3. **Multi-agent coordination** - Support parallel task execution
 4. **State persistence** - Better handling of interrupted loops
