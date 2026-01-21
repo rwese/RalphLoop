@@ -1,0 +1,48 @@
+{
+  "name": "weather-dashboard-cli",
+  "version": "1.0.0",
+  "description": "A sophisticated Weather Dashboard CLI tool with real-time weather data, forecasts, and location search",
+  "main": "src/index.js",
+  "bin": {
+    "weather-dashboard": "./bin/weather-dashboard.js"
+  },
+  "scripts": {
+    "start": "node bin/weather-dashboard.js",
+    "test": "jest --coverage",
+    "test:watch": "jest --watch",
+    "lint": "eslint src/**/*.js",
+    "lint:fix": "eslint src/**/*.js --fix"
+  },
+  "keywords": [
+    "weather",
+    "cli",
+    "dashboard",
+    "forecast",
+    "openweathermap"
+  ],
+  "author": "RalphLoop",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ralphloop/weather-dashboard-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ralphloop/weather-dashboard-cli/issues"
+  },
+  "homepage": "https://github.com/ralphloop/weather-dashboard-cli#readme",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "chalk": "^5.3.0",
+    "commander": "^11.1.0",
+    "configstore": "^7.0.0",
+    "figlet": "^1.7.0",
+    "ora": "^8.0.1"
+  },
+  "devDependencies": {
+    "eslint": "^8.56.0",
+    "jest": "^29.7.0"
+  }
+}
