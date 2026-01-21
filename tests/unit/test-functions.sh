@@ -19,10 +19,12 @@ test_get_prompt_from_env() {
     local test_prompt="Test prompt from env"
 
     # Test with RALPH_PROMPT set
-    RALPH_PROMPT="$test_prompt" RALPH_PROMPT_FILE="" \
+    local result
+    result=$(RALPH_PROMPT="$test_prompt" RALPH_PROMPT_FILE="" \
     PROMPT_FILE="$test_dir/prompt.md" \
-    bash -c "source '$RALPH_SCRIPT' 2>/dev/null; get_prompt" 2>/dev/null | \
-        assert_contains "$test_prompt" "Should return prompt from environment variable"
+    bash -c "source '$RALPH_SCRIPT' 2>/dev/null; get_prompt" 2>/dev/null)
+
+    assert_contains "$result" "$test_prompt" "Should return prompt from environment variable"
 
     rm -rf "$test_dir"
 }
@@ -35,11 +37,13 @@ test_get_prompt_from_file() {
     echo "$test_prompt" > "$test_dir/custom-prompt.md"
 
     # Test with RALPH_PROMPT_FILE set
-    RALPH_PROMPT="" \
+    local result
+    result=$(RALPH_PROMPT="" \
     RALPH_PROMPT_FILE="$test_dir/custom-prompt.md" \
     PROMPT_FILE="$test_dir/prompt.md" \
-    bash -c "source '$RALPH_SCRIPT' 2>/dev/null; get_prompt" 2>/dev/null | \
-        assert_contains "$test_prompt" "Should return prompt from file"
+    bash -c "source '$RALPH_SCRIPT' 2>/dev/null; get_prompt" 2>/dev/null)
+
+    assert_contains "$result" "$test_prompt" "Should return prompt from file"
 
     rm -rf "$test_dir"
 }
@@ -52,11 +56,13 @@ test_get_prompt_default() {
     echo "$test_prompt" > "$test_dir/prompt.md"
 
     # Test with default prompt file
-    RALPH_PROMPT="" \
+    local result
+    result=$(RALPH_PROMPT="" \
     RALPH_PROMPT_FILE="" \
     PROMPT_FILE="$test_dir/prompt.md" \
-    bash -c "source '$RALPH_SCRIPT' 2>/dev/null; get_prompt" 2>/dev/null | \
-        assert_contains "$test_prompt" "Should return prompt from default file"
+    bash -c "source '$RALPH_SCRIPT' 2>/dev/null; get_prompt" 2>/dev/null)
+
+    assert_contains "$result" "$test_prompt" "Should return prompt from default file"
 
     rm -rf "$test_dir"
 }
@@ -190,8 +196,10 @@ test_refactor_progress_small_file() {
     echo "Done" >> progress.md
 
     # Mock grep to return small line count
-    bash -c "source '$RALPH_SCRIPT' 2>/dev/null; refactor_progress" 2>/dev/null | \
-        assert_contains "within acceptable limits" "Should not refactor small file"
+    local result
+    result=$(bash -c "source '$RALPH_SCRIPT' 2>/dev/null; refactor_progress" 2>/dev/null)
+
+    assert_contains "$result" "within acceptable limits" "Should not refactor small file"
 
     cd "$PROJECT_ROOT"
     rm -rf "$test_dir"
