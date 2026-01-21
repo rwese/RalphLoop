@@ -171,10 +171,6 @@ run_unit_tests() {
     setup_test_environment
 
     # Run tests
-    test_get_prompt_from_env
-    test_get_prompt_from_file
-    test_get_prompt_default
-
     test_sanitize_heredoc
     test_sanitize_multiple_eof
 

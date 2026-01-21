@@ -187,9 +187,7 @@ test_scenario_unknown() {
     print_section "Test: Scenario - unknown"
 
     local exit_code=0
-    local output
-    output=$("$MOCK_OPENCODE" test unknown-scenario 2>&1) || true
-    exit_code=$?
+    local output=$("$MOCK_OPENCODE" test unknown-scenario 2>&1) || exit_code=$?
 
     assert_contains "$output" "Unknown scenario" "Should report unknown scenario"
     assert_failure "$exit_code" "Should fail with unknown scenario"
