@@ -1,0 +1,316 @@
+#!/usr/bin/env bash
+# Mock OpenCode CLI for testing RalphLoop
+# Simulates OpenCode behavior without requiring API calls
+
+# Configuration
+MOCK_RESPONSE="${RALPH_MOCK_RESPONSE:-complete}"
+MOCK_DELAY="${RALPH_MOCK_DELAY:-0}"
+MOCK_EXIT_CODE="${RALPH_MOCK_EXIT_CODE:-0}"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Print colored message
+log() {
+    local color="$1"
+    local message="$2"
+    echo -e "${color}${message}${NC}"
+}
+
+# Show help
+show_help() {
+    echo "Mock OpenCode CLI - Testing Interface"
+    echo ""
+    echo "Usage: mock-opencode <command> [options]"
+    echo ""
+    echo "Commands:"
+    echo "  run <options>       Run the agent with given options"
+    echo "  status              Show mock backend status"
+    echo "  validate            Run validation simulation"
+    echo "  test <scenario>     Run a specific test scenario"
+    echo "  --help, -h          Show this help message"
+    echo ""
+    echo "Options for 'run':"
+    echo "  --agent <name>      Agent name (default: default)"
+    echo "  --log-level <level> Log level: DEBUG, INFO, WARN, ERROR"
+    echo ""
+    echo "Environment Variables:"
+    echo "  RALPH_MOCK_RESPONSE  Response type: complete, fail, progress, empty"
+    echo "  RALPH_MOCK_DELAY     Artificial delay in seconds"
+    echo "  RALPH_MOCK_EXIT_CODE Exit code to return (default: 0)"
+    echo ""
+    echo "Test Scenarios:"
+    echo "  success     - Immediate completion"
+    echo "  fail        - Completion with validation failure"
+    echo "  progress    - Simulates ongoing work with delays"
+    echo "  timeout     - Simulates timeout (exit code 124)"
+    echo "  empty       - Returns empty output"
+    echo "  error       - Returns error output"
+}
+
+# Show status
+show_status() {
+    echo "========================================"
+    echo "🔧 Mock OpenCode Status"
+    echo "========================================"
+    echo "  Response Mode:  $MOCK_RESPONSE"
+    echo "  Delay:          ${MOCK_DELAY}s"
+    echo "  Exit Code:      $MOCK_EXIT_CODE"
+    echo "========================================"
+}
+
+# Run validation simulation
+run_validation() {
+    echo "========================================"
+    echo "🛡️  Mock Validation Mode"
+    echo "========================================"
+    echo "This simulates the validation phase"
+    echo ""
+
+    apply_delay
+
+    case "$MOCK_RESPONSE" in
+        "complete"|"success")
+            echo "<validation_status>PASS</validation_status>"
+            echo ""
+            echo "<validation_issues>"
+            echo "</validation_issues>"
+            echo ""
+            echo "<validation_recommendations>"
+            echo "</validation_recommendations>"
+            ;;
+        "fail")
+            echo "<validation_status>FAIL</validation_status>"
+            echo ""
+            echo "<validation_issues>"
+            echo "- Mock validation failure for testing"
+            echo "- Some acceptance criteria not met"
+            echo "</validation_issues>"
+            echo ""
+            echo "<validation_recommendations>"
+            echo "- Fix the mock issue to pass validation"
+            echo "- Check test scenario configuration"
+            echo "</validation_recommendations>"
+            ;;
+        "empty")
+            # Return empty
+            ;;
+        *)
+            echo "<validation_status>PASS</validation_status>"
+            echo ""
+            echo "<validation_issues>"
+            echo "</validation_issues>"
+            echo ""
+            echo "<validation_recommendations>"
+            echo "</validation_recommendations>"
+            ;;
+    esac
+}
+
+# Run test scenario
+run_scenario() {
+    local scenario="$1"
+
+    echo "========================================"
+    echo "🧪 Running Test Scenario: $scenario"
+    echo "========================================"
+
+    case "$scenario" in
+        "success")
+            export RALPH_MOCK_RESPONSE="complete"
+            export RALPH_MOCK_DELAY="0"
+            export RALPH_MOCK_EXIT_CODE="0"
+            run_agent "default"
+            ;;
+        "fail")
+            export RALPH_MOCK_RESPONSE="fail"
+            export RALPH_MOCK_DELAY="0"
+            export RALPH_MOCK_EXIT_CODE="0"
+            run_agent "default"
+            ;;
+        "progress")
+            export RALPH_MOCK_RESPONSE="progress"
+            export RALPH_MOCK_DELAY="1"
+            export RALPH_MOCK_EXIT_CODE="0"
+            run_agent "default"
+            ;;
+        "timeout")
+            export RALPH_MOCK_DELAY="0"
+            export RALPH_MOCK_EXIT_CODE="124"
+            run_agent "default"
+            exit 124
+            ;;
+        "empty")
+            export RALPH_MOCK_RESPONSE="empty"
+            export RALPH_MOCK_DELAY="0"
+            export RALPH_MOCK_EXIT_CODE="0"
+            run_agent "default"
+            ;;
+        "error")
+            export RALPH_MOCK_DELAY="0"
+            export RALPH_MOCK_EXIT_CODE="1"
+            run_agent "default"
+            exit 1
+            ;;
+        *)
+            echo "Unknown scenario: $scenario"
+            echo "Available: success, fail, progress, timeout, empty, error"
+            exit 1
+            ;;
+    esac
+}
+
+# Apply artificial delay
+apply_delay() {
+    if [ "$MOCK_DELAY" -gt 0 ]; then
+        log $YELLOW "⏳ Simulating processing time (${MOCK_DELAY}s)..."
+        sleep "$MOCK_DELAY"
+    fi
+}
+
+# Main agent runner
+run_agent() {
+    local agent="${1:-default}"
+
+    log $BLUE "🤖 Starting mock agent: $agent"
+    log $BLUE "📋 Mode: $MOCK_RESPONSE"
+    echo ""
+
+    apply_delay
+
+    case "$MOCK_RESPONSE" in
+        "complete"|"success")
+            generate_completion_response
+            ;;
+        "fail")
+            generate_progress_response
+            ;;
+        "progress")
+            generate_progress_response
+            ;;
+        "empty")
+            # Return nothing
+            ;;
+        *)
+            generate_completion_response
+            ;;
+    esac
+
+    # Handle error exit code
+    if [ "$MOCK_EXIT_CODE" != "0" ]; then
+        exit "$MOCK_EXIT_CODE"
+    fi
+}
+
+# Generate completion response
+generate_completion_response() {
+    cat << 'EOF'
+I'll complete the task and mark it as done.
+
+<promise>COMPLETE</promise>
+
+The task has been completed successfully. All requirements have been met.
+EOF
+}
+
+# Generate progress response (task in progress)
+generate_progress_response() {
+    cat << 'EOF'
+I'm working on the task. Let me make some progress.
+
+I'll create a test file to demonstrate progress.
+
+1. First, I'll create a simple README file:
+   - Added project description
+   - Included installation instructions
+   - Added usage examples
+
+2. Then I'll verify the changes:
+   - File created successfully
+   - Content is correct
+
+The work is in progress. More steps will follow in the next iteration.
+
+<promise>COMPLETE</promise>
+EOF
+}
+
+# Parse command line arguments
+parse_args() {
+    local command=""
+    local agent="default"
+    local log_level="WARN"
+
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            "run")
+                command="run"
+                shift
+                while [ $# -gt 0 ]; do
+                    case "$1" in
+                        "--agent")
+                            agent="$2"
+                            shift 2
+                            ;;
+                        "--log-level")
+                            log_level="$2"
+                            shift 2
+                            ;;
+                        *)
+                            shift
+                            ;;
+                    esac
+                done
+                ;;
+            "status")
+                command="status"
+                shift
+                ;;
+            "validate")
+                command="validate"
+                shift
+                ;;
+            "test")
+                command="test"
+                local scenario="$2"
+                shift 2
+                run_scenario "$scenario"
+                exit 0
+                ;;
+            "--help"|"-h")
+                show_help
+                exit 0
+                ;;
+            *)
+                echo "Unknown argument: $1"
+                show_help
+                exit 1
+                ;;
+        esac
+        shift
+    done
+
+    # Execute command
+    case "$command" in
+        "run")
+            run_agent "$agent"
+            ;;
+        "status")
+            show_status
+            ;;
+        "validate")
+            run_validation
+            ;;
+        "")
+            show_help
+            exit 0
+            ;;
+    esac
+}
+
+# Run
+parse_args "$@"

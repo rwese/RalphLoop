@@ -381,11 +381,19 @@ This iteration is running with backend integration. Be aware of any backend-spec
 "
   fi
 
-  # Run OpenCode agent with current context - capture output to file to avoid truncation
+  # Run OpenCode agent with current context - stream output for real-time feedback
   # Timeout controlled by RALPH_TIMEOUT (default: 600 seconds)
   OUTPUT_FILE="/tmp/ralph_output_$$.txt"
-  
-  timeout "$RALPH_TIMEOUT" opencode run $OPENCOD_OPTS --agent AGENT_RALPH <<RALPH_EOF_XYZ123 > "$OUTPUT_FILE" 2>&1
+
+  # Show progress indicator while command runs
+  echo "🚀 Starting agent execution..."
+  echo "   (This may take a moment. Progress will be shown below.)"
+  echo ""
+
+  # Use tee to both save to file AND display output in real-time
+  # This provides feedback while ensuring output is captured for later analysis
+  set +e  # Don't exit on error during capture
+  timeout "$RALPH_TIMEOUT" opencode run $OPENCOD_OPTS --agent AGENT_RALPH <<RALPH_EOF_XYZ123 2>&1 | tee "$OUTPUT_FILE"
 # Goals and Resources
 
 ## Project plan
@@ -453,7 +461,8 @@ The loop succeeds when:
 If the current goal is complete, output <promise>COMPLETE</promise>.
 RALPH_EOF_XYZ123
 
-  EXIT_CODE=$?
+  EXIT_CODE=${PIPESTATUS[0]}  # Get exit code from timeout/opencode command
+  set -e  # Re-enable exit on error
   
   # Check if timeout or error occurred
   if [ $EXIT_CODE -eq 124 ]; then
@@ -464,17 +473,18 @@ RALPH_EOF_XYZ123
     echo "❌ ERROR: opencode command failed with exit code $EXIT_CODE" >> "$OUTPUT_FILE"
   fi
 
-  result=$(cat "$OUTPUT_FILE" | tr -d '\0')
-  
   # Check if result is empty or indicates an error
-  if [ -z "$result" ]; then
+  if [ ! -s "$OUTPUT_FILE" ]; then
     echo "⚠️ WARNING: Empty output from opencode agent - may indicate memory or execution issue"
+    rm -f "$OUTPUT_FILE"
     echo "Continuing to next iteration..."
     echo ""
     continue
   fi
-  
-  echo "$result"
+
+  # Output has already been streamed via tee, just show separator
+  echo ""
+  echo "--- Output complete ---"
   rm -f "$OUTPUT_FILE"
 
   # Check for completion
@@ -483,11 +493,16 @@ RALPH_EOF_XYZ123
     echo "🛡️ Goal marked complete. Running independent validation..."
     echo "========================================"
 
-    # Run validation prompt to verify completion criteria are truly met - capture to file
+    # Run validation prompt to verify completion criteria are truly met - stream output for real-time feedback
     # Timeout controlled by RALPH_TIMEOUT (default: 600 seconds)
     VALIDATION_OUTPUT_FILE="/tmp/ralph_validation_$$.txt"
-    
-    timeout "$RALPH_TIMEOUT" opencode run $OPENCOD_OPTS --agent AGENT_RALPH <<RALPH_VALIDATE_EOF > "$VALIDATION_OUTPUT_FILE" 2>&1
+
+    echo "🛡️ Running independent validation..."
+    echo ""
+
+    # Use tee to both save to file AND display output in real-time
+    set +e  # Don't exit on error during capture
+    timeout "$RALPH_TIMEOUT" opencode run $OPENCOD_OPTS --agent AGENT_RALPH <<RALPH_VALIDATE_EOF 2>&1 | tee "$VALIDATION_OUTPUT_FILE"
 # Validation Task
 
 The agent previously indicated completion with <promise>COMPLETE</promise>.
@@ -540,7 +555,8 @@ IMPORTANT:
 - Do NOT trust the previous agent's assessment. Verify independently.
 RALPH_VALIDATE_EOF
 
-    VALIDATION_EXIT_CODE=$?
+    VALIDATION_EXIT_CODE=${PIPESTATUS[0]}  # Get exit code from timeout/opencode command
+    set -e  # Re-enable exit on error
     
     # Check if timeout or error occurred
     if [ $VALIDATION_EXIT_CODE -eq 124 ]; then
@@ -556,6 +572,10 @@ RALPH_VALIDATE_EOF
 
     validation_result=$(cat "$VALIDATION_OUTPUT_FILE" | tr -d '\0')
     rm -f "$VALIDATION_OUTPUT_FILE"
+
+    # Output has already been streamed via tee, just show completion message
+    echo ""
+    echo "--- Validation complete ---"
 
     echo ""
     echo "📋 Validation Results:"

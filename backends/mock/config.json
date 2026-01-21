@@ -1,0 +1,115 @@
+{
+  "name": "Mock Backend",
+  "version": "1.0.0",
+  "description": "Mock backend for testing RalphLoop without actual OpenCode API calls - simulates agent responses for development and debugging",
+  "enabled": false,
+  "cli": {
+    "name": "mock",
+    "installUrl": null,
+    "commands": {
+      "trigger": "mock ralph-trigger",
+      "status": "mock ralph-status",
+      "config": "mock ralph-config"
+    }
+  },
+  "integration": {
+    "evaluationTrigger": {
+      "command": "ralph-trigger",
+      "description": "Trigger RalphLoop evaluation loop",
+      "arguments": ["--iterations", "--prompt", "--mode"]
+    },
+    "statusCheck": {
+      "command": "ralph-status",
+      "description": "Check RalphLoop status and progress",
+      "arguments": ["--progress", "--state"]
+    },
+    "configuration": {
+      "command": "ralph-config",
+      "description": "Configure RalphLoop settings",
+      "arguments": ["--set", "--get", "--list"]
+    }
+  },
+  "hooks": {
+    "preEvaluation": [],
+    "postEvaluation": [],
+    "onError": ["logError", "notifyUser"]
+  },
+  "environment": {
+    "RALPH_MOCK_RESPONSE": {
+      "required": false,
+      "default": "complete",
+      "description": "Mock response type: 'complete' (returns COMPLETE), 'fail' (returns FAIL), 'progress' (simulates ongoing work), 'empty' (empty output)"
+    },
+    "RALPH_MOCK_DELAY": {
+      "required": false,
+      "default": "0",
+      "description": "Artificial delay in seconds before responding (useful for testing timeout handling)"
+    },
+    "RALPH_MOCK_EXIT_CODE": {
+      "required": false,
+      "default": "0",
+      "description": "Exit code to return (0=success, 124=timeout simulation)"
+    }
+  },
+  "customCommands": [
+    {
+      "name": "evaluate",
+      "command": "mock-opencode",
+      "arguments": ["run", "--agent", "$AGENT"],
+      "description": "Start evaluation loop with mock agent",
+      "mode": "autonomous"
+    },
+    {
+      "name": "status",
+      "command": "mock-opencode",
+      "arguments": ["status"],
+      "description": "Check mock backend status",
+      "mode": "interactive"
+    },
+    {
+      "name": "validate",
+      "command": "mock-opencode",
+      "arguments": ["validate"],
+      "description": "Validate with mock backend",
+      "mode": "validation"
+    }
+  ],
+  "documentation": {
+    "readme": "backends/mock/README.md",
+    "examples": "backends/mock/examples/"
+  },
+  "testing": {
+    "scenarios": [
+      {
+        "name": "Quick Success",
+        "description": "Agent immediately marks task complete",
+        "environment": {
+          "RALPH_MOCK_RESPONSE": "complete"
+        }
+      },
+      {
+        "name": "Validation Failure",
+        "description": "Agent completes but validation fails",
+        "environment": {
+          "RALPH_MOCK_RESPONSE": "fail"
+        }
+      },
+      {
+        "name": "Slow Processing",
+        "description": "Simulates long-running task",
+        "environment": {
+          "RALPH_MOCK_RESPONSE": "progress",
+          "RALPH_MOCK_DELAY": "3"
+        }
+      },
+      {
+        "name": "Timeout Simulation",
+        "description": "Simulates timeout condition",
+        "environment": {
+          "RALPH_MOCK_DELAY": "0",
+          "RALPH_MOCK_EXIT_CODE": "124"
+        }
+      }
+    ]
+  }
+}

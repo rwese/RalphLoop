@@ -1,0 +1,45 @@
+{
+  "name": "weather-dashboard-cli",
+  "version": "1.0.0",
+  "description": "A powerful command-line tool for accessing real-time weather data and forecasts",
+  "main": "src/cli.js",
+  "bin": {
+    "weather-dashboard": "./bin/weather-dashboard.js"
+  },
+  "scripts": {
+    "start": "node bin/weather-dashboard.js",
+    "test": "jest --coverage",
+    "test:watch": "jest --watch",
+    "lint": "eslint bin/ src/ tests/"
+  },
+  "keywords": [
+    "weather",
+    "cli",
+    "dashboard",
+    "terminal",
+    "forecast"
+  ],
+  "author": "RalphLoop",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ralphloop/weather-dashboard-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ralphloop/weather-dashboard-cli/issues"
+  },
+  "homepage": "https://github.com/ralphloop/weather-dashboard-cli#readme",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "chalk": "^5.3.0",
+    "commander": "^11.1.0",
+    "figlet": "^1.7.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.56.0",
+    "jest": "^29.7.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
