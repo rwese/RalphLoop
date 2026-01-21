@@ -70,20 +70,11 @@ export OPENCODE_API_KEY=your_api_key_here
 ### Timeout and Memory Configuration
 
 ```bash
-# Timeout for opencode commands in seconds (default: 600 = 10 minutes)
+# Timeout for opencode commands in seconds (default: 1800 = 30 minutes)
 export RALPH_TIMEOUT=1200  # 20 minutes
 
 # Memory limit in KB (default: 2097152 = 2GB)
 export RALPH_MEMORY_LIMIT=3145728  # 3GB
-
-# Progress refactoring threshold in lines (default: 1000)
-export RALPH_PROGRESS_MAX_SIZE=2000
-
-# Number of recent iterations to keep during refactoring (default: 5)
-export RALPH_PROGRESS_KEEP=10
-
-# Directory for archived progress entries (default: .progress-archive)
-export RALPH_PROGRESS_ARCHIVE_DIR=".progress-archive"
 
 # Example: Run with longer timeout for complex tasks
 RALPH_TIMEOUT=1800 ./ralph 10  # 30 minute timeout
@@ -93,9 +84,7 @@ RALPH_TIMEOUT=1800 ./ralph 10  # 30 minute timeout
 
 - **RALPH_TIMEOUT**: If opencode commands are timing out (especially for complex tasks), increase this value
 - **RALPH_MEMORY_LIMIT**: If you're getting exit code 137 (OOM kill), increase this value
-- **RALPH_PROGRESS_MAX_SIZE**: To control when progress.md gets refactored/archived (default: 1000 lines)
-- **RALPH_PROGRESS_KEEP**: Number of recent iterations to keep in main progress.md after refactoring (default: 5)
-- **RALPH_PROGRESS_ARCHIVE_DIR**: Directory where archived progress entries are stored (default: .progress-archive)
+- **Note**: Progress file management is delegated entirely to the AI agent.
 
 **Common configurations:**
 

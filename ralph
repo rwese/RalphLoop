@@ -23,14 +23,12 @@
 #   RALPH_MEMORY_LIMIT  - Memory limit in KB (default: 2097152 = 2GB)
 #   RALPH_LOG_LEVEL     - OpenCode log level: DEBUG, INFO, WARN, ERROR (default: WARN)
 #   RALPH_PRINT_LOGS    - Print opencode logs to stderr: true/false (default: false)
-#   RALPH_PROGRESS_MAX_SIZE - Max lines in progress.md before refactoring (default: 1000)
-#   RALPH_PROGRESS_KEEP - Number of recent iterations to keep (default: 5)
-#   RALPH_PROGRESS_ARCHIVE_DIR - Directory for archived progress (default: .progress-archive)
 #   RALPH_PROMPT        - Direct prompt text
 #   RALPH_PROMPT_FILE   - Path to prompt file
 #   RALPH_COMMAND       - Custom command to execute
 #   RALPH_BACKEND       - Backend to use
 #   RALPH_MODE          - Mode: autonomous, interactive, validation
+#   RALPH_SOURCED_FOR_TEST - Internal: set to 1 when sourcing for testing
 
 set -e -u -o pipefail
 
@@ -49,18 +47,16 @@ RALPH_MEMORY_LIMIT=${RALPH_MEMORY_LIMIT:-4194304}  # Default: 4GB in KB
 RALPH_LOG_LEVEL=${RALPH_LOG_LEVEL:-WARN}   # Default: WARN to avoid too much output
 RALPH_PRINT_LOGS=${RALPH_PRINT_LOGS:-false}  # Default: false (logs to file instead)
 
-# Progress refactoring configuration
-RALPH_PROGRESS_KEEP=${RALPH_PROGRESS_KEEP:-5}  # Keep last N iterations (default: 5)
-RALPH_PROGRESS_MAX_SIZE=${RALPH_PROGRESS_MAX_SIZE:-1000}  # Max lines before refactoring (default: 1000)
-RALPH_PROGRESS_ARCHIVE_DIR="${RALPH_PROGRESS_ARCHIVE_DIR:-.progress-archive}"  # Archive directory
+# Note: Progress file management is delegated entirely to the AI agent.
+# The agent is responsible for updating and maintaining progress.md.
 
 # Build opencode command with logging options
-OPENCOD_OPTS=""
+OPENCODE_OPTS=""
 if [ -n "$RALPH_LOG_LEVEL" ]; then
-  OPENCOD_OPTS="$OPENCOD_OPTS --log-level $RALPH_LOG_LEVEL"
+  OPENCODE_OPTS="$OPENCODE_OPTS --log-level $RALPH_LOG_LEVEL"
 fi
 if [ "$RALPH_PRINT_LOGS" = "true" ]; then
-  OPENCOD_OPTS="$OPENCOD_OPTS --print-logs"
+  OPENCODE_OPTS="$OPENCODE_OPTS --print-logs"
 fi
 
 # Custom command configuration
@@ -125,8 +121,8 @@ display_config() {
   echo "========================================"
   echo "⚙️  RalphLoop Configuration"
   echo "========================================"
-  echo "  Timeout:        ${RALPH_TIMEOUT}s ($(($RALPH_TIMEOUT / 60)) minutes)"
-  echo "  Memory Limit:   ${RALPH_MEMORY_LIMIT}KB ($(($RALPH_MEMORY_LIMIT / 1024 / 1024))GB)"
+  echo "  Timeout:        ${RALPH_TIMEOUT}s ($((RALPH_TIMEOUT / 60)) minutes)"
+  echo "  Memory Limit:   ${RALPH_MEMORY_LIMIT}KB ($((RALPH_MEMORY_LIMIT / 1024 / 1024))GB)"
   echo "  Log Level:      $RALPH_LOG_LEVEL"
   echo "  Print Logs:     $RALPH_PRINT_LOGS"
   echo "  Max Iterations: $MAX_ROUNDS"
@@ -192,7 +188,7 @@ get_prompt() {
 # Sanitize content to prevent heredoc injection
 sanitize_for_heredoc() {
   local content="$1"
-  echo "$content" | sed 's/EOF/RALPH_SAFE_EOF_MARKER/g'
+  echo "${content//EOF/RALPH_SAFE_EOF_MARKER}"
 }
 
 # Get validation status from result
@@ -219,114 +215,9 @@ get_validation_recommendations() {
   echo "$recs"
 }
 
-# Progress refactoring to prevent file from growing too large
-refactor_progress() {
-  echo ""
-  echo "🧹 Refactoring progress file to prevent excessive growth..."
-  echo "========================================"
-
-  local current_size
-  current_size=$(wc -l < "$PROGRESS_FILE")
-  echo "  Current progress.md size: $current_size lines"
-  echo "  Keep recent iterations: $RALPH_PROGRESS_KEEP"
-  echo "  Max size threshold: $RALPH_PROGRESS_MAX_SIZE lines"
-
-  # Only refactor if file is larger than threshold
-  if [ "$current_size" -lt "$RALPH_PROGRESS_MAX_SIZE" ]; then
-    echo "  ✅ File size is within acceptable limits. No refactoring needed."
-    return 0
-  fi
-
-  echo "  📦 File exceeds size threshold. Starting refactoring..."
-
-  # Create archive directory if it doesn't exist
-  mkdir -p "$RALPH_PROGRESS_ARCHIVE_DIR"
-
-  # Count iterations in the file
-  local iteration_count
-  iteration_count=$(grep -c "^## Iteration [0-9]:" "$PROGRESS_FILE" || echo "0")
-  echo "  Total iterations found: $iteration_count"
-
-  if [ "$iteration_count" -le "$RALPH_PROGRESS_KEEP" ]; then
-    echo "  ✅ Not enough iterations to archive. Keeping as-is."
-    return 0
-  fi
-
-  # Extract iterations to archive (all except the last N)
-  local iterations_to_archive=$((iteration_count - RALPH_PROGRESS_KEEP))
-  echo "  📦 Archiving $iterations_to_archive older iterations..."
-
-  # Create archive filename with timestamp
-  local archive_file="${RALPH_PROGRESS_ARCHIVE_DIR}/progress-$(date +%Y%m%d-%H%M%S).md"
-  local temp_file="/tmp/ralph_progress_new_$$.md"
-
-  # Extract the header (everything before first ## Iteration)
-  # Use grep to find the line number of the first iteration
-  local first_iteration_line
-  first_iteration_line=$(grep -n "^## Iteration " "$PROGRESS_FILE" | head -1 | cut -d: -f1 || echo "0")
-
-  if [ "$first_iteration_line" -gt 1 ]; then
-    header=$(sed -n "1,$((first_iteration_line - 1))p" "$PROGRESS_FILE")
-  else
-    header=""
-  fi
-
-  # Extract iterations to keep (last N)
-  local iterations_to_keep
-  iterations_to_keep=$(grep -n "^## Iteration " "$PROGRESS_FILE" | tail -n "$RALPH_PROGRESS_KEEP" | cut -d: -f1 | head -1)
-
-  # Extract iterations to archive (everything before iterations to keep)
-  local archive_content
-  archive_content=$(sed -n "${iterations_to_keep},\$p" "$PROGRESS_FILE")
-
-  # Count lines in archive content
-  local archive_line_count
-  archive_line_count=$(echo "$archive_content" | wc -l)
-
-  # Create archive entry
-  {
-    echo "# Progress Archive Entry"
-    echo ""
-    echo "**Date**: $(date '+%Y-%m-%d %H:%M:%S')"
-    echo "**Iterations Archived**: $iterations_to_archive"
-    echo "**Iterations Kept**: $RALPH_PROGRESS_KEEP"
-    echo ""
-    echo "---"
-    echo ""
-    echo "$archive_content"
-  } > "$archive_file"
-
-  echo "  ✅ Archived to: $archive_file"
-
-  # Create new progress file
-  {
-    echo "$header"
-    echo ""
-    echo "## Archived Progress Summary"
-    echo ""
-    echo "*This section summarizes older iterations that have been archived to keep the file manageable.*"
-    echo ""
-    echo "**Previous iterations ($iterations_to_archive) have been archived.**"
-    echo "See [\`.progress-archive/\`](.progress-archive) for detailed history."
-    echo ""
-    echo "---"
-    echo ""
-    echo "$archive_content"
-  } > "$temp_file"
-
-  # Replace old file with new one
-  mv "$temp_file" "$PROGRESS_FILE"
-
-  local new_size
-  new_size=$(wc -l < "$PROGRESS_FILE")
-  echo ""
-  echo "✅ Progress refactoring complete!"
-  echo "   Original size: $current_size lines"
-  echo "   New size: $new_size lines"
-  echo "   Lines removed: $((current_size - new_size))"
-  echo "   Archive location: $archive_file"
-  echo "========================================"
-}
+# Progress refactoring to prevent file from growing too large - REMOVED
+# Progress file management is now delegated entirely to the AI agent.
+# The agent is responsible for updating and maintaining progress.md.
 
 # Ensure progress file exists
 if [ ! -f "$PROGRESS_FILE" ]; then
@@ -400,7 +291,7 @@ This iteration is running with backend integration. Be aware of any backend-spec
   # Use tee to both save to file AND display output in real-time
   # This provides feedback while ensuring output is captured for later analysis
   set +e  # Don't exit on error during capture
-  timeout "$RALPH_TIMEOUT" opencode run $OPENCOD_OPTS --agent AGENT_RALPH <<RALPH_EOF_XYZ123 2>&1 | tee "$OUTPUT_FILE"
+  timeout "$RALPH_TIMEOUT" opencode run "$OPENCODE_OPTS" --agent AGENT_RALPH <<RALPH_EOF_XYZ123 2>&1 | tee "$OUTPUT_FILE"
 # Goals and Resources
 
 ## Project plan
@@ -476,11 +367,13 @@ RALPH_EOF_XYZ123
   set -e  # Re-enable exit on error
 
   # Check if timeout or error occurred
-  if [ $EXIT_CODE -eq 124 ]; then
-    echo "❌ TIMEOUT: opencode command exceeded ${RALPH_TIMEOUT}s ($(($RALPH_TIMEOUT / 60)) minutes) - killed to prevent memory issues" >> "$OUTPUT_FILE"
-    echo "This may indicate the agent is stuck or consuming too much memory." >> "$OUTPUT_FILE"
-    echo "💡 Tip: Increase timeout with: export RALPH_TIMEOUT=$((RALPH_TIMEOUT * 2))" >> "$OUTPUT_FILE"
-  elif [ $EXIT_CODE -ne 0 ]; then
+  if [ "$EXIT_CODE" -eq 124 ]; then
+    {
+      echo "❌ TIMEOUT: opencode command exceeded ${RALPH_TIMEOUT}s ($((RALPH_TIMEOUT / 60)) minutes) - killed to prevent memory issues"
+      echo "This may indicate the agent is stuck or consuming too much memory."
+      echo "💡 Tip: Increase timeout with: export RALPH_TIMEOUT=$((RALPH_TIMEOUT * 2))"
+    } >> "$OUTPUT_FILE"
+  elif [ "$EXIT_CODE" -ne 0 ]; then
     echo "❌ ERROR: opencode command failed with exit code $EXIT_CODE" >> "$OUTPUT_FILE"
   fi
 
@@ -513,7 +406,7 @@ RALPH_EOF_XYZ123
 
     # Use tee to both save to file AND display output in real-time
     set +e  # Don't exit on error during capture
-    timeout "$RALPH_TIMEOUT" opencode run $OPENCOD_OPTS --agent AGENT_RALPH <<RALPH_VALIDATE_EOF 2>&1 | tee "$VALIDATION_OUTPUT_FILE"
+    timeout "$RALPH_TIMEOUT" opencode run "$OPENCODE_OPTS" --agent AGENT_RALPH <<RALPH_VALIDATE_EOF 2>&1 | tee "$VALIDATION_OUTPUT_FILE"
 # Validation Task
 
 The agent previously indicated completion with <promise>COMPLETE</promise>.
@@ -526,16 +419,9 @@ $(get_prompt)
 ## Current Progress:
 $(cat "$PROGRESS_FILE")
 
-## Backend Context (if applicable):
-#if [ -n "$RALPH_BACKEND" ]; then
-**Backend**: ${RALPH_BACKEND}
-**Mode**: ${RALPH_MODE}
-**Custom Command**: ${RALPH_COMMAND:-none}
-#end if
-
 ## Your Validation Task:
 
-1. READ the current codebase state
+1. READ the current state
 2. CHECK each acceptance criterion is actually satisfied:
    - For each requirement, verify it exists and works
    - Run tests, build commands, and manual checks
@@ -568,16 +454,18 @@ RALPH_VALIDATE_EOF
 
     VALIDATION_EXIT_CODE=${PIPESTATUS[0]}  # Get exit code from timeout/opencode command
     set -e  # Re-enable exit on error
-    
+
     # Check if timeout or error occurred
-    if [ $VALIDATION_EXIT_CODE -eq 124 ]; then
-      echo "❌ VALIDATION TIMEOUT: exceeded ${RALPH_TIMEOUT}s ($(($RALPH_TIMEOUT / 60)) minutes)" >> "$VALIDATION_OUTPUT_FILE"
-      echo "<validation_status>FAIL</validation_status>" >> "$VALIDATION_OUTPUT_FILE"
-      echo "<validation_issues>" >> "$VALIDATION_OUTPUT_FILE"
-      echo "- Validation timed out after ${RALPH_TIMEOUT}s ($(($RALPH_TIMEOUT / 60)) minutes)" >> "$VALIDATION_OUTPUT_FILE"
-      echo "- Increase timeout with: export RALPH_TIMEOUT=$((RALPH_TIMEOUT * 2))" >> "$VALIDATION_OUTPUT_FILE"
-      echo "</validation_issues>" >> "$VALIDATION_OUTPUT_FILE"
-    elif [ $VALIDATION_EXIT_CODE -ne 0 ]; then
+    if [ "$VALIDATION_EXIT_CODE" -eq 124 ]; then
+      {
+        echo "❌ VALIDATION TIMEOUT: exceeded ${RALPH_TIMEOUT}s ($((RALPH_TIMEOUT / 60)) minutes)"
+        echo "<validation_status>FAIL</validation_status>"
+        echo "<validation_issues>"
+        echo "- Validation timed out after ${RALPH_TIMEOUT}s ($((RALPH_TIMEOUT / 60)) minutes)"
+        echo "- Increase timeout with: export RALPH_TIMEOUT=$((RALPH_TIMEOUT * 2))"
+        echo "</validation_issues>"
+      } >> "$VALIDATION_OUTPUT_FILE"
+    elif [ "$VALIDATION_EXIT_CODE" -ne 0 ]; then
       echo "❌ VALIDATION ERROR: failed with exit code $VALIDATION_EXIT_CODE" >> "$VALIDATION_OUTPUT_FILE"
     fi
 
@@ -601,10 +489,7 @@ RALPH_VALIDATE_EOF
       echo ""
       echo "🎉 Validation PASSED! RalphLoop mission complete!"
       echo "========================================"
-
-      # Run progress refactoring to prevent excessive file growth
-      refactor_progress
-
+      # Progress file management is delegated to the AI agent
       rm -f "$VALIDATION_ISSUES_FILE"
       exit 0
     else
