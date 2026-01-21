@@ -464,7 +464,7 @@ RALPH_EOF_XYZ123
     echo "❌ ERROR: opencode command failed with exit code $EXIT_CODE" >> "$OUTPUT_FILE"
   fi
 
-  result=$(cat "$OUTPUT_FILE")
+  result=$(cat "$OUTPUT_FILE" | tr -d '\0')
   
   # Check if result is empty or indicates an error
   if [ -z "$result" ]; then
@@ -554,7 +554,7 @@ RALPH_VALIDATE_EOF
       echo "❌ VALIDATION ERROR: failed with exit code $VALIDATION_EXIT_CODE" >> "$VALIDATION_OUTPUT_FILE"
     fi
 
-    validation_result=$(cat "$VALIDATION_OUTPUT_FILE")
+    validation_result=$(cat "$VALIDATION_OUTPUT_FILE" | tr -d '\0')
     rm -f "$VALIDATION_OUTPUT_FILE"
 
     echo ""
