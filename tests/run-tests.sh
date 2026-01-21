@@ -327,6 +327,62 @@ print_summary() {
     fi
 }
 
+# Quick test runner
+run_quick_tests() {
+    print_header "Quick Tests"
+
+    # Source test files
+    source "$SCRIPT_DIR/unit/test-validation.sh"
+    source "$SCRIPT_DIR/mock/test-mock-backend.sh"
+
+    # Run quick validation tests
+    test_validation_status_extraction_complete
+    test_promise_extraction_complete
+    test_acceptance_criteria_parsing
+    test_iteration_output
+
+    # Run quick mock tests
+    test_mock_basic_run
+    test_scenario_comprehensive
+}
+
+# All tests runner
+run_all_tests() {
+    print_header "All Tests"
+
+    # Unit tests
+    source "$SCRIPT_DIR/unit/test-functions.sh"
+    source "$SCRIPT_DIR/unit/test-validation.sh"
+    run_unit_tests
+
+    # Reset counters for integration tests
+    TESTS_RUN=0
+    TESTS_PASSED=0
+    TESTS_FAILED=0
+
+    # Integration tests
+    source "$SCRIPT_DIR/integration/test-backends.sh"
+    run_integration_tests
+
+    # Reset counters for E2E tests
+    TESTS_RUN=0
+    TESTS_PASSED=0
+    TESTS_FAILED=0
+
+    # E2E tests
+    source "$SCRIPT_DIR/e2e/test-workflows.sh"
+    run_e2e_tests
+
+    # Reset counters for mock tests
+    TESTS_RUN=0
+    TESTS_PASSED=0
+    TESTS_FAILED=0
+
+    # Mock tests
+    source "$SCRIPT_DIR/mock/test-mock-backend.sh"
+    run_mock_tests
+}
+
 # Main function
 main() {
     parse_args "$@"

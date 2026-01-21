@@ -5,7 +5,8 @@
 set -e -u -o pipefail
 
 # Source common utilities
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../common.sh"
 
 # ============================================================================
 # Test: Validation status extraction
