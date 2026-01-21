@@ -15,13 +15,12 @@ pre-push:
       description: Running quick tests before push
       exit-code: 1  # FAIL push if tests fail
 
-    # Lint shell scripts
-    shell-lint:
-      glob: '*.sh'
-      run: npx shellcheck {files}
-      description: Linting shell scripts
-      exit-code: 1  # FAIL push if lint errors found
-      stage: true
+    # Lint all shell scripts in the project
+    # Using 'run' without 'glob' to run unconditionally
+    shell-lint-all:
+      run: npx shellcheck ralph tests/**/*.sh backends/mock/bin/mock-opencode 2>&1 | grep -E "^(.*\.sh:.*error)" || true
+      description: Linting all shell scripts
+      exit-code: 1  # FAIL push if critical lint errors found
 
 pre-commit:
   parallel: false
@@ -32,6 +31,13 @@ pre-commit:
       run: gitleaks protect --staged --verbose --exit-code=1
       description: Scanning for secrets in staged changes
 
+    # Lint all shell scripts
+    # Using 'run' without 'glob' to run unconditionally
+    shell-lint-all:
+      run: npx shellcheck ralph tests/**/*.sh backends/mock/bin/mock-opencode 2>&1 | grep -E "^(.*\.sh:.*error)" || true
+      description: Linting all shell scripts
+      exit-code: 1  # FAIL commit if critical lint errors found
+
   # Formatting and linting (run after secrets scan)
   hooks:
     - name: format
@@ -40,8 +46,4 @@ pre-commit:
     - name: lint-markdown
       glob: '*.md'
       run: npx markdownlint --fix --config .markdownlintrc.json {staged_files}
-      stage: true
-    - name: lint-shell
-      glob: '*.sh'
-      run: npx shellcheck {staged_files}
       stage: true

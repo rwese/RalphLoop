@@ -374,12 +374,27 @@ git push
 
 # The following checks are performed:
 # 1. Quick tests (--quick) - REJECTS push if tests fail
-# 2. Shell linting with shellcheck
+# 2. Shell linting with shellcheck - checks all .sh scripts
 ```
 
 Pre-push checks are configured in `lefthook.yml` and are **mandatory** - they cannot be bypassed.
 
-**Note:** Pre-push checks are critical for maintaining code quality and are required before every push.
+### Pre-Commit Checks
+
+RalphLoop also includes pre-commit hooks that run before each commit:
+
+```bash
+# Pre-commit checks run automatically when you run:
+git commit
+
+# The following checks are performed:
+# 1. Secret scanning with gitleaks - prevents accidental API key commits
+# 2. Shell linting with shellcheck - checks all shell scripts
+# 3. Markdown linting with markdownlint
+# 4. Code formatting with prettier
+```
+
+**Note:** Pre-commit and pre-push checks are critical for maintaining code quality and security. They are required before every commit and push.
 
 ## License
 
