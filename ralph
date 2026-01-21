@@ -17,6 +17,17 @@
 #   ralf-trigger --iterations N --mode MODE --backend BACKEND
 #   ralf-status [--progress] [--state] [--backends]
 #   ralf-config [--get key] [--set key=value] [--list]
+#
+# Environment variables:
+#   RALPH_TIMEOUT       - Timeout for opencode commands in seconds (default: 600 = 10 minutes)
+#   RALPH_MEMORY_LIMIT  - Memory limit in KB (default: 2097152 = 2GB)
+#   RALPH_LOG_LEVEL     - OpenCode log level: DEBUG, INFO, WARN, ERROR (default: WARN)
+#   RALPH_PRINT_LOGS    - Print opencode logs to stderr: true/false (default: false)
+#   RALPH_PROMPT        - Direct prompt text
+#   RALPH_PROMPT_FILE   - Path to prompt file
+#   RALPH_COMMAND       - Custom command to execute
+#   RALPH_BACKEND       - Backend to use
+#   RALPH_MODE          - Mode: autonomous, interactive, validation
 
 set -e -u -o pipefail
 
@@ -27,10 +38,37 @@ PROMPT_FILE="prompt.md"
 VALIDATION_ISSUES_FILE=".ralph_validation_issues.txt"
 BACKENDS_DIR="backends"
 
+# Timeout and memory configuration (customizable via environment)
+RALPH_TIMEOUT=${RALPH_TIMEOUT:-600}        # Default: 10 minutes in seconds
+RALPH_MEMORY_LIMIT=${RALPH_MEMORY_LIMIT:-2097152}  # Default: 2GB in KB
+
+# OpenCode logging configuration
+RALPH_LOG_LEVEL=${RALPH_LOG_LEVEL:-WARN}   # Default: WARN to avoid too much output
+RALPH_PRINT_LOGS=${RALPH_PRINT_LOGS:-false}  # Default: false (logs to file instead)
+
+# Build opencode command with logging options
+OPENCOD_OPTS=""
+if [ -n "$RALPH_LOG_LEVEL" ]; then
+  OPENCOD_OPTS="$OPENCOD_OPTS --log-level $RALPH_LOG_LEVEL"
+fi
+if [ "$RALPH_PRINT_LOGS" = "true" ]; then
+  OPENCOD_OPTS="$OPENCOD_OPTS --print-logs"
+fi
+
 # Custom command configuration
 RALPH_COMMAND="${RALPH_COMMAND:-}"
 RALPH_BACKEND="${RALPH_BACKEND:-}"
 RALPH_MODE="${RALPH_MODE:-autonomous}"
+
+# Memory management to prevent OOM kills (exit code 137)
+# Uses RALPH_MEMORY_LIMIT env var (default: 2GB = 2097152 KB)
+if command -v ulimit &> /dev/null && [ -n "$RALPH_MEMORY_LIMIT" ]; then
+  ulimit -v "$RALPH_MEMORY_LIMIT" 2>/dev/null || true
+  ulimit -m "$RALPH_MEMORY_LIMIT" 2>/dev/null || true
+fi
+
+# Cleanup temp files on exit
+trap 'rm -f /tmp/ralph_output_*.txt /tmp/ralph_validation_*.txt 2>/dev/null' EXIT
 
 # Handle custom command mode
 handle_custom_command() {
@@ -75,6 +113,24 @@ load_backend_config() {
 # Initialize custom command support
 handle_custom_command
 load_backend_config
+
+# Display configuration info
+display_config() {
+  echo "========================================"
+  echo "⚙️  RalphLoop Configuration"
+  echo "========================================"
+  echo "  Timeout:        ${RALPH_TIMEOUT}s ($(($RALPH_TIMEOUT / 60)) minutes)"
+  echo "  Memory Limit:   ${RALPH_MEMORY_LIMIT}KB ($(($RALPH_MEMORY_LIMIT / 1024 / 1024))GB)"
+  echo "  Log Level:      $RALPH_LOG_LEVEL"
+  echo "  Print Logs:     $RALPH_PRINT_LOGS"
+  echo "  Max Iterations: $MAX_ROUNDS"
+  if [ -n "$RALPH_BACKEND" ]; then
+    echo "  Backend:        $RALPH_BACKEND"
+    echo "  Mode:           $RALPH_MODE"
+  fi
+  echo "========================================"
+}
+display_config
 
 # Validate MAX_ROUNDS is a positive integer
 validate_max_rounds() {
@@ -207,9 +263,11 @@ This iteration is running with backend integration. Be aware of any backend-spec
 "
   fi
 
-  # Run OpenCode agent with current context
-  result=$(
-    opencode run --agent AGENT_RALPH <<RALPH_EOF_XYZ123
+  # Run OpenCode agent with current context - capture output to file to avoid truncation
+  # Timeout controlled by RALPH_TIMEOUT (default: 600 seconds)
+  OUTPUT_FILE="/tmp/ralph_output_$$.txt"
+  
+  timeout "$RALPH_TIMEOUT" opencode run $OPENCOD_OPTS --agent AGENT_RALPH <<RALPH_EOF_XYZ123 > "$OUTPUT_FILE" 2>&1
 # Goals and Resources
 
 ## Project plan
@@ -276,9 +334,30 @@ The loop succeeds when:
 
 If the current goal is complete, output <promise>COMPLETE</promise>.
 RALPH_EOF_XYZ123
-  )
 
-  echo "$result" | tee /dev/stderr
+  EXIT_CODE=$?
+  
+  # Check if timeout or error occurred
+  if [ $EXIT_CODE -eq 124 ]; then
+    echo "❌ TIMEOUT: opencode command exceeded ${RALPH_TIMEOUT}s ($(($RALPH_TIMEOUT / 60)) minutes) - killed to prevent memory issues" >> "$OUTPUT_FILE"
+    echo "This may indicate the agent is stuck or consuming too much memory." >> "$OUTPUT_FILE"
+    echo "💡 Tip: Increase timeout with: export RALPH_TIMEOUT=$((RALPH_TIMEOUT * 2))" >> "$OUTPUT_FILE"
+  elif [ $EXIT_CODE -ne 0 ]; then
+    echo "❌ ERROR: opencode command failed with exit code $EXIT_CODE" >> "$OUTPUT_FILE"
+  fi
+
+  result=$(cat "$OUTPUT_FILE")
+  
+  # Check if result is empty or indicates an error
+  if [ -z "$result" ]; then
+    echo "⚠️ WARNING: Empty output from opencode agent - may indicate memory or execution issue"
+    echo "Continuing to next iteration..."
+    echo ""
+    continue
+  fi
+  
+  echo "$result"
+  rm -f "$OUTPUT_FILE"
 
   # Check for completion
   if echo "$result" | grep -q "<promise>COMPLETE</promise>"; then
@@ -286,9 +365,11 @@ RALPH_EOF_XYZ123
     echo "🛡️ Goal marked complete. Running independent validation..."
     echo "========================================"
 
-    # Run validation prompt to verify completion criteria are truly met
-    validation_result=$(
-      opencode run --agent AGENT_RALPH <<RALPH_VALIDATE_EOF
+    # Run validation prompt to verify completion criteria are truly met - capture to file
+    # Timeout controlled by RALPH_TIMEOUT (default: 600 seconds)
+    VALIDATION_OUTPUT_FILE="/tmp/ralph_validation_$$.txt"
+    
+    timeout "$RALPH_TIMEOUT" opencode run $OPENCOD_OPTS --agent AGENT_RALPH <<RALPH_VALIDATE_EOF > "$VALIDATION_OUTPUT_FILE" 2>&1
 # Validation Task
 
 The agent previously indicated completion with <promise>COMPLETE</promise>.
@@ -340,12 +421,28 @@ IMPORTANT:
 - If ANY check fails, use <validation_status>FAIL</validation_status> and list all issues
 - Do NOT trust the previous agent's assessment. Verify independently.
 RALPH_VALIDATE_EOF
-    )
+
+    VALIDATION_EXIT_CODE=$?
+    
+    # Check if timeout or error occurred
+    if [ $VALIDATION_EXIT_CODE -eq 124 ]; then
+      echo "❌ VALIDATION TIMEOUT: exceeded ${RALPH_TIMEOUT}s ($(($RALPH_TIMEOUT / 60)) minutes)" >> "$VALIDATION_OUTPUT_FILE"
+      echo "<validation_status>FAIL</validation_status>" >> "$VALIDATION_OUTPUT_FILE"
+      echo "<validation_issues>" >> "$VALIDATION_OUTPUT_FILE"
+      echo "- Validation timed out after ${RALPH_TIMEOUT}s ($(($RALPH_TIMEOUT / 60)) minutes)" >> "$VALIDATION_OUTPUT_FILE"
+      echo "- Increase timeout with: export RALPH_TIMEOUT=$((RALPH_TIMEOUT * 2))" >> "$VALIDATION_OUTPUT_FILE"
+      echo "</validation_issues>" >> "$VALIDATION_OUTPUT_FILE"
+    elif [ $VALIDATION_EXIT_CODE -ne 0 ]; then
+      echo "❌ VALIDATION ERROR: failed with exit code $VALIDATION_EXIT_CODE" >> "$VALIDATION_OUTPUT_FILE"
+    fi
+
+    validation_result=$(cat "$VALIDATION_OUTPUT_FILE")
+    rm -f "$VALIDATION_OUTPUT_FILE"
 
     echo ""
     echo "📋 Validation Results:"
     echo "-----------------------------------"
-    echo "$validation_result" | tee /dev/stderr
+    echo "$validation_result"
     echo "-----------------------------------"
 
     # Extract and check validation status

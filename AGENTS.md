@@ -67,6 +67,75 @@ export CONTEXT7_API_KEY=your_api_key_here
 export OPENCODE_API_KEY=your_api_key_here
 ```
 
+### Timeout and Memory Configuration
+
+```bash
+# Timeout for opencode commands in seconds (default: 600 = 10 minutes)
+export RALPH_TIMEOUT=1200  # 20 minutes
+
+# Memory limit in KB (default: 2097152 = 2GB)
+export RALPH_MEMORY_LIMIT=3145728  # 3GB
+
+# Example: Run with longer timeout for complex tasks
+RALPH_TIMEOUT=1800 ./ralph 10  # 30 minute timeout
+```
+
+**Why configure these?**
+
+- **RALPH_TIMEOUT**: If opencode commands are timing out (especially for complex tasks), increase this value
+- **RALPH_MEMORY_LIMIT**: If you're getting exit code 137 (OOM kill), increase this value
+
+**Common configurations:**
+
+```bash
+# Quick iterations (testing)
+RALPH_TIMEOUT=300 RALPH_MEMORY_LIMIT=1048576 ./ralph 5
+
+# Complex development
+RALPH_TIMEOUT=1800 RALPH_MEMORY_LIMIT=4194304 ./ralph 50  # 30 min timeout, 4GB memory
+
+# Heavy validation
+RALPH_TIMEOUT=3600 RALPH_MEMORY_LIMIT=6291456 ./ralph 100  # 1 hour timeout, 6GB memory
+```
+
+### OpenCode Logging Configuration
+
+```bash
+# Log level: DEBUG, INFO, WARN, ERROR (default: WARN)
+export RALPH_LOG_LEVEL=INFO
+
+# Print logs to stderr: true/false (default: false)
+export RALPH_PRINT_LOGS=true
+```
+
+**Why configure these?**
+
+- **RALPH_LOG_LEVEL**: Control verbosity of OpenCode logs
+  - `WARN` (default): Only warnings and errors - minimal output
+  - `INFO`: Informational messages - good for debugging
+  - `DEBUG`: Full debug output - verbose but helpful for troubleshooting
+  - `ERROR`: Only errors - even quieter than WARN
+
+- **RALPH_PRINT_LOGS**: Print logs to stderr in addition to capturing them
+  - `false` (default): Logs are captured in temp files
+  - `true`: Logs are printed to stderr in real-time
+
+**Examples:**
+
+```bash
+# Debug mode with real-time logs (verbose but helpful for troubleshooting)
+RALPH_LOG_LEVEL=DEBUG RALPH_PRINT_LOGS=true ./ralph 1
+
+# Info level logging without printing (balanced)
+RALPH_LOG_LEVEL=INFO ./ralph 10
+
+# Quiet mode (default behavior)
+RALPH_LOG_LEVEL=WARN ./ralph 10
+
+# Minimal logging, show everything to stderr
+RALPH_LOG_LEVEL=ERROR RALPH_PRINT_LOGS=true ./ralph 10
+```
+
 ### Docker Runtime
 
 ```bash
