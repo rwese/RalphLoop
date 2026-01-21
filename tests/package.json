@@ -1,0 +1,29 @@
+{
+  "name": "ralphloop",
+  "version": "1.0.0",
+  "description": "RalphLoop Autonomous Development System - Test Suite",
+  "main": "tests/run-tests.sh",
+  "scripts": {
+    "test": "bash tests/run-tests.sh --all",
+    "test:quick": "bash tests/run-tests.sh --quick",
+    "test:unit": "bash tests/run-tests.sh --unit",
+    "test:integration": "bash tests/run-tests.sh --integration",
+    "test:e2e": "bash tests/run-tests.sh --e2e",
+    "test:mock": "bash tests/run-tests.sh --mock",
+    "test:ci": "CI_MODE=true bash tests/run-tests.sh --all",
+    "test:verbose": "VERBOSE=true bash tests/run-tests.sh --all"
+  },
+  "keywords": [
+    "autonomous",
+    "development",
+    "testing",
+    "ralphloop",
+    "opencode"
+  ],
+  "author": "RalphLoop",
+  "license": "MIT",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "devDependencies": {}
+}
