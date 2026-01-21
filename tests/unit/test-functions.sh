@@ -19,10 +19,15 @@ test_get_prompt_from_env() {
     local test_prompt="Test prompt from env"
 
     # Test with RALPH_PROMPT set
+    # Export variables so they're available in the subshell
+    export RALPH_PROMPT="$test_prompt"
+    export RALPH_PROMPT_FILE=""
+    export PROMPT_FILE="$test_dir/prompt.md"
+
     local result
-    result=$(RALPH_PROMPT="$test_prompt" RALPH_PROMPT_FILE="" \
-    PROMPT_FILE="$test_dir/prompt.md" \
-    bash -c "source '$RALPH_SCRIPT' 2>/dev/null; get_prompt" 2>/dev/null)
+    result=$(bash -c "source '$RALPH_SCRIPT' 2>/dev/null; get_prompt" 2>/dev/null)
+
+    unset RALPH_PROMPT RALPH_PROMPT_FILE PROMPT_FILE
 
     assert_contains "$result" "$test_prompt" "Should return prompt from environment variable"
 
@@ -37,11 +42,15 @@ test_get_prompt_from_file() {
     echo "$test_prompt" > "$test_dir/custom-prompt.md"
 
     # Test with RALPH_PROMPT_FILE set
+    # Export variables so they're available in the subshell
+    export RALPH_PROMPT=""
+    export RALPH_PROMPT_FILE="$test_dir/custom-prompt.md"
+    export PROMPT_FILE="$test_dir/prompt.md"
+
     local result
-    result=$(RALPH_PROMPT="" \
-    RALPH_PROMPT_FILE="$test_dir/custom-prompt.md" \
-    PROMPT_FILE="$test_dir/prompt.md" \
-    bash -c "source '$RALPH_SCRIPT' 2>/dev/null; get_prompt" 2>/dev/null)
+    result=$(bash -c "source '$RALPH_SCRIPT' 2>/dev/null; get_prompt" 2>/dev/null)
+
+    unset RALPH_PROMPT RALPH_PROMPT_FILE PROMPT_FILE
 
     assert_contains "$result" "$test_prompt" "Should return prompt from file"
 
@@ -56,11 +65,15 @@ test_get_prompt_default() {
     echo "$test_prompt" > "$test_dir/prompt.md"
 
     # Test with default prompt file
+    # Export variables so they're available in the subshell
+    export RALPH_PROMPT=""
+    export RALPH_PROMPT_FILE=""
+    export PROMPT_FILE="$test_dir/prompt.md"
+
     local result
-    result=$(RALPH_PROMPT="" \
-    RALPH_PROMPT_FILE="" \
-    PROMPT_FILE="$test_dir/prompt.md" \
-    bash -c "source '$RALPH_SCRIPT' 2>/dev/null; get_prompt" 2>/dev/null)
+    result=$(bash -c "source '$RALPH_SCRIPT' 2>/dev/null; get_prompt" 2>/dev/null)
+
+    unset RALPH_PROMPT RALPH_PROMPT_FILE PROMPT_FILE
 
     assert_contains "$result" "$test_prompt" "Should return prompt from default file"
 
