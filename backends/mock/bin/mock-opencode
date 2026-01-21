@@ -176,9 +176,12 @@ apply_delay() {
 run_agent() {
     local agent="${1:-default}"
 
-    log $BLUE "🤖 Starting mock agent: $agent"
-    log $BLUE "📋 Mode: $MOCK_RESPONSE"
-    echo ""
+    # Only show agent messages for non-empty responses
+    if [ "$MOCK_RESPONSE" != "empty" ]; then
+        log $BLUE "🤖 Starting mock agent: $agent"
+        log $BLUE "📋 Mode: $MOCK_RESPONSE"
+        echo ""
+    fi
 
     apply_delay
 
