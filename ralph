@@ -136,7 +136,7 @@ display_config() {
   fi
   echo "========================================"
 }
-display_config
+# display_config  # Commented out - causes output when sourcing ralph for tests
 
 # Validate MAX_ROUNDS is a positive integer
 validate_max_rounds() {
