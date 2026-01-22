@@ -128,30 +128,6 @@ test_validate_max_rounds_string() {
 }
 
 # ============================================================================
-# Test: refactor_progress function
-# ============================================================================
-
-test_refactor_progress_small_file() {
-    print_section "Test: refactor_progress - small file"
-
-    local test_dir=$(create_temp_dir)
-    cd "$test_dir"
-
-    echo "# Progress" > progress.md
-    echo "## Iteration 1" >> progress.md
-    echo "Done" >> progress.md
-
-    # Mock grep to return small line count
-    local result
-    result=$(RALPH_SOURCED_FOR_TEST=1 bash -c "source '$RALPH_SCRIPT' 2>/dev/null; refactor_progress" 2>/dev/null)
-
-    assert_contains "$result" "within acceptable limits" "Should not refactor small file"
-
-    cd "$PROJECT_ROOT"
-    rm -rf "$test_dir"
-}
-
-# ============================================================================
 # Test: Configuration display
 # ============================================================================
 
@@ -163,6 +139,103 @@ test_display_config() {
     assert_contains "$output" "RalphLoop Configuration" "Should show configuration header"
     assert_contains "$output" "Timeout" "Should show timeout setting"
     assert_contains "$output" "Max Iterations" "Should show max iterations"
+}
+
+# ============================================================================
+# Test: Template functions
+# ============================================================================
+
+test_get_standard_template() {
+    print_section "Test: get_standard_template"
+
+    local template=$(RALPH_SOURCED_FOR_TEST=1 bash -c "source '$RALPH_SCRIPT' 2>/dev/null; get_standard_template" 2>/dev/null)
+
+    assert_contains "$template" "Project Goal" "Should contain Project Goal header"
+    assert_contains "$template" "Acceptance Criteria" "Should contain Acceptance Criteria section"
+    assert_contains "$template" "Context" "Should contain Context section"
+}
+
+test_get_quickfix_template() {
+    print_section "Test: get_quickfix_template"
+
+    local template=$(RALPH_SOURCED_FOR_TEST=1 bash -c "source '$RALPH_SCRIPT' 2>/dev/null; get_quickfix_template" 2>/dev/null)
+
+    assert_contains "$template" "QuickFix" "Should contain QuickFix header"
+    assert_contains "$template" "Issue" "Should contain Issue section"
+    assert_contains "$template" "Expected Behavior" "Should contain Expected Behavior section"
+    assert_contains "$template" "Files Affected" "Should contain Files Affected section"
+}
+
+test_get_blank_template() {
+    print_section "Test: get_blank_template"
+
+    local template=$(RALPH_SOURCED_FOR_TEST=1 bash -c "source '$RALPH_SCRIPT' 2>/dev/null; get_blank_template" 2>/dev/null)
+
+    assert_contains "$template" "# Project" "Should contain minimal Project header"
+}
+
+# ============================================================================
+# Test: get_prompt_nointeractive function
+# ============================================================================
+
+test_get_prompt_nointeractive_with_env_var() {
+    print_section "Test: get_prompt_nointeractive - with RALPH_PROMPT"
+
+    local result=$(RALPH_SOURCED_FOR_TEST=1 RALPH_PROMPT="Test prompt content" bash -c "source '$RALPH_SCRIPT' 2>/dev/null; get_prompt_nointeractive" 2>/dev/null)
+
+    assert_equal "Test prompt content" "$result" "Should return RALPH_PROMPT value"
+}
+
+test_get_prompt_nointeractive_fallback() {
+    print_section "Test: get_prompt_nointeractive - fallback message"
+
+    local result=$(RALPH_SOURCED_FOR_TEST=1 PROMPT_FILE="/nonexistent/file" bash -c "source '$RALPH_SCRIPT' 2>/dev/null; get_prompt_nointeractive" 2>/dev/null)
+
+    assert_contains "$result" "No original prompt available" "Should return fallback message"
+}
+
+# ============================================================================
+# Test: show_template_menu with environment variable
+# ============================================================================
+
+test_show_template_menu_env_standard() {
+    print_section "Test: show_template_menu - RALPH_TEMPLATE_TYPE=standard"
+
+    local result=$(RALPH_SOURCED_FOR_TEST=1 RALPH_TEMPLATE_TYPE=standard bash -c "source '$RALPH_SCRIPT' 2>/dev/null; show_template_menu" 2>/dev/null)
+
+    assert_equal "standard" "$result" "Should return standard when env var is set"
+}
+
+test_show_template_menu_env_quickfix() {
+    print_section "Test: show_template_menu - RALPH_TEMPLATE_TYPE=quickfix"
+
+    local result=$(RALPH_SOURCED_FOR_TEST=1 RALPH_TEMPLATE_TYPE=quickfix bash -c "source '$RALPH_SCRIPT' 2>/dev/null; show_template_menu" 2>/dev/null)
+
+    assert_equal "quickfix" "$result" "Should return quickfix when env var is set"
+}
+
+test_show_template_menu_env_blank() {
+    print_section "Test: show_template_menu - RALPH_TEMPLATE_TYPE=blank"
+
+    local result=$(RALPH_SOURCED_FOR_TEST=1 RALPH_TEMPLATE_TYPE=blank bash -c "source '$RALPH_SCRIPT' 2>/dev/null; show_template_menu" 2>/dev/null)
+
+    assert_equal "blank" "$result" "Should return blank when env var is set"
+}
+
+test_show_template_menu_env_ai() {
+    print_section "Test: show_template_menu - RALPH_TEMPLATE_TYPE=ai"
+
+    local result=$(RALPH_SOURCED_FOR_TEST=1 RALPH_TEMPLATE_TYPE=ai bash -c "source '$RALPH_SCRIPT' 2>/dev/null; show_template_menu" 2>/dev/null)
+
+    assert_equal "ai" "$result" "Should return ai when env var is set"
+}
+
+test_show_template_menu_env_example() {
+    print_section "Test: show_template_menu - RALPH_TEMPLATE_TYPE=example"
+
+    local result=$(RALPH_SOURCED_FOR_TEST=1 RALPH_TEMPLATE_TYPE=example bash -c "source '$RALPH_SCRIPT' 2>/dev/null; show_template_menu" 2>/dev/null)
+
+    assert_equal "example" "$result" "Should return example when env var is set"
 }
 
 # ============================================================================
@@ -191,8 +264,23 @@ run_unit_tests() {
     test_validate_max_rounds_negative
     test_validate_max_rounds_string
 
-    test_refactor_progress_small_file
     test_display_config
+
+    # Template tests
+    test_get_standard_template
+    test_get_quickfix_template
+    test_get_blank_template
+
+    # get_prompt_nointeractive tests
+    test_get_prompt_nointeractive_with_env_var
+    test_get_prompt_nointeractive_fallback
+
+    # Template menu tests
+    test_show_template_menu_env_standard
+    test_show_template_menu_env_quickfix
+    test_show_template_menu_env_blank
+    test_show_template_menu_env_ai
+    test_show_template_menu_env_example
 
     # Teardown
     teardown_test_environment

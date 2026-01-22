@@ -69,8 +69,13 @@ RALPH_MODE="${RALPH_MODE:-autonomous}"
 # Container memory limits are handled by Docker/Podman, not by ulimit.
 # The RALPH_MEMORY_LIMIT env var is kept for backwards compatibility but is not used.
 
-# Cleanup temp files on exit
-trap 'rm -f /tmp/ralph_output_*.txt /tmp/ralph_validation_*.txt 2>/dev/null' EXIT
+# Cleanup temp files and session marker on exit
+ralph_cleanup() {
+  rm -f /tmp/ralph_output_*.txt /tmp/ralph_validation_*.txt 2>/dev/null
+  local cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/ralph"
+  rm -f "${cache_dir}/.session_prompt_$$" "${cache_dir}/.ai_skip_editor_$$" 2>/dev/null
+}
+trap 'ralph_cleanup' EXIT
 
 # Handle custom command mode
 handle_custom_command() {
@@ -154,8 +159,500 @@ if [ "${RALPH_SOURCED_FOR_TEST:-0}" != "1" ]; then
   validate_max_rounds
 fi
 
-# Determine prompt source
+# =============================================================================
+# Template Functions
+# =============================================================================
+
+# Get the standard prompt template
+get_standard_template() {
+  cat <<'TEMPLATE'
+# Project Goal
+
+[Describe what you want to accomplish]
+
+## Acceptance Criteria
+
+- [ ] Criterion 1
+- [ ] Criterion 2
+
+## Context
+
+[Any additional context, constraints, or preferences]
+TEMPLATE
+}
+
+# Get the quickfix template for small changes
+get_quickfix_template() {
+  cat <<'TEMPLATE'
+# QuickFix
+
+## Issue
+[Describe the bug or small change needed]
+
+## Expected Behavior
+[What should happen after the fix]
+
+## Files Affected
+- [ ] File 1
+
+## Acceptance Criteria
+- [ ] The fix is implemented
+- [ ] No regressions introduced
+TEMPLATE
+}
+
+# Get blank template
+get_blank_template() {
+  cat <<'TEMPLATE'
+# Project
+
+TEMPLATE
+}
+
+# Get the AI idea template (with optional prefilled content)
+get_ai_idea_template() {
+  local prefill="${1:-}"
+  if [ -n "$prefill" ]; then
+    echo "$prefill"
+  else
+    cat <<'TEMPLATE'
+# Describe Your Project Idea
+
+Write a brief description of what you want to build or accomplish.
+The AI will expand this into a full project specification.
+
+## Your Idea
+
+[Replace this with your project idea - be as detailed or brief as you like]
+
+## Optional: Additional Context
+
+[Any constraints, preferences, or technical requirements]
+TEMPLATE
+  fi
+}
+
+# =============================================================================
+# Template Selection Menu
+# =============================================================================
+
+# Show template selection menu and return the selected type
+show_template_menu() {
+  # Check for environment variable override
+  if [ -n "${RALPH_TEMPLATE_TYPE:-}" ]; then
+    case "${RALPH_TEMPLATE_TYPE}" in
+      standard|quickfix|ai|example|blank)
+        echo "${RALPH_TEMPLATE_TYPE}"
+        return 0
+        ;;
+      *)
+        echo "Warning: Invalid RALPH_TEMPLATE_TYPE '${RALPH_TEMPLATE_TYPE}', showing menu" >&2
+        ;;
+    esac
+  fi
+
+  cat >&2 <<'MENU'
+========================================
+ RalphLoop - Template Selection
+========================================
+
+Choose a template to start with:
+
+  1) Standard Prompt
+     Full project specification with goals and acceptance criteria
+
+  2) QuickFix
+     Quick bug fix or small change with minimal structure
+
+  3) AI Enhanced Prompt
+     Describe your idea and let AI generate a complete plan
+
+  4) Load Example
+     Choose from pre-built example projects
+
+  5) Blank
+     Start with an empty file
+
+MENU
+
+  local selection
+  while true; do
+    printf "Enter selection [1-5]: " >&2
+    read -r selection </dev/tty
+    case "$selection" in
+      1) echo "standard"; return 0 ;;
+      2) echo "quickfix"; return 0 ;;
+      3) echo "ai"; return 0 ;;
+      4) echo "example"; return 0 ;;
+      5) echo "blank"; return 0 ;;
+      *) echo "Invalid selection. Please enter 1-5." >&2 ;;
+    esac
+  done
+}
+
+# Show example selection menu and return the selected example path
+show_example_menu() {
+  local examples_dir="${SCRIPT_DIR:-$(dirname "${BASH_SOURCE[0]}")}/examples"
+  local -a examples=()
+  local i=0
+
+  # Find all example directories with prompt.md files
+  while IFS= read -r -d '' dir; do
+    examples+=("$dir")
+  done < <(find "$examples_dir" -maxdepth 2 -name "prompt.md" -print0 2>/dev/null | sort -z)
+
+  if [ ${#examples[@]} -eq 0 ]; then
+    echo "No examples found in $examples_dir" >&2
+    echo ""
+    return 1
+  fi
+
+  echo "" >&2
+  echo "========================================" >&2
+  echo " Available Examples" >&2
+  echo "========================================" >&2
+  echo "" >&2
+
+  for ((i=0; i<${#examples[@]}; i++)); do
+    local example_name
+    example_name=$(dirname "${examples[$i]}" | xargs basename)
+    printf "  %d) %s\n" "$((i+1))" "$example_name" >&2
+  done
+
+  echo "" >&2
+
+  local selection
+  while true; do
+    printf "Enter selection [1-%d]: " "${#examples[@]}" >&2
+    read -r selection </dev/tty
+    if [[ "$selection" =~ ^[0-9]+$ ]] && [ "$selection" -ge 1 ] && [ "$selection" -le ${#examples[@]} ]; then
+      echo "${examples[$((selection-1))]}"
+      return 0
+    fi
+    echo "Invalid selection. Please enter 1-${#examples[@]}." >&2
+  done
+}
+
+# Load an example prompt file
+load_example_prompt() {
+  local example_path="$1"
+  if [ -f "$example_path" ]; then
+    cat "$example_path"
+  else
+    echo "Error: Example file not found: $example_path" >&2
+    return 1
+  fi
+}
+
+# =============================================================================
+# AI Enhanced Prompt Generation
+# =============================================================================
+
+# Call AI to generate enhanced prompt from user idea
+_ai_generate_spec() {
+  local user_idea="$1"
+  local meta_prompt
+  meta_prompt=$(cat <<METAPROMPT
+You are a project specification generator. Based on the user's idea below, generate a complete project specification in markdown format.
+
+User's Idea:
+${user_idea}
+
+Generate a specification with:
+1. A clear project title
+2. A detailed goal description
+3. Specific, measurable acceptance criteria (use checkboxes)
+4. Technical context and constraints
+5. Any assumptions or prerequisites
+
+Output ONLY the markdown specification, no explanations.
+METAPROMPT
+)
+
+  local generated
+  if generated=$(timeout 60 opencode run $OPENCODE_OPTS <<< "$meta_prompt" 2>/dev/null); then
+    echo "$generated"
+  else
+    # Fallback if AI fails
+    cat <<FALLBACK
+# Project
+
+## Goal
+${user_idea}
+
+## Acceptance Criteria
+- [ ] Core functionality implemented
+- [ ] Tests passing
+
+## Context
+[Add any additional context]
+FALLBACK
+  fi
+}
+
+# Show AI prompt review menu
+_ai_show_review_menu() {
+  echo "" >&2
+  echo "========================================" >&2
+  echo " Review Generated Prompt" >&2
+  echo "========================================" >&2
+  echo "" >&2
+  echo "  a) Accept - Use this prompt as-is" >&2
+  echo "  e) Edit   - Open in editor to customize" >&2
+  echo "  r) Retry  - Describe your idea again" >&2
+  echo "  c) Cancel - Abort and use standard template" >&2
+  echo "" >&2
+
+  local choice
+  while true; do
+    printf "Enter choice [a/e/r/c]: " >&2
+    read -r choice </dev/tty
+    case "$choice" in
+      a|A) echo "accept"; return ;;
+      e|E) echo "edit"; return ;;
+      r|R) echo "retry"; return ;;
+      c|C) echo "cancel"; return ;;
+      *) echo "Invalid choice. Please enter a, e, r, or c." >&2 ;;
+    esac
+  done
+}
+
+# Generate an AI-enhanced prompt from user's idea
+# Returns: final prompt content (accepted, edited, or fallback to standard)
+generate_ai_enhanced_prompt() {
+  local cache_dir idea_file edit_file editor template_content user_idea generated choice
+  cache_dir=$(get_ralph_cache_dir)
+  idea_file="${cache_dir}/.ai_idea_temp_$$.md"
+  edit_file="${cache_dir}/.ai_edit_temp_$$.md"
+  editor=$(get_editor)
+
+  # Track the previous idea for re-prompting
+  local previous_idea=""
+
+  echo "" >&2
+  echo "========================================" >&2
+  echo " AI Enhanced Prompt Generator" >&2
+  echo "========================================" >&2
+
+  while true; do
+    echo "" >&2
+    echo "Opening editor for you to describe your idea..." >&2
+
+    # Write idea template (with previous idea if re-prompting)
+    get_ai_idea_template "$previous_idea" > "$idea_file"
+    template_content=$(get_ai_idea_template "")
+
+    # Open editor for user to write their idea
+    "$editor" "$idea_file" </dev/tty >/dev/tty
+
+    # Read the user's idea
+    user_idea=$(cat "$idea_file")
+    rm -f "$idea_file"
+
+    # Check if content was modified (only for first attempt)
+    if [ -z "$previous_idea" ] && [ "$user_idea" = "$template_content" ]; then
+      echo "Error: Idea was not modified. Using standard template." >&2
+      get_standard_template
+      return 0
+    fi
+
+    # Check if empty
+    if [ -z "$user_idea" ] || ! echo "$user_idea" | grep -q '[^[:space:]]'; then
+      echo "Error: No idea provided. Using standard template." >&2
+      get_standard_template
+      return 0
+    fi
+
+    # Save for potential re-prompt
+    previous_idea="$user_idea"
+
+    echo "" >&2
+    echo "Generating enhanced prompt from your idea..." >&2
+    echo "" >&2
+
+    # Generate the AI-enhanced prompt
+    generated=$(_ai_generate_spec "$user_idea")
+
+    # Display the generated prompt
+    echo "========================================" >&2
+    echo " Generated Prompt Preview" >&2
+    echo "========================================" >&2
+    echo "" >&2
+    echo "$generated" >&2
+    echo "" >&2
+    echo "========================================" >&2
+
+    # Show review menu
+    choice=$(_ai_show_review_menu)
+
+    case "$choice" in
+      accept)
+        # User accepts as-is, signal to skip editor via marker file
+        touch "${cache_dir}/.ai_skip_editor_$$"
+        echo "$generated"
+        return 0
+        ;;
+      edit)
+        # Open editor for final customization
+        echo "$generated" > "$edit_file"
+        "$editor" "$edit_file" </dev/tty >/dev/tty
+        local edited
+        edited=$(cat "$edit_file")
+        rm -f "$edit_file"
+        # Signal to skip editor via marker file
+        touch "${cache_dir}/.ai_skip_editor_$$"
+        echo "$edited"
+        return 0
+        ;;
+      retry)
+        # Loop back with previous idea prefilled
+        echo "" >&2
+        echo "Let's try again..." >&2
+        continue
+        ;;
+      cancel)
+        echo "" >&2
+        echo "Cancelled. Using standard template." >&2
+        get_standard_template
+        return 0
+        ;;
+    esac
+  done
+}
+
+# =============================================================================
+# Cache and Session Management
+# =============================================================================
+
+# Get the Ralph cache directory for storing prompts
+get_ralph_cache_dir() {
+  local cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/ralph/prompts"
+  mkdir -p "$cache_dir"
+  echo "$cache_dir"
+}
+
+# Get the session prompt file path (stores path to current session's prompt)
+get_session_prompt_marker() {
+  local cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/ralph"
+  mkdir -p "$cache_dir"
+  echo "${cache_dir}/.session_prompt_$$"
+}
+
+# Get sanitized directory name for prompt filename
+get_sanitized_dirname() {
+  local dir_name
+  dir_name=$(basename "$PWD")
+  # Replace spaces and special chars with underscores
+  echo "${dir_name//[^a-zA-Z0-9_-]/_}"
+}
+
+# =============================================================================
+# Prompt Functions
+# =============================================================================
+
+# Launch user's editor to create a prompt interactively
+launch_editor_for_prompt() {
+  local cache_dir ts dir_name prompt_file editor original_mtime original_content new_mtime new_content
+  local template_type template_content session_marker skip_editor_marker
+  cache_dir=$(get_ralph_cache_dir)
+  ts=$(date +%Y-%m-%d-%H%M%S)
+  dir_name=$(get_sanitized_dirname)
+  prompt_file="${cache_dir}/${ts}_${dir_name}.md"
+  session_marker=$(get_session_prompt_marker)
+  skip_editor_marker="${cache_dir}/.ai_skip_editor_$$"
+
+  # Show template selection menu
+  template_type=$(show_template_menu)
+
+  # Get content based on selection
+  case "$template_type" in
+    standard)
+      template_content=$(get_standard_template)
+      ;;
+    quickfix)
+      template_content=$(get_quickfix_template)
+      ;;
+    ai)
+      template_content=$(generate_ai_enhanced_prompt)
+      ;;
+    example)
+      local example_path
+      example_path=$(show_example_menu)
+      if [ -n "$example_path" ]; then
+        template_content=$(load_example_prompt "$example_path")
+      else
+        template_content=$(get_standard_template)
+      fi
+      ;;
+    blank)
+      template_content=$(get_blank_template)
+      ;;
+    *)
+      template_content=$(get_standard_template)
+      ;;
+  esac
+
+  # Write content to prompt file
+  echo "$template_content" > "$prompt_file"
+
+  # Check if AI flow already handled editing (skip editor marker exists)
+  if [ -f "$skip_editor_marker" ]; then
+    rm -f "$skip_editor_marker"
+    # Store the prompt file path in session marker for reuse across iterations
+    echo "$prompt_file" > "$session_marker"
+    echo "Prompt saved to: $prompt_file" >&2
+    cat "$prompt_file"
+    return 0
+  fi
+
+  # Capture original state for modification check
+  original_content=$(cat "$prompt_file")
+  # stat -f %m for macOS, stat -c %Y for Linux
+  original_mtime=$(stat -f %m "$prompt_file" 2>/dev/null || stat -c %Y "$prompt_file" 2>/dev/null)
+
+  editor=$(get_editor)
+  echo "" >&2
+  echo "Opening editor to customize your prompt..." >&2
+  echo "Prompt will be saved to: $prompt_file" >&2
+
+  "$editor" "$prompt_file" </dev/tty >/dev/tty
+
+  # Check if file was modified
+  new_mtime=$(stat -f %m "$prompt_file" 2>/dev/null || stat -c %Y "$prompt_file" 2>/dev/null)
+  new_content=$(cat "$prompt_file")
+
+  # Fail if file wasn't saved (mtime unchanged)
+  if [ "$original_mtime" = "$new_mtime" ]; then
+    echo "Error: Prompt file was not saved. Aborting." >&2
+    rm -f "$prompt_file"
+    exit 1
+  fi
+
+  # Fail if content is unchanged from template
+  if [ "$new_content" = "$original_content" ]; then
+    echo "Error: Prompt file was not modified from template. Aborting." >&2
+    rm -f "$prompt_file"
+    exit 1
+  fi
+
+  # Fail if file is empty or only whitespace
+  if [ ! -s "$prompt_file" ] || ! grep -q '[^[:space:]]' "$prompt_file"; then
+    echo "Error: Prompt file is empty. Aborting." >&2
+    rm -f "$prompt_file"
+    exit 1
+  fi
+
+  # Store the prompt file path in session marker for reuse across iterations
+  echo "$prompt_file" > "$session_marker"
+  echo "Prompt saved to: $prompt_file" >&2
+
+  cat "$prompt_file"
+}
+
+# Determine prompt source and return content
 get_prompt() {
+  local session_marker session_prompt_file
+
   # Priority 1: RALPH_PROMPT environment variable
   if [ -n "${RALPH_PROMPT:-}" ]; then
     echo "$RALPH_PROMPT"
@@ -172,17 +669,74 @@ get_prompt() {
     return
   fi
 
-  # Priority 3: Default prompt.md file
-  if [ ! -f "$PROMPT_FILE" ]; then
-    echo "Error: No prompt file found." >&2
-    echo "" >&2
-    echo "To fix this, either:" >&2
-    echo "  1. Create a 'prompt.md' file in the current directory" >&2
-    echo "  2. Set RALPH_PROMPT environment variable with your objective" >&2
-    echo "  3. Set RALPH_PROMPT_FILE to point to a valid prompt file" >&2
-    exit 1
+  # Priority 3: Session prompt file (created via interactive editor this session)
+  session_marker=$(get_session_prompt_marker)
+  if [ -f "$session_marker" ]; then
+    session_prompt_file=$(cat "$session_marker")
+    if [ -f "$session_prompt_file" ]; then
+      cat "$session_prompt_file"
+      return
+    fi
   fi
-  cat "$PROMPT_FILE"
+
+  # Priority 4: Default prompt.md file
+  if [ -f "$PROMPT_FILE" ]; then
+    cat "$PROMPT_FILE"
+    return
+  fi
+
+  # Priority 5: Interactive editor
+  if [ -t 0 ] && [ -t 1 ]; then
+    launch_editor_for_prompt
+    return
+  fi
+
+  # No prompt available
+  echo "Error: No prompt file found." >&2
+  echo "" >&2
+  echo "To fix this, either:" >&2
+  echo "  1. Create a 'prompt.md' file in the current directory" >&2
+  echo "  2. Set RALPH_PROMPT environment variable with your objective" >&2
+  echo "  3. Set RALPH_PROMPT_FILE to point to a valid prompt file" >&2
+  echo "  4. Run interactively to use the built-in editor" >&2
+  exit 1
+}
+
+# Get prompt without interactive fallback (for validation)
+get_prompt_nointeractive() {
+  local session_marker session_prompt_file
+
+  # Priority 1: RALPH_PROMPT environment variable
+  if [ -n "${RALPH_PROMPT:-}" ]; then
+    echo "$RALPH_PROMPT"
+    return 0
+  fi
+
+  # Priority 2: RALPH_PROMPT_FILE environment variable
+  if [ -n "${RALPH_PROMPT_FILE:-}" ] && [ -f "$RALPH_PROMPT_FILE" ]; then
+    cat "$RALPH_PROMPT_FILE"
+    return 0
+  fi
+
+  # Priority 3: Session prompt file (created via interactive editor this session)
+  session_marker=$(get_session_prompt_marker)
+  if [ -f "$session_marker" ]; then
+    session_prompt_file=$(cat "$session_marker")
+    if [ -f "$session_prompt_file" ]; then
+      cat "$session_prompt_file"
+      return 0
+    fi
+  fi
+
+  # Priority 4: Default prompt.md file
+  if [ -f "$PROMPT_FILE" ]; then
+    cat "$PROMPT_FILE"
+    return 0
+  fi
+
+  # Return default for validation context (no interactive fallback)
+  echo "[No original prompt available - validate based on current state]"
+  return 0
 }
 
 # Sanitize content to prevent heredoc injection
@@ -414,7 +968,7 @@ The agent previously indicated completion with <promise>COMPLETE</promise>.
 You must INDEPENDENTLY VERIFY that all acceptance criteria are actually met.
 
 ## Original Project Goal (from prompt.md):
-$(get_prompt)
+$(get_prompt_nointeractive)
 
 ## Current Progress:
 $(cat "$PROGRESS_FILE")
