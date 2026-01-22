@@ -546,6 +546,17 @@ get_sanitized_dirname() {
   echo "${dir_name//[^a-zA-Z0-9_-]/_}"
 }
 
+# Get the user's preferred editor
+get_editor() {
+  if [ -n "${VISUAL:-}" ]; then
+    echo "$VISUAL"
+  elif [ -n "${EDITOR:-}" ]; then
+    echo "$EDITOR"
+  else
+    echo "vi"
+  fi
+}
+
 # =============================================================================
 # Prompt Functions
 # =============================================================================
