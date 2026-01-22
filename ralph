@@ -34,18 +34,19 @@ set -e -u -o pipefail
 
 # Configuration
 MAX_ROUNDS=${1:-${MAX_ROUNDS:-100}}
-PROGRESS_FILE="progress.md"
-PROMPT_FILE="prompt.md"
-VALIDATION_ISSUES_FILE=".ralph_validation_issues.txt"
+TEMP_FILE_PREFIX="$(mktemp)"
+PROGRESS_FILE="${TEMP_FILE_PREFIX}_progress.md"
+PROMPT_FILE="${TEMP_FILE_PREFIX}_prompt.md"
+VALIDATION_ISSUES_FILE="${TEMP_FILE_PREFIX}_issues.md"
 BACKENDS_DIR="backends"
 
 # Timeout and memory configuration (customizable via environment)
-RALPH_TIMEOUT=${RALPH_TIMEOUT:-1800}        # Default: 30 minutes in seconds
-RALPH_MEMORY_LIMIT=${RALPH_MEMORY_LIMIT:-4194304}  # Default: 4GB in KB
+RALPH_TIMEOUT=${RALPH_TIMEOUT:-1800}              # Default: 30 minutes in seconds
+RALPH_MEMORY_LIMIT=${RALPH_MEMORY_LIMIT:-4194304} # Default: 4GB in KB
 
 # OpenCode logging configuration
-RALPH_LOG_LEVEL=${RALPH_LOG_LEVEL:-WARN}   # Default: WARN to avoid too much output
-RALPH_PRINT_LOGS=${RALPH_PRINT_LOGS:-false}  # Default: false (logs to file instead)
+RALPH_LOG_LEVEL=${RALPH_LOG_LEVEL:-WARN}    # Default: WARN to avoid too much output
+RALPH_PRINT_LOGS=${RALPH_PRINT_LOGS:-false} # Default: false (logs to file instead)
 
 # Note: Progress file management is delegated entirely to the AI agent.
 # The agent is responsible for updating and maintaining progress.md.
@@ -69,13 +70,13 @@ RALPH_MODE="${RALPH_MODE:-autonomous}"
 # Container memory limits are handled by Docker/Podman, not by ulimit.
 # The RALPH_MEMORY_LIMIT env var is kept for backwards compatibility but is not used.
 
-# Cleanup temp files and session marker on exit
-ralph_cleanup() {
-  rm -f /tmp/ralph_output_*.txt /tmp/ralph_validation_*.txt 2>/dev/null
-  local cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/ralph"
-  rm -f "${cache_dir}/.session_prompt_$$" "${cache_dir}/.ai_skip_editor_$$" 2>/dev/null
-}
-trap 'ralph_cleanup' EXIT
+# # Cleanup temp files and session marker on exit
+# ralph_cleanup() {
+#   rm -f "${TEMP_FILE_PREFIX}_ralph_output_*.txt" /tmp/ralph_validation_*.txt 2>/dev/null
+#   local cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/ralph"
+#   rm -f "${cache_dir}/.session_prompt_$$" "${cache_dir}/.ai_skip_editor_$$" 2>/dev/null
+# }
+# trap 'ralph_cleanup' EXIT
 
 # Handle custom command mode
 handle_custom_command() {
@@ -101,7 +102,7 @@ load_backend_config() {
       echo "📦 Loading backend configuration: $RALPH_BACKEND"
 
       # Load backend-specific settings if jq is available
-      if command -v jq &> /dev/null; then
+      if command -v jq &>/dev/null; then
         local backend_enabled
         backend_enabled=$(jq -r '.enabled // false' "$backend_config" 2>/dev/null || echo "false")
 
@@ -241,13 +242,13 @@ show_template_menu() {
   # Check for environment variable override
   if [ -n "${RALPH_TEMPLATE_TYPE:-}" ]; then
     case "${RALPH_TEMPLATE_TYPE}" in
-      standard|quickfix|ai|example|blank)
-        echo "${RALPH_TEMPLATE_TYPE}"
-        return 0
-        ;;
-      *)
-        echo "Warning: Invalid RALPH_TEMPLATE_TYPE '${RALPH_TEMPLATE_TYPE}', showing menu" >&2
-        ;;
+    standard | quickfix | ai | example | blank)
+      echo "${RALPH_TEMPLATE_TYPE}"
+      return 0
+      ;;
+    *)
+      echo "Warning: Invalid RALPH_TEMPLATE_TYPE '${RALPH_TEMPLATE_TYPE}', showing menu" >&2
+      ;;
     esac
   fi
 
@@ -280,12 +281,27 @@ MENU
     printf "Enter selection [1-5]: " >&2
     read -r selection </dev/tty
     case "$selection" in
-      1) echo "standard"; return 0 ;;
-      2) echo "quickfix"; return 0 ;;
-      3) echo "ai"; return 0 ;;
-      4) echo "example"; return 0 ;;
-      5) echo "blank"; return 0 ;;
-      *) echo "Invalid selection. Please enter 1-5." >&2 ;;
+    1)
+      echo "standard"
+      return 0
+      ;;
+    2)
+      echo "quickfix"
+      return 0
+      ;;
+    3)
+      echo "ai"
+      return 0
+      ;;
+    4)
+      echo "example"
+      return 0
+      ;;
+    5)
+      echo "blank"
+      return 0
+      ;;
+    *) echo "Invalid selection. Please enter 1-5." >&2 ;;
     esac
   done
 }
@@ -313,10 +329,10 @@ show_example_menu() {
   echo "========================================" >&2
   echo "" >&2
 
-  for ((i=0; i<${#examples[@]}; i++)); do
+  for ((i = 0; i < ${#examples[@]}; i++)); do
     local example_name
     example_name=$(dirname "${examples[$i]}" | xargs basename)
-    printf "  %d) %s\n" "$((i+1))" "$example_name" >&2
+    printf "  %d) %s\n" "$((i + 1))" "$example_name" >&2
   done
 
   echo "" >&2
@@ -326,7 +342,7 @@ show_example_menu() {
     printf "Enter selection [1-%d]: " "${#examples[@]}" >&2
     read -r selection </dev/tty
     if [[ "$selection" =~ ^[0-9]+$ ]] && [ "$selection" -ge 1 ] && [ "$selection" -le ${#examples[@]} ]; then
-      echo "${examples[$((selection-1))]}"
+      echo "${examples[$((selection - 1))]}"
       return 0
     fi
     echo "Invalid selection. Please enter 1-${#examples[@]}." >&2
@@ -352,7 +368,8 @@ load_example_prompt() {
 _ai_generate_spec() {
   local user_idea="$1"
   local meta_prompt
-  meta_prompt=$(cat <<METAPROMPT
+  meta_prompt=$(
+    cat <<METAPROMPT
 You are a project specification generator. Based on the user's idea below, generate a complete project specification in markdown format.
 
 User's Idea:
@@ -367,10 +384,10 @@ Generate a specification with:
 
 Output ONLY the markdown specification, no explanations.
 METAPROMPT
-)
+  )
 
   local generated
-  if generated=$(timeout 60 opencode run $OPENCODE_OPTS <<< "$meta_prompt" 2>/dev/null); then
+  if generated=$(timeout 60 opencode run $OPENCODE_OPTS <<<"$meta_prompt" 2>/dev/null); then
     echo "$generated"
   else
     # Fallback if AI fails
@@ -408,11 +425,23 @@ _ai_show_review_menu() {
     printf "Enter choice [a/e/r/c]: " >&2
     read -r choice </dev/tty
     case "$choice" in
-      a|A) echo "accept"; return ;;
-      e|E) echo "edit"; return ;;
-      r|R) echo "retry"; return ;;
-      c|C) echo "cancel"; return ;;
-      *) echo "Invalid choice. Please enter a, e, r, or c." >&2 ;;
+    a | A)
+      echo "accept"
+      return
+      ;;
+    e | E)
+      echo "edit"
+      return
+      ;;
+    r | R)
+      echo "retry"
+      return
+      ;;
+    c | C)
+      echo "cancel"
+      return
+      ;;
+    *) echo "Invalid choice. Please enter a, e, r, or c." >&2 ;;
     esac
   done
 }
@@ -439,7 +468,7 @@ generate_ai_enhanced_prompt() {
     echo "Opening editor for you to describe your idea..." >&2
 
     # Write idea template (with previous idea if re-prompting)
-    get_ai_idea_template "$previous_idea" > "$idea_file"
+    get_ai_idea_template "$previous_idea" >"$idea_file"
     template_content=$(get_ai_idea_template "")
 
     # Open editor for user to write their idea
@@ -486,36 +515,36 @@ generate_ai_enhanced_prompt() {
     choice=$(_ai_show_review_menu)
 
     case "$choice" in
-      accept)
-        # User accepts as-is, signal to skip editor via marker file
-        touch "${cache_dir}/.ai_skip_editor_$$"
-        echo "$generated"
-        return 0
-        ;;
-      edit)
-        # Open editor for final customization
-        echo "$generated" > "$edit_file"
-        "$editor" "$edit_file" </dev/tty >/dev/tty
-        local edited
-        edited=$(cat "$edit_file")
-        rm -f "$edit_file"
-        # Signal to skip editor via marker file
-        touch "${cache_dir}/.ai_skip_editor_$$"
-        echo "$edited"
-        return 0
-        ;;
-      retry)
-        # Loop back with previous idea prefilled
-        echo "" >&2
-        echo "Let's try again..." >&2
-        continue
-        ;;
-      cancel)
-        echo "" >&2
-        echo "Cancelled. Using standard template." >&2
-        get_standard_template
-        return 0
-        ;;
+    accept)
+      # User accepts as-is, signal to skip editor via marker file
+      touch "${cache_dir}/.ai_skip_editor_$$"
+      echo "$generated"
+      return 0
+      ;;
+    edit)
+      # Open editor for final customization
+      echo "$generated" >"$edit_file"
+      "$editor" "$edit_file" </dev/tty >/dev/tty
+      local edited
+      edited=$(cat "$edit_file")
+      rm -f "$edit_file"
+      # Signal to skip editor via marker file
+      touch "${cache_dir}/.ai_skip_editor_$$"
+      echo "$edited"
+      return 0
+      ;;
+    retry)
+      # Loop back with previous idea prefilled
+      echo "" >&2
+      echo "Let's try again..." >&2
+      continue
+      ;;
+    cancel)
+      echo "" >&2
+      echo "Cancelled. Using standard template." >&2
+      get_standard_template
+      return 0
+      ;;
     esac
   done
 }
@@ -577,40 +606,40 @@ launch_editor_for_prompt() {
 
   # Get content based on selection
   case "$template_type" in
-    standard)
+  standard)
+    template_content=$(get_standard_template)
+    ;;
+  quickfix)
+    template_content=$(get_quickfix_template)
+    ;;
+  ai)
+    template_content=$(generate_ai_enhanced_prompt)
+    ;;
+  example)
+    local example_path
+    example_path=$(show_example_menu)
+    if [ -n "$example_path" ]; then
+      template_content=$(load_example_prompt "$example_path")
+    else
       template_content=$(get_standard_template)
-      ;;
-    quickfix)
-      template_content=$(get_quickfix_template)
-      ;;
-    ai)
-      template_content=$(generate_ai_enhanced_prompt)
-      ;;
-    example)
-      local example_path
-      example_path=$(show_example_menu)
-      if [ -n "$example_path" ]; then
-        template_content=$(load_example_prompt "$example_path")
-      else
-        template_content=$(get_standard_template)
-      fi
-      ;;
-    blank)
-      template_content=$(get_blank_template)
-      ;;
-    *)
-      template_content=$(get_standard_template)
-      ;;
+    fi
+    ;;
+  blank)
+    template_content=$(get_blank_template)
+    ;;
+  *)
+    template_content=$(get_standard_template)
+    ;;
   esac
 
   # Write content to prompt file
-  echo "$template_content" > "$prompt_file"
+  echo "$template_content" >"$prompt_file"
 
   # Check if AI flow already handled editing (skip editor marker exists)
   if [ -f "$skip_editor_marker" ]; then
     rm -f "$skip_editor_marker"
     # Store the prompt file path in session marker for reuse across iterations
-    echo "$prompt_file" > "$session_marker"
+    echo "$prompt_file" >"$session_marker"
     echo "Prompt saved to: $prompt_file" >&2
     cat "$prompt_file"
     return 0
@@ -654,7 +683,7 @@ launch_editor_for_prompt() {
   fi
 
   # Store the prompt file path in session marker for reuse across iterations
-  echo "$prompt_file" > "$session_marker"
+  echo "$prompt_file" >"$session_marker"
   echo "Prompt saved to: $prompt_file" >&2
 
   cat "$prompt_file"
@@ -666,6 +695,7 @@ get_prompt() {
 
   # Priority 1: RALPH_PROMPT environment variable
   if [ -n "${RALPH_PROMPT:-}" ]; then
+    echo "Using RALPH_PROMPT" >&2
     echo "$RALPH_PROMPT"
     return
   fi
@@ -676,6 +706,7 @@ get_prompt() {
       echo "Error: RALPH_PROMPT_FILE points to a missing file: '$RALPH_PROMPT_FILE'" >&2
       exit 1
     fi
+    echo "Using RALPH_PROMPT_FILE" >&2
     cat "$RALPH_PROMPT_FILE"
     return
   fi
@@ -685,6 +716,7 @@ get_prompt() {
   if [ -f "$session_marker" ]; then
     session_prompt_file=$(cat "$session_marker")
     if [ -f "$session_prompt_file" ]; then
+      echo "Using SESSION PROMPT MARKER" >&2
       cat "$session_prompt_file"
       return
     fi
@@ -692,6 +724,7 @@ get_prompt() {
 
   # Priority 4: Default prompt.md file
   if [ -f "$PROMPT_FILE" ]; then
+    echo "Using PROMPT_FILE" >&2
     cat "$PROMPT_FILE"
     return
   fi
@@ -776,36 +809,33 @@ if [ ! -f "$PROGRESS_FILE" ]; then
   touch "$PROGRESS_FILE"
 fi
 
-# Clear previous validation issues at start
-rm -f "$VALIDATION_ISSUES_FILE"
-
 # Main loop - skip if RALPH_SOURCED_FOR_TEST is set
 if [ "${RALPH_SOURCED_FOR_TEST:-0}" = "1" ]; then
-    :  # Skip main loop when sourcing for testing
+  : # Skip main loop when sourcing for testing
 else
-for ((i = 1; i <= MAX_ROUNDS; i++)); do
-  echo "========================================"
-  echo "🔄 RalphLoop Iteration $i of $MAX_ROUNDS"
-  echo "========================================"
+  for ((i = 1; i <= MAX_ROUNDS; i++)); do
+    echo "========================================"
+    echo "🔄 RalphLoop Iteration $i of $MAX_ROUNDS"
+    echo "========================================"
 
-  # Read current progress and prompt
-  PROGRESS_CONTENT=$(cat "$PROGRESS_FILE")
-  PROMPT_CONTENT=$(get_prompt)
+    # Read current progress and prompt
+    PROGRESS_CONTENT=$(cat "$PROGRESS_FILE")
+    PROMPT_CONTENT=$(get_prompt)
 
-  # Sanitize content to prevent heredoc injection
-  SANITIZED_PROGRESS=$(sanitize_for_heredoc "$PROGRESS_CONTENT")
-  SANITIZED_PROMPT=$(sanitize_for_heredoc "$PROMPT_CONTENT")
+    # Sanitize content to prevent heredoc injection
+    SANITIZED_PROGRESS=$(sanitize_for_heredoc "$PROGRESS_CONTENT")
+    SANITIZED_PROMPT=$(sanitize_for_heredoc "$PROMPT_CONTENT")
 
-  # Check for pending validation issues from previous incomplete validation
-  PENDING_ISSUES=""
-  if [ -f "$VALIDATION_ISSUES_FILE" ]; then
-    PENDING_ISSUES=$(cat "$VALIDATION_ISSUES_FILE")
-  fi
+    # Check for pending validation issues from previous incomplete validation
+    PENDING_ISSUES=""
+    if [ -f "$VALIDATION_ISSUES_FILE" ]; then
+      PENDING_ISSUES=$(cat "$VALIDATION_ISSUES_FILE")
+    fi
 
-  # Build context section with pending issues if any
-  CONTEXT_SECTION=""
-  if [ -n "$PENDING_ISSUES" ]; then
-    CONTEXT_SECTION="
+    # Build context section with pending issues if any
+    CONTEXT_SECTION=""
+    if [ -n "$PENDING_ISSUES" ]; then
+      CONTEXT_SECTION="
 ## 🚨 PENDING VALIDATION ISSUES FROM PREVIOUS ITERATION
 The previous completion attempt failed validation. You MUST fix these issues:
 
@@ -815,35 +845,22 @@ ${PENDING_ISSUES}
 Focus ONLY on resolving these validation issues. Do NOT work on new features.
 After fixing, mark complete with <promise>COMPLETE</promise> for re-validation.
 "
-  fi
+    fi
 
-  # Build backend context section if using custom backend
-  BACKEND_CONTEXT=""
-  if [ -n "$RALPH_BACKEND" ]; then
-    BACKEND_CONTEXT="
-## 🔧 Backend Configuration
+    # Run OpenCode agent with current context - stream output for real-time feedback
+    # Timeout controlled by RALPH_TIMEOUT (default: 600 seconds)
+    OUTPUT_FILE="${TEMP_FILE_PREFIX}_ralph_output.txt"
 
-**Active Backend**: ${RALPH_BACKEND}
-**Evaluation Mode**: ${RALPH_MODE}
-**Custom Command**: ${RALPH_COMMAND:-none}
+    # Show progress indicator while command runs
+    echo "🚀 Starting agent execution..."
+    echo "   (This may take a moment. Progress will be shown below.)"
+    echo ""
 
-This iteration is running with backend integration. Be aware of any backend-specific requirements or constraints.
-"
-  fi
-
-  # Run OpenCode agent with current context - stream output for real-time feedback
-  # Timeout controlled by RALPH_TIMEOUT (default: 600 seconds)
-  OUTPUT_FILE="/tmp/ralph_output_$$.txt"
-
-  # Show progress indicator while command runs
-  echo "🚀 Starting agent execution..."
-  echo "   (This may take a moment. Progress will be shown below.)"
-  echo ""
-
-  # Use tee to both save to file AND display output in real-time
-  # This provides feedback while ensuring output is captured for later analysis
-  set +e  # Don't exit on error during capture
-  timeout "$RALPH_TIMEOUT" opencode run "$OPENCODE_OPTS" --agent AGENT_RALPH <<RALPH_EOF_XYZ123 2>&1 | tee "$OUTPUT_FILE"
+    # Use tee to both save to file AND display output in real-time
+    # This provides feedback while ensuring output is captured for later analysis
+    set -x
+    tmp_prompt_file="$(mktemp)"
+    cat <<RALPH_EOF_XYZ123 >"$tmp_prompt_file"
 # Goals and Resources
 
 ## Project plan
@@ -854,7 +871,6 @@ ${SANITIZED_PROMPT}
 
 ${SANITIZED_PROGRESS}
 ${CONTEXT_SECTION}
-${BACKEND_CONTEXT}
 
 ## Your Priorities
 
@@ -910,55 +926,56 @@ The loop succeeds when:
 
 If the current goal is complete, output <promise>COMPLETE</promise>.
 RALPH_EOF_XYZ123
+    timeout "$RALPH_TIMEOUT" opencode run "$OPENCODE_OPTS" --agent "${RALPH_AGENT:-AGENT_RALPH}" <"$tmp_prompt_file" 2>&1 | tee "$OUTPUT_FILE"
+    set +x
 
-  # Read output from file BEFORE checking PIPESTATUS (trap may delete the file)
-  result=$(cat "$OUTPUT_FILE" 2>/dev/null | tr -d '\0' || echo "")
+    # Read output from file BEFORE checking PIPESTATUS (trap may delete the file)
+    result=$(cat "$OUTPUT_FILE" 2>/dev/null | tr -d '\0' || echo "")
 
-  # Get exit code from timeout/opencode command
-  EXIT_CODE=${PIPESTATUS[0]}
-  set -e  # Re-enable exit on error
+    # Get exit code from timeout/opencode command
+    EXIT_CODE=${PIPESTATUS[0]}
 
-  # Check if timeout or error occurred
-  if [ "$EXIT_CODE" -eq 124 ]; then
-    {
-      echo "❌ TIMEOUT: opencode command exceeded ${RALPH_TIMEOUT}s ($((RALPH_TIMEOUT / 60)) minutes) - killed to prevent memory issues"
-      echo "This may indicate the agent is stuck or consuming too much memory."
-      echo "💡 Tip: Increase timeout with: export RALPH_TIMEOUT=$((RALPH_TIMEOUT * 2))"
-    } >> "$OUTPUT_FILE"
-  elif [ "$EXIT_CODE" -ne 0 ]; then
-    echo "❌ ERROR: opencode command failed with exit code $EXIT_CODE" >> "$OUTPUT_FILE"
-  fi
+    # Check if timeout or error occurred
+    if [ "$EXIT_CODE" -eq 124 ]; then
+      {
+        echo "❌ TIMEOUT: opencode command exceeded ${RALPH_TIMEOUT}s ($((RALPH_TIMEOUT / 60)) minutes) - killed to prevent memory issues"
+        echo "This may indicate the agent is stuck or consuming too much memory."
+        echo "💡 Tip: Increase timeout with: export RALPH_TIMEOUT=$((RALPH_TIMEOUT * 2))"
+      } >>"$OUTPUT_FILE"
+    elif [ "$EXIT_CODE" -ne 0 ]; then
+      echo "❌ ERROR: opencode command failed with exit code $EXIT_CODE" >>"$OUTPUT_FILE"
+    fi
 
-  # Check if result is empty or indicates an error
-  if [ -z "$result" ]; then
-    echo "⚠️ WARNING: Empty output from opencode agent - may indicate memory or execution issue"
+    # Check if result is empty or indicates an error
+    if [ -z "$result" ]; then
+      echo "⚠️ WARNING: Empty output from opencode agent - may indicate memory or execution issue"
+      rm -f "$OUTPUT_FILE"
+      echo "Continuing to next iteration..."
+      echo ""
+      continue
+    fi
+
+    # Output has already been streamed via tee, just show separator
+    echo ""
+    echo "--- Output complete ---"
     rm -f "$OUTPUT_FILE"
-    echo "Continuing to next iteration..."
-    echo ""
-    continue
-  fi
 
-  # Output has already been streamed via tee, just show separator
-  echo ""
-  echo "--- Output complete ---"
-  rm -f "$OUTPUT_FILE"
+    # Check for completion
+    if echo "$result" | grep -q "<promise>COMPLETE</promise>"; then
+      echo ""
+      echo "🛡️ Goal marked complete. Running independent validation..."
+      echo "========================================"
 
-  # Check for completion
-  if echo "$result" | grep -q "<promise>COMPLETE</promise>"; then
-    echo ""
-    echo "🛡️ Goal marked complete. Running independent validation..."
-    echo "========================================"
+      # Run validation prompt to verify completion criteria are truly met - stream output for real-time feedback
+      # Timeout controlled by RALPH_TIMEOUT (default: 600 seconds)
+      VALIDATION_OUTPUT_FILE="/tmp/ralph_validation_$$.txt"
 
-    # Run validation prompt to verify completion criteria are truly met - stream output for real-time feedback
-    # Timeout controlled by RALPH_TIMEOUT (default: 600 seconds)
-    VALIDATION_OUTPUT_FILE="/tmp/ralph_validation_$$.txt"
+      echo "🛡️ Running independent validation..."
+      echo ""
 
-    echo "🛡️ Running independent validation..."
-    echo ""
-
-    # Use tee to both save to file AND display output in real-time
-    set +e  # Don't exit on error during capture
-    timeout "$RALPH_TIMEOUT" opencode run "$OPENCODE_OPTS" --agent AGENT_RALPH <<RALPH_VALIDATE_EOF 2>&1 | tee "$VALIDATION_OUTPUT_FILE"
+      # Use tee to both save to file AND display output in real-time
+      set -x
+      timeout "$RALPH_TIMEOUT" opencode run $OPENCODE_OPTS --agent "${RALPH_AGENT:-AGENT_RALPH}" <<RALPH_VALIDATE_EOF 2>&1 | tee "$VALIDATION_OUTPUT_FILE"
 # Validation Task
 
 The agent previously indicated completion with <promise>COMPLETE</promise>.
@@ -1003,73 +1020,74 @@ IMPORTANT:
 - If ANY check fails, use <validation_status>FAIL</validation_status> and list all issues
 - Do NOT trust the previous agent's assessment. Verify independently.
 RALPH_VALIDATE_EOF
+      set +x
 
-    VALIDATION_EXIT_CODE=${PIPESTATUS[0]}  # Get exit code from timeout/opencode command
-    set -e  # Re-enable exit on error
+      VALIDATION_EXIT_CODE=${PIPESTATUS[0]} # Get exit code from timeout/opencode command
+      set -e                                # Re-enable exit on error
 
-    # Check if timeout or error occurred
-    if [ "$VALIDATION_EXIT_CODE" -eq 124 ]; then
-      {
-        echo "❌ VALIDATION TIMEOUT: exceeded ${RALPH_TIMEOUT}s ($((RALPH_TIMEOUT / 60)) minutes)"
-        echo "<validation_status>FAIL</validation_status>"
-        echo "<validation_issues>"
-        echo "- Validation timed out after ${RALPH_TIMEOUT}s ($((RALPH_TIMEOUT / 60)) minutes)"
-        echo "- Increase timeout with: export RALPH_TIMEOUT=$((RALPH_TIMEOUT * 2))"
-        echo "</validation_issues>"
-      } >> "$VALIDATION_OUTPUT_FILE"
-    elif [ "$VALIDATION_EXIT_CODE" -ne 0 ]; then
-      echo "❌ VALIDATION ERROR: failed with exit code $VALIDATION_EXIT_CODE" >> "$VALIDATION_OUTPUT_FILE"
-    fi
+      # Check if timeout or error occurred
+      if [ "$VALIDATION_EXIT_CODE" -eq 124 ]; then
+        {
+          echo "❌ VALIDATION TIMEOUT: exceeded ${RALPH_TIMEOUT}s ($((RALPH_TIMEOUT / 60)) minutes)"
+          echo "<validation_status>FAIL</validation_status>"
+          echo "<validation_issues>"
+          echo "- Validation timed out after ${RALPH_TIMEOUT}s ($((RALPH_TIMEOUT / 60)) minutes)"
+          echo "- Increase timeout with: export RALPH_TIMEOUT=$((RALPH_TIMEOUT * 2))"
+          echo "</validation_issues>"
+        } >>"$VALIDATION_OUTPUT_FILE"
+      elif [ "$VALIDATION_EXIT_CODE" -ne 0 ]; then
+        echo "❌ VALIDATION ERROR: failed with exit code $VALIDATION_EXIT_CODE" >>"$VALIDATION_OUTPUT_FILE"
+      fi
 
-    validation_result=$(cat "$VALIDATION_OUTPUT_FILE" | tr -d '\0')
-    rm -f "$VALIDATION_OUTPUT_FILE"
+      validation_result=$(cat "$VALIDATION_OUTPUT_FILE" | tr -d '\0')
+      rm -f "$VALIDATION_OUTPUT_FILE"
 
-    # Output has already been streamed via tee, just show completion message
-    echo ""
-    echo "--- Validation complete ---"
-
-    echo ""
-    echo "📋 Validation Results:"
-    echo "-----------------------------------"
-    echo "$validation_result"
-    echo "-----------------------------------"
-
-    # Extract and check validation status
-    VALIDATION_STATUS=$(get_validation_status "$validation_result")
-
-    if [ "$VALIDATION_STATUS" = "PASS" ]; then
+      # Output has already been streamed via tee, just show completion message
       echo ""
-      echo "🎉 Validation PASSED! RalphLoop mission complete!"
-      echo "========================================"
-      # Progress file management is delegated to the AI agent
-      rm -f "$VALIDATION_ISSUES_FILE"
-      exit 0
-    else
-      echo ""
-      echo "⚠️ Validation FAILED. Saving issues for next iteration..."
-      # Extract and save validation issues
-      ISSUES=$(get_validation_issues "$validation_result")
-      RECOMMENDATIONS=$(get_validation_recommendations "$validation_result")
+      echo "--- Validation complete ---"
 
-      # Combine issues and recommendations for the next iteration
-      {
-        echo "## Issues Found:"
-        echo "$ISSUES"
+      echo ""
+      echo "📋 Validation Results:"
+      echo "-----------------------------------"
+      echo "$validation_result"
+      echo "-----------------------------------"
+
+      # Extract and check validation status
+      VALIDATION_STATUS=$(get_validation_status "$validation_result")
+
+      if [ "$VALIDATION_STATUS" = "PASS" ]; then
         echo ""
-        echo "## Recommendations:"
-        echo "$RECOMMENDATIONS"
-      } >"$VALIDATION_ISSUES_FILE"
+        echo "🎉 Validation PASSED! RalphLoop mission complete!"
+        echo "========================================"
+        # Progress file management is delegated to the AI agent
+        rm -f "$VALIDATION_ISSUES_FILE"
+        exit 0
+      else
+        echo ""
+        echo "⚠️ Validation FAILED. Saving issues for next iteration..."
+        # Extract and save validation issues
+        ISSUES=$(get_validation_issues "$validation_result")
+        RECOMMENDATIONS=$(get_validation_recommendations "$validation_result")
 
-      echo "Issues saved to ${VALIDATION_ISSUES_FILE}"
-      echo "Agent will prioritize fixing these in next iteration."
-      echo ""
+        # Combine issues and recommendations for the next iteration
+        {
+          echo "## Issues Found:"
+          echo "$ISSUES"
+          echo ""
+          echo "## Recommendations:"
+          echo "$RECOMMENDATIONS"
+        } >"$VALIDATION_ISSUES_FILE"
+
+        echo "Issues saved to ${VALIDATION_ISSUES_FILE}"
+        echo "Agent will prioritize fixing these in next iteration."
+        echo ""
+      fi
     fi
-  fi
 
-  echo ""
-  echo "✅ Iteration $i complete. Continuing..."
-  echo ""
-done
+    echo ""
+    echo "✅ Iteration $i complete. Continuing..."
+    echo ""
+  done
 
   echo "========================================"
   echo "🏁 Max iterations ($MAX_ROUNDS) reached."
