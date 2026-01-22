@@ -685,21 +685,8 @@ get_prompt() {
     return
   fi
 
-  # Priority 5: Interactive editor
-  if [ -t 0 ] && [ -t 1 ]; then
-    launch_editor_for_prompt
-    return
-  fi
-
-  # No prompt available
-  echo "Error: No prompt file found." >&2
-  echo "" >&2
-  echo "To fix this, either:" >&2
-  echo "  1. Create a 'prompt.md' file in the current directory" >&2
-  echo "  2. Set RALPH_PROMPT environment variable with your objective" >&2
-  echo "  3. Set RALPH_PROMPT_FILE to point to a valid prompt file" >&2
-  echo "  4. Run interactively to use the built-in editor" >&2
-  exit 1
+  # Priority 5: Launch interactive editor with template selection
+  launch_editor_for_prompt
 }
 
 # Get prompt without interactive fallback (for validation)
