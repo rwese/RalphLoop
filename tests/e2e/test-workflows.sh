@@ -416,6 +416,62 @@ test_e2e_max_iterations() {
 }
 
 # ============================================================================
+# Test: Resume workflow
+# ============================================================================
+
+test_e2e_resume_flow() {
+    print_section "Test: E2E - Resume workflow"
+
+    local test_dir=$(create_temp_dir)
+    local original_dir="$(pwd)"
+    cd "$test_dir"
+
+    cp -r "$PROJECT_ROOT"/* .
+
+    echo "# Test Project" > prompt.md
+    echo "# Progress" > progress.md
+
+    # Test help includes resume option
+    local help_output=$(./ralph --help 2>&1)
+    local help_contains_resume=false
+    if echo "$help_output" | grep -q "resume"; then
+        help_contains_resume=true
+    fi
+    TESTS_RUN=$((TESTS_RUN + 1))
+    if [ "$help_contains_resume" = true ]; then
+        print_pass "Help should include resume option"
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+    else
+        print_fail "Help should include resume option"
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+    fi
+
+    # Test session listing
+    local list_output=$(./ralph --sessions 2>&1)
+    TESTS_RUN=$((TESTS_RUN + 1))
+    if echo "$list_output" | grep -q "RalphLoop Sessions"; then
+        print_pass "Should show sessions header"
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+    else
+        print_fail "Should show sessions header"
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+    fi
+
+    # Test cleanup help
+    TESTS_RUN=$((TESTS_RUN + 1))
+    if echo "$list_output" | grep -q "cleanup"; then
+        print_pass "Should show cleanup options"
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+    else
+        print_fail "Should show cleanup options"
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+    fi
+
+    cd "$original_dir"
+    rm -rf "$test_dir"
+}
+
+# ============================================================================
 # Test: Output streaming verification
 # ============================================================================
 
@@ -476,6 +532,7 @@ run_e2e_tests() {
 
     test_e2e_max_iterations
     test_e2e_output_streaming
+    test_e2e_resume_flow
 
     # Teardown
     teardown_test_environment
