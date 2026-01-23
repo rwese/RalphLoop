@@ -1366,7 +1366,7 @@ RALPH_EOF_XYZ123
         return 1
     }
 
-    local signal_name
+    signal_name
     if signal_name=$(check_signal_termination "$EXIT_CODE"); then
         echo ""
         echo "🛑 Process terminated by $signal_name"
@@ -1484,7 +1484,7 @@ RALPH_VALIDATE_EOF
           return 1
       }
 
-      local signal_name
+      signal_name
       if signal_name=$(check_signal_termination "$VALIDATION_EXIT_CODE"); then
           echo ""
           echo "🛑 Validation terminated by $signal_name"
