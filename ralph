@@ -46,6 +46,8 @@ TEMP_FILE_PREFIX="${TEMP_FILE}_ralph"
 PROGRESS_FILE="${TEMP_FILE_PREFIX}_progress.md"
 PROMPT_FILE="${TEMP_FILE_PREFIX}_prompt.md"
 VALIDATION_ISSUES_FILE="${TEMP_FILE_PREFIX}_issues.md"
+OUTPUT_FILE="${TEMP_FILE_PREFIX}_output.txt"
+
 BACKENDS_DIR="backends"
 
 # Timeout and memory configuration (customizable via environment)
@@ -62,45 +64,107 @@ RALPH_PRINT_LOGS=${RALPH_PRINT_LOGS:-false} # Default: false (logs to file inste
 # Session tracking (initialized before trap)
 SESSION_ID=""
 RESUME_ORIGINAL_DIR=""
-OPENCODE_PID=""  # PID of background opencode process for signal handling
+OPENCODE_PID=""       # PID of background opencode process for signal handling
+PROMPT_ACCEPTED=false # Flag to track if prompt has been accepted
+
+# Ralph's execution context - added to user's prompt at runtime
+RALPH_PROMPTS='
+## Your Priorities
+
+### Phase 1: ANALYZE
+1. [ ] Read and understand the project plan and acceptance criteria
+2. [ ] Read progress.md to understand current state
+3. [ ] Identify the highest priority next step that makes measurable progress
+
+### Phase 2: PLAN & VALIDATE
+4. [ ] Break down the goal into verifiable tasks
+5. [ ] Define what "done" looks like for each task
+6. [ ] Identify how you will verify completion (builds, tests, manual checks)
+
+### Phase 3: EXECUTE & VERIFY
+7. [ ] Implement the task
+8. [ ] Run verification checks:
+   - [ ] Code compiles/builds without errors
+   - [ ] Tests pass (if applicable)
+   - [ ] No linting errors
+   - [ ] Changes meet acceptance criteria
+9. [ ] Fix any issues found before proceeding
+
+### Phase 4: DOCUMENT & COMMIT
+10. [ ] Update progress.md with accomplishments
+11. [ ] Create meaningful git commit
+12. [ ] Identify next improvements
+
+## Verification Requirements
+
+BEFORE marking a task complete, you MUST verify:
+
+- [ ] **Build**: Code compiles/runs successfully
+- [ ] **Tests**: Unit tests pass (or state why not applicable)
+- [ ] **Linting**: Code passes style checks
+- [ ] **Requirements**: Feature meets acceptance criteria
+- [ ] **Integration**: Works with existing code
+- [ ] **No Regressions**: Existing functionality intact
+
+## Constraints
+
+- [ ] Only work on ONE goal per iteration
+- [ ] NEVER skip verification steps
+- [ ] Always run tests before committing
+
+## Success Criteria
+
+The loop succeeds when:
+
+- [ ] Git history shows regular commits
+- [ ] Progress tracking is current
+- [ ] Verification checklist is completed
+- [ ] Measurable progress made toward goal
+
+If the current goal is complete, output <promise>COMPLETE</promise>
+'
 
 # Cleanup function for graceful termination
 # This function handles SIGINT (Ctrl+C) and SIGTERM signals
 # It ensures the opencode process is properly terminated and temp files are cleaned up
 cleanup() {
-    echo "" >&2
-    echo "🛑 Caught signal - initiating graceful shutdown..." >&2
+  echo "" >&2
+  echo "🛑 Caught signal - initiating graceful shutdown..." >&2
 
-    # Kill opencode process if running
-    if [ -n "$OPENCODE_PID" ] && kill -0 "$OPENCODE_PID" 2>/dev/null; then
-        echo "   Terminating opencode process (PID: $OPENCODE_PID)..." >&2
-        kill -TERM "$OPENCODE_PID" 2>/dev/null || true
+  # Kill opencode process if running
+  if [ -n "$OPENCODE_PID" ] && kill -0 "$OPENCODE_PID" 2>/dev/null; then
+    echo "   Terminating opencode process (PID: $OPENCODE_PID)..." >&2
+    kill -TERM "$OPENCODE_PID" 2>/dev/null || true
 
-        # Wait briefly for graceful shutdown, then force kill if still running
-        local count=0
-        while kill -0 "$OPENCODE_PID" 2>/dev/null && [ $count -lt 5 ]; do
-            sleep 1
-            count=$((count + 1))
-        done
+    # Wait briefly for graceful shutdown, then force kill if still running
+    local count=0
+    while kill -0 "$OPENCODE_PID" 2>/dev/null && [ $count -lt 5 ]; do
+      sleep 1
+      count=$((count + 1))
+    done
 
-        # Force kill if process is still running after 5 seconds
-        if kill -0 "$OPENCODE_PID" 2>/dev/null; then
-            echo "   Process still running - sending SIGKILL..." >&2
-            kill -9 "$OPENCODE_PID" 2>/dev/null || true
-        fi
+    # Force kill if process is still running after 5 seconds
+    if kill -0 "$OPENCODE_PID" 2>/dev/null; then
+      echo "   Process still running - sending SIGKILL..." >&2
+      kill -9 "$OPENCODE_PID" 2>/dev/null || true
     fi
+  fi
 
-    # Clean up temp files
-    echo "   Cleaning up temporary files..." >&2
-    rm -f "${TEMP_FILE_PREFIX}"* 2>/dev/null || true
+  # Clean up temp files
+  echo "   Cleaning up temporary files..." >&2
+  rm -f "${TEMP_FILE_PREFIX}"* 2>/dev/null || true
 
-    # Save session state if we have one
-    if [ -n "$SESSION_ID" ]; then
-        echo "   Saving session state..." >&2
-        save_session "$SESSION_ID" 0 "$MAX_ROUNDS" 2>/dev/null || true
-    fi
+  # Save session state if we have one AND prompt was accepted OR session already existed
+  if [ -n "$SESSION_ID" ] && [ "$PROMPT_ACCEPTED" = true ]; then
+    echo "   Saving session state..." >&2
+    save_session "$SESSION_ID" 0 "$MAX_ROUNDS" 2>/dev/null || true
+  elif [ -n "$SESSION_ID" ] && [ -d "$(get_session_dir "$SESSION_ID")" ]; then
+    # Also save if session directory already exists (resumed sessions)
+    echo "   Saving existing session state..." >&2
+    save_session "$SESSION_ID" 0 "$MAX_ROUNDS" 2>/dev/null || true
+  fi
 
-    echo "   Shutdown complete." >&2
+  echo "   Shutdown complete." >&2
 }
 
 # Trap SIGINT (Ctrl+C) and SIGTERM for graceful cleanup
@@ -119,37 +183,37 @@ RALPH_CLEANUP_DAYS=7
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --sessions)
-      RALPH_SESSIONS=true
-      shift
-      ;;
-    --resume)
-      if [[ -z "$2" || "$2" == --* ]]; then
-        echo "Error: --resume requires a session ID argument"
-        exit 1
-      fi
-      RALPH_RESUME="$2"
-      shift 2
-      ;;
-    --cleanup)
-      if [[ -n "$2" && "$2" != --* ]]; then
-        if [[ "$2" =~ ^[0-9]+$ ]]; then
-          RALPH_CLEANUP_DAYS="$2"
-        else
-          echo "Warning: Invalid argument for --cleanup, using default of 7 days"
-        fi
-        shift
+  --sessions)
+    RALPH_SESSIONS=true
+    shift
+    ;;
+  --resume)
+    if [[ -z "$2" || "$2" == --* ]]; then
+      echo "Error: --resume requires a session ID argument"
+      exit 1
+    fi
+    RALPH_RESUME="$2"
+    shift 2
+    ;;
+  --cleanup)
+    if [[ -n "$2" && "$2" != --* ]]; then
+      if [[ "$2" =~ ^[0-9]+$ ]]; then
+        RALPH_CLEANUP_DAYS="$2"
       else
-        RALPH_CLEANUP="$RALPH_CLEANUP_DAYS"
+        echo "Warning: Invalid argument for --cleanup, using default of 7 days"
       fi
       shift
-      ;;
-    --cleanup-all)
-      RALPH_CLEANUP="all"
-      shift
-      ;;
-    -h|--help)
-      cat <<EOF
+    else
+      RALPH_CLEANUP="$RALPH_CLEANUP_DAYS"
+    fi
+    shift
+    ;;
+  --cleanup-all)
+    RALPH_CLEANUP="all"
+    shift
+    ;;
+  -h | --help)
+    cat <<EOF
 RalphLoop - Autonomous Development Agent
 
 Usage: ./ralph [options] [iterations]
@@ -171,12 +235,12 @@ Examples:
   ./ralph --resume myproject_20240123-143000
   ./ralph --cleanup 3         Clean up incomplete sessions older than 3 days
 EOF
-      exit 0
-      ;;
-    *)
-      # Not a known option, stop parsing
-      break
-      ;;
+    exit 0
+    ;;
+  *)
+    # Not a known option, stop parsing
+    break
+    ;;
   esac
 done
 
@@ -228,7 +292,8 @@ save_session() {
   local session_id="$1"
   local iteration="$2"
   local max_iterations="$3"
-  local session_dir prompt_file progress_file issues_file created_at
+  local user_prompt_file="${4:-}" # Optional: path to user's original prompt
+  local session_dir created_at
 
   session_dir=$(get_session_dir "$session_id")
   mkdir -p "$session_dir"
@@ -240,13 +305,8 @@ save_session() {
     created_at=$(date -Iseconds)
   fi
 
-  # Copy current temp files to session directory
-  prompt_file="${TEMP_FILE_PREFIX}_prompt.md"
-  progress_file="${PROGRESS_FILE}"
-  issues_file="${VALIDATION_ISSUES_FILE}"
-
   # Save session metadata
-  cat > "${session_dir}/session.json" <<EOF
+  cat >"${session_dir}/session.json" <<EOF
 {
   "session_id": "${session_id}",
   "directory": "${PWD}",
@@ -257,19 +317,24 @@ save_session() {
 }
 EOF
 
-  # Copy prompt file if it exists
-  if [ -f "$prompt_file" ]; then
-    cp "$prompt_file" "${session_dir}/prompt.md"
+  # Save user's original prompt (pure, unmodified)
+  if [ -n "$user_prompt_file" ] && [ -f "$user_prompt_file" ]; then
+    cp "$user_prompt_file" "${session_dir}/prompt.md"
   fi
 
-  # Copy progress file if it exists
-  if [ -f "$progress_file" ]; then
-    cp "$progress_file" "${session_dir}/progress.md"
+  # Save Ralph's prompts separately (for transparency and resuming)
+  if [ -n "${RALPH_PROMPTS:-}" ]; then
+    echo "$RALPH_PROMPTS" >"${session_dir}/ralph-prompts.md"
   fi
 
-  # Copy validation issues file if it exists
-  if [ -f "$issues_file" ]; then
-    cp "$issues_file" "${session_dir}/issues.md"
+  # Save progress file
+  if [ -f "$PROGRESS_FILE" ]; then
+    cp "$PROGRESS_FILE" "${session_dir}/progress.md"
+  fi
+
+  # Save validation issues separately
+  if [ -f "$VALIDATION_ISSUES_FILE" ]; then
+    cp "$VALIDATION_ISSUES_FILE" "${session_dir}/issues.md"
   fi
 
   # Create incomplete marker
@@ -288,8 +353,8 @@ complete_session() {
     rm -f "${session_dir}/.incomplete"
     # Update status metadata
     if [ -f "${session_dir}/session.json" ]; then
-      sed -i 's/"status": "incomplete"/"status": "complete"/' "${session_dir}/session.json" 2>/dev/null || \
-      sed -i '' 's/"status": "incomplete"/"status": "complete"/' "${session_dir}/session.json"
+      sed -i 's/"status": "incomplete"/"status": "complete"/' "${session_dir}/session.json" 2>/dev/null ||
+        sed -i '' 's/"status": "incomplete"/"status": "complete"/' "${session_dir}/session.json"
     fi
     echo "✅ Session completed: $session_id"
   fi
@@ -304,8 +369,8 @@ fail_session() {
   if [ -d "$session_dir" ]; then
     # Update status in metadata
     if [ -f "${session_dir}/session.json" ]; then
-      sed -i 's/"status": "incomplete"/"status": "failed"/' "${session_dir}/session.json" 2>/dev/null || \
-      sed -i '' 's/"status": "incomplete"/"status": "failed"/' "${session_dir}/session.json"
+      sed -i 's/"status": "incomplete"/"status": "failed"/' "${session_dir}/session.json" 2>/dev/null ||
+        sed -i '' 's/"status": "incomplete"/"status": "failed"/' "${session_dir}/session.json"
     fi
     echo "❌ Session failed: $session_id"
   fi
@@ -353,9 +418,9 @@ list_sessions() {
     # Status icon
     local icon="📄"
     case "$status" in
-      complete) icon="✅" ;;
-      failed) icon="❌" ;;
-      incomplete) icon="⏳" ;;
+    complete) icon="✅" ;;
+    failed) icon="❌" ;;
+    incomplete) icon="⏳" ;;
     esac
 
     printf "%s %s%s\n" "$icon" "$session_id" "$incomplete_marker"
@@ -436,7 +501,7 @@ resume_session() {
   # Save original directory globally for later use
   RESUME_ORIGINAL_DIR="$directory"
 
-   # Check if we're in the right directory
+  # Check if we're in the right directory
   if [ "$directory" != "$(pwd)" ]; then
     echo "⚠️  Warning: Session was created in different directory:" >&2
     echo "   Session: $directory" >&2
@@ -549,7 +614,10 @@ if [ -n "$RALPH_RESUME" ]; then
   if [ $? -eq 0 ] && [ -n "$RESUME_ITERATION" ]; then
     # Use the existing session ID for the resumed session
     SESSION_ID="$RALPH_RESUME"
-    
+
+    # Mark prompt as accepted for resumed sessions (session already exists on disk)
+    PROMPT_ACCEPTED=true
+
     # Update MAX_ROUNDS to continue from where we left off
     # Ensure MAX_ROUNDS is numeric first (re-initialize from default if needed)
     if [[ -z "$MAX_ROUNDS" || ! "$MAX_ROUNDS" =~ ^[0-9]+$ ]]; then
@@ -567,13 +635,14 @@ fi
 set -- "$@"
 
 # Build opencode command with logging options
-OPENCODE_OPTS=""
+OPENCODE_OPTS=()
 if [ -n "$RALPH_LOG_LEVEL" ]; then
-  OPENCODE_OPTS="$OPENCODE_OPTS --log-level $RALPH_LOG_LEVEL"
+  OPENCODE_OPTS+=("--log-level" "$RALPH_LOG_LEVEL")
 fi
 if [ "$RALPH_PRINT_LOGS" = "true" ]; then
-  OPENCODE_OPTS="$OPENCODE_OPTS --print-logs"
+  OPENCODE_OPTS+=("--print-logs")
 fi
+OPENCODE_OPTS+=("--agent" "${RALPH_AGENT:-AGENT_RALPH}")
 
 # Custom command configuration
 RALPH_COMMAND="${RALPH_COMMAND:-}"
@@ -889,7 +958,7 @@ METAPROMPT
   )
 
   local generated
-  if generated=$(timeout 60 opencode run $OPENCODE_OPTS <<<"$meta_prompt" 2>/dev/null); then
+  if generated=$(timeout 60 opencode run "${OPENCODE_OPTS[@]}" <<<"$meta_prompt" 2>/dev/null); then
     echo "$generated"
   else
     # Fallback if AI fails
@@ -1051,7 +1120,6 @@ generate_ai_enhanced_prompt() {
   done
 }
 
-
 # Prompt Functions
 # =============================================================================
 
@@ -1152,6 +1220,39 @@ launch_editor_for_prompt() {
   echo "Prompt saved to: $prompt_file" >&2
 
   cat "$prompt_file"
+
+  # Mark prompt as accepted and save session
+  # This ensures sessions are only saved after user has accepted the prompt
+  if [ -n "$SESSION_ID" ]; then
+    echo "" >&2
+    echo "💾 Saving session..." >&2
+    PROMPT_ACCEPTED=true
+    # Get user's original prompt file path
+    user_prompt_file=$(cat "$session_marker")
+    # Save session with separated files
+    save_session "$SESSION_ID" 0 "$MAX_ROUNDS" "$user_prompt_file"
+    echo "✅ Session saved successfully" >&2
+  fi
+
+  # Show confirmation prompt unless RALPH_PROMPT is set (non-interactive mode)
+  if [ -z "${RALPH_PROMPT:-}" ]; then
+    echo "" >&2
+    echo "========================================" >&2
+    echo "Prompt accepted. Ready to execute?" >&2
+    echo "========================================" >&2
+    echo "" >&2
+    cat "$prompt_file"
+    echo "" >&2
+    echo -n "   Proceed with execution? (y/n) " >&2
+    read -n 1 -r reply </dev/tty >/dev/tty
+    echo "" >&2
+    if [[ ! $reply =~ ^[Yy]$ ]]; then
+      echo "Aborting. Run './ralph' again to restart." >&2
+      exit 0
+    fi
+  fi
+
+  return 0
 }
 
 # Determine prompt source and return content
@@ -1196,7 +1297,7 @@ get_prompt() {
         echo "" >&2
         echo "----------------------------------------" >&2
         head -20 "$PROMPT_FILE" >&2
-        if [ $(wc -l < "$PROMPT_FILE") -gt 20 ]; then
+        if [ $(wc -l <"$PROMPT_FILE") -gt 20 ]; then
           echo "   ... (more lines)" >&2
         fi
         echo "----------------------------------------" >&2
@@ -1347,6 +1448,31 @@ get_prompt_nointeractive() {
   return 0
 }
 
+# Check if process was terminated by a signal (e.g., Ctrl+C)
+# Signal exit codes are 128 + signal number
+# SIGINT (Ctrl+C) = 130, SIGTERM = 143
+check_signal_termination() {
+  local code="$1"
+  if [ "$code" -ge 128 ]; then
+    local signal_num=$((code - 128))
+    case "$signal_num" in
+    2)
+      echo "SIGINT (Ctrl+C)"
+      return 0
+      ;;
+    15)
+      echo "SIGTERM"
+      return 0
+      ;;
+    *)
+      echo "Signal $signal_num"
+      return 0
+      ;;
+    esac
+  fi
+  return 0
+}
+
 # Sanitize content to prevent heredoc injection
 sanitize_for_heredoc() {
   local content="$1"
@@ -1357,24 +1483,6 @@ sanitize_for_heredoc() {
 get_validation_status() {
   local result="$1"
   echo "$result" | grep -o '<validation_status>[^<]*</validation_status>' | sed 's/<[^>]*>//g' | tr -d ' '
-}
-
-# Get validation issues from result
-get_validation_issues() {
-  local result="$1"
-  # Extract content between <validation_issues> and </validation_issues>
-  local issues
-  issues=$(echo "$result" | sed -n '/<validation_issues>/,/<\/validation_issues>/p' | sed '1d;$d')
-  echo "$issues"
-}
-
-# Get validation recommendations from result
-get_validation_recommendations() {
-  local result="$1"
-  # Extract content between <validation_recommendations> and </validation_recommendations>
-  local recs
-  recs=$(echo "$result" | sed -n '/<validation_recommendations>/,/<\/validation_recommendations>/p' | sed '1d;$d')
-  echo "$recs"
 }
 
 # Progress refactoring to prevent file from growing too large - REMOVED
@@ -1403,43 +1511,41 @@ else
   echo "📁 Session ID: $SESSION_ID"
   echo ""
 
-  # Create session directory immediately so interrupted sessions show up
-  session_dir=$(get_session_dir "$SESSION_ID")
-  mkdir -p "$session_dir"
+  # For non-interactive mode (RALPH_PROMPT set), save session immediately
+  # For interactive mode, session will be saved after prompt acceptance
+  if [ -n "${RALPH_PROMPT:-}" ]; then
+    echo "💾 Non-interactive mode detected. Saving session..." >&2
 
-  # Save session metadata
-  cat > "${session_dir}/session.json" <<EOF
-{
-  "session_id": "${SESSION_ID}",
-  "directory": "${PWD}",
-  "created_at": "$(date -Iseconds)",
-  "iteration": 0,
-  "max_iterations": ${MAX_ROUNDS},
-  "status": "incomplete"
-}
-EOF
-  touch "${session_dir}/.incomplete"
+    # Save RALPH_PROMPT to a temp file for session storage
+    temp_user_prompt="${TEMP_FILE_PREFIX}_user_prompt.md"
+    echo "$RALPH_PROMPT" >"$temp_user_prompt"
 
-  # Copy current temp files to session directory
-  if [ -f "$PROMPT_FILE" ]; then
-    cp "$PROMPT_FILE" "${session_dir}/prompt.md" 2>/dev/null || true
-  fi
-  if [ -f "$PROGRESS_FILE" ]; then
-    cp "$PROGRESS_FILE" "${session_dir}/progress.md" 2>/dev/null || true
+    save_session "$SESSION_ID" 0 "$MAX_ROUNDS" "$temp_user_prompt"
+    PROMPT_ACCEPTED=true
+    rm -f "$temp_user_prompt" # Clean up temp file
+
+    echo "✅ Session saved successfully" >&2
+    echo "" >&2
   fi
 
+  # Session directory will be created when prompt is accepted
+  # This ensures sessions are only saved after user confirmation
+
+  PROMPT_CONTENT=""
   for ((i = 1; i <= MAX_ROUNDS; i++)); do
     echo "========================================"
     echo "🔄 RalphLoop Iteration $i of $MAX_ROUNDS"
     echo "========================================"
 
-    # Read current progress and prompt
-    PROGRESS_CONTENT=$(cat "$PROGRESS_FILE")
-    PROMPT_CONTENT=$(get_prompt)
+    if [ -z "$PROMPT_CONTENT" ]; then
+      # Read current progress and prompt
+      PROGRESS_CONTENT=$(cat "$PROGRESS_FILE")
+      PROMPT_CONTENT=$(get_prompt)
 
-    # Sanitize content to prevent heredoc injection
-    SANITIZED_PROGRESS=$(sanitize_for_heredoc "$PROGRESS_CONTENT")
-    SANITIZED_PROMPT=$(sanitize_for_heredoc "$PROMPT_CONTENT")
+      # Sanitize content to prevent heredoc injection
+      SANITIZED_PROGRESS=$(sanitize_for_heredoc "$PROGRESS_CONTENT")
+      SANITIZED_PROMPT=$(sanitize_for_heredoc "$PROMPT_CONTENT")
+    fi
 
     # Check for pending validation issues from previous incomplete validation
     PENDING_ISSUES=""
@@ -1450,21 +1556,22 @@ EOF
     # Build context section with pending issues if any
     CONTEXT_SECTION=""
     if [ -n "$PENDING_ISSUES" ]; then
-      CONTEXT_SECTION="
+      CONTEXT_SECTION=$(
+        cat <<CONTEXT_SECTION
 ## 🚨 PENDING VALIDATION ISSUES FROM PREVIOUS ITERATION
 The previous completion attempt failed validation. You MUST fix these issues:
 
+\`\`\`markdown
 ${PENDING_ISSUES}
+\`\`\`
 
 ## Your Priority
+
 Focus ONLY on resolving these validation issues. Do NOT work on new features.
 After fixing, mark complete with <promise>COMPLETE</promise> for re-validation.
-"
+CONTEXT_SECTION
+      )
     fi
-
-    # Run OpenCode agent with current context - stream output for real-time feedback
-    # Using trap-based signal handling instead of timeout command for full control
-    OUTPUT_FILE="${TEMP_FILE_PREFIX}_output.txt"
 
     # Show progress indicator while command runs
     echo "🚀 Starting agent execution..."
@@ -1477,7 +1584,7 @@ After fixing, mark complete with <promise>COMPLETE</promise> for re-validation.
     # Signal handling via trap (see cleanup function above) provides graceful termination
     set +e
     tmp_prompt_file="${TEMP_FILE_PREFIX}_prompt.txt"
-    cat <<RALPH_EOF_XYZ123 >"$tmp_prompt_file"
+    cat >"$tmp_prompt_file" <<EOF
 # Goals and Resources
 
 ## Project plan
@@ -1488,109 +1595,39 @@ ${SANITIZED_PROMPT}
 
 ${SANITIZED_PROGRESS}
 ${CONTEXT_SECTION}
+${RALPH_PROMPTS}
+EOF
 
-## Your Priorities
-
-### Phase 1: ANALYZE
-1. [ ] Read and understand the project plan and acceptance criteria
-2. [ ] Read progress.md to understand current state
-3. [ ] Identify the highest priority next step that makes measurable progress
-
-### Phase 2: PLAN & VALIDATE
-4. [ ] Break down the goal into verifiable tasks
-5. [ ] Define what "done" looks like for each task
-6. [ ] Identify how you will verify completion (builds, tests, manual checks)
-
-### Phase 3: EXECUTE & VERIFY
-7. [ ] Implement the task
-8. [ ] Run verification checks:
-   - [ ] Code compiles/builds without errors
-   - [ ] Tests pass (if applicable)
-   - [ ] No linting errors
-   - [ ] Changes meet acceptance criteria
-9. [ ] Fix any issues found before proceeding
-
-### Phase 4: DOCUMENT & COMMIT
-10. [ ] Update progress.md with accomplishments
-11. [ ] Create meaningful git commit
-12. [ ] Identify next improvements
-
-## Verification Requirements
-
-BEFORE marking a task complete, you MUST verify:
-
-- [ ] **Build**: Code compiles/runs successfully
-- [ ] **Tests**: Unit tests pass (or state why not applicable)
-- [ ] **Linting**: Code passes style checks
-- [ ] **Requirements**: Feature meets acceptance criteria
-- [ ] **Integration**: Works with existing code
-- [ ] **No Regressions**: Existing functionality intact
-
-## Constraints
-
-- [ ] Only work on ONE goal per iteration
-- [ ] NEVER skip verification steps
-- [ ] Always run tests before committing
-
-## Success Criteria
-
-The loop succeeds when:
-
-- [ ] Git history shows regular commits
-- [ ] Progress tracking is current
-- [ ] Verification checklist is completed
-- [ ] Measurable progress made toward goal
-
-If the current goal is complete, output <promise>COMPLETE</promise>.
-RALPH_EOF_XYZ123
-
+    set +e # Don't exit on non-zero exit from wait
     # Run opencode in background with trap-based signal handling
     # This replaces the timeout command for better control over signals
     OPENCODE_PID=""
-    opencode run "$OPENCODE_OPTS" --agent "${RALPH_AGENT:-AGENT_RALPH}" <"$tmp_prompt_file" 2>&1 | tee "$OUTPUT_FILE" &
+    opencode run "${OPENCODE_OPTS[@]}" <"$tmp_prompt_file" 2>&1 | tee "$OUTPUT_FILE" &
     OPENCODE_PID=$!
 
     # Wait for opencode process with proper signal handling
     # Using a loop to detect edge cases where wait returns early
-    set +e  # Don't exit on non-zero exit from wait
-    while kill -0 "$OPENCODE_PID" 2>/dev/null; do
-        if ! wait "$OPENCODE_PID" 2>/dev/null; then
-            # wait returned early - process may have exited unexpectedly
-            echo "⚠️  wait returned early for PID $OPENCODE_PID - process may have exited unexpectedly" >&2
-            break
-        fi
-    done
+    # Fixed: Ensure we always wait for the process and capture exit code correctly
+    wait "$OPENCODE_PID" 2>/dev/null
     EXIT_CODE=$?
-    set -e  # Re-enable exit on error
+    set -e # Re-enable exit on error
+
+    if [ $EXIT_CODE -ne 0 ]; then
+      echo "⚠️  Main process exited with code: $EXIT_CODE" >&2
+    fi
 
     # Read output from file (trap may delete the file if interrupted)
     result=$(cat "$OUTPUT_FILE" 2>/dev/null | tr -d '\0' || echo "")
 
-    # Check if process was terminated by a signal (e.g., Ctrl+C)
-    # Signal exit codes are 128 + signal number
-    # SIGINT (Ctrl+C) = 130, SIGTERM = 143
-    check_signal_termination() {
-        local code="$1"
-        if [ "$code" -ge 128 ]; then
-            local signal_num=$((code - 128))
-            case "$signal_num" in
-                2)  echo "SIGINT (Ctrl+C)"; return 0 ;;
-                15) echo "SIGTERM"; return 0 ;;
-                *)  echo "Signal $signal_num"; return 0 ;;
-            esac
-        fi
-        return 1
-    }
-
     signal_name=$(check_signal_termination "$EXIT_CODE")
     if [ -n "$signal_name" ]; then
-        echo ""
-        echo "🛑 Process terminated by $signal_name"
-        echo "   Stopping RalphLoop iterations."
-        echo "========================================"
-        rm -f "$OUTPUT_FILE"
-        fail_session "$SESSION_ID"
-        exit 130
+      echo ""
+      echo "🛑 Process terminated by $signal_name"
+      echo "   Stopping RalphLoop iterations."
+      echo "========================================"
+      rm -f "$OUTPUT_FILE"
+      fail_session "$SESSION_ID"
+      exit 130
     fi
 
     # Check for non-zero exit code from opencode
@@ -1625,16 +1662,8 @@ RALPH_EOF_XYZ123
       echo "🛡️ Running independent validation..."
       echo ""
 
-      # Use tee to both save to file AND display output in real-time
-      # Use set +e to allow opencode to fail without exiting the script
-      # Signal handling via trap provides graceful termination
-      set +e
-
-      # Run opencode in background with trap-based signal handling
-      OPENCODE_PID=""
-      opencode run $OPENCODE_OPTS --agent "${RALPH_AGENT:-AGENT_RALPH}" <<RALPH_VALIDATE_EOF 2>&1 | tee "$VALIDATION_OUTPUT_FILE" &
-      OPENCODE_PID=$!
-
+      VALIDATION_PROMPT=$(
+        cat <<RALPH_VALIDATE_EOF
 # Validation Task
 
 The agent previously indicated completion with <promise>COMPLETE</promise>.
@@ -1644,25 +1673,22 @@ You must INDEPENDENTLY VERIFY that all acceptance criteria are actually met.
 ## Original Project Goal (from prompt.md):
 $(get_prompt_nointeractive)
 
-## Current Progress:
-$(cat "$PROGRESS_FILE")
-
 ## Your Validation Task:
 
 1. READ the current state
 2. CHECK each acceptance criterion is actually satisfied:
-   - For each requirement, verify it exists and works
-   - Run tests, build commands, and manual checks
-3. VERIFY git history shows meaningful commits
-4. RUN comprehensive verification:
-   - [ ] Code compiles/builds without errors (run: npm run build or equivalent)
-   - [ ] Tests pass (run: npm test or equivalent)
-   - [ ] No linting errors (run: npm run lint or equivalent)
-   - [ ] All acceptance criteria from prompt.md are met
-   - [ ] No regressions in existing functionality
-5. OUTPUT your findings in this exact XML format:
+    - For each requirement, verify it exists and works
+    - Run tests, build commands, and manual checks
+3. RUN comprehensive verification:
+    - [ ] Code compiles/builds without errors (run: npm run build or equivalent)
+    - [ ] Tests pass (run: npm test or equivalent)
+    - [ ] No linting errors (run: npm run lint or equivalent)
+    - [ ] All acceptance criteria from prompt.md are met
+    - [ ] No regressions in existing functionality
+4. OUTPUT your findings in this exact XML format:
 
-<validation_status>PASS</validation_status> or <validation_status>FAIL</validation_status>
+no issues found: <validation_status>PASS</validation_status>
+issues fund: <validation_status>FAIL</validation_status>
 
 <validation_issues>
 - [List each failing criterion with specific details]
@@ -1679,47 +1705,30 @@ IMPORTANT:
 - If ANY check fails, use <validation_status>FAIL</validation_status> and list all issues
 - Do NOT trust the previous agent's assessment. Verify independently.
 RALPH_VALIDATE_EOF
+      )
 
-      # Wait for opencode process with proper signal handling
-      # Using a loop to detect edge cases where wait returns early
-      while kill -0 "$OPENCODE_PID" 2>/dev/null; do
-          if ! wait "$OPENCODE_PID" 2>/dev/null; then
-              # wait returned early - process may have exited unexpectedly
-              echo "⚠️  wait returned early for PID $OPENCODE_PID - process may have exited unexpectedly" >&2
-              break
-          fi
-      done
-      VALIDATION_EXIT_CODE=$?
-      set -e  # Re-enable exit on error
+      # Use timeout command for validation with proper signal handling
+      set +e # Don't exit on error
+      OPENCODE_PID=""
+      opencode run "${OPENCODE_OPTS[@]}" "$VALIDATION_PROMPT" 2>&1 | tee "$VALIDATION_OUTPUT_FILE" &
+      OPENCODE_PID=$!
+      wait "$OPENCODE_PID" 2>/dev/null
+      VALIDATION_EXIT_CODE=${PIPESTATUS[0]} # Get exit code from timeout/opencode command
+      set -e                                # Re-enable exit on error
 
-      # Check if validation process was terminated by a signal (e.g., Ctrl+C)
-      check_signal_termination() {
-          local code="$1"
-          if [ "$code" -ge 128 ]; then
-              local signal_num=$((code - 128))
-              case "$signal_num" in
-                  2)  echo "SIGINT (Ctrl+C)"; return 0 ;;
-                  15) echo "SIGTERM"; return 0 ;;
-                  *)  echo "Signal $signal_num"; return 0 ;;
-              esac
-          fi
-          return 1
-      }
+      if [ "$VALIDATION_EXIT_CODE" == "0" ]; then
+        echo "⚠️  Validation process exited with code: $VALIDATION_EXIT_CODE" >&2
+      fi
 
       signal_name=$(check_signal_termination "$VALIDATION_EXIT_CODE")
       if [ -n "$signal_name" ]; then
-          echo ""
-          echo "🛑 Validation terminated by $signal_name"
-          echo "   Stopping RalphLoop iterations."
-          echo "========================================"
-          rm -f "$VALIDATION_OUTPUT_FILE"
-          fail_session "$SESSION_ID"
-          exit 130
-      fi
-
-      # Check for non-zero exit code from validation
-      if [ "$VALIDATION_EXIT_CODE" -ne 0 ]; then
-        echo "❌ VALIDATION ERROR: failed with exit code $VALIDATION_EXIT_CODE" >>"$VALIDATION_OUTPUT_FILE"
+        echo ""
+        echo "🛑 Validation terminated by $signal_name"
+        echo "   Stopping RalphLoop iterations."
+        echo "========================================"
+        rm -f "$VALIDATION_OUTPUT_FILE"
+        fail_session "$SESSION_ID"
+        exit 130
       fi
 
       validation_result=$(cat "$VALIDATION_OUTPUT_FILE" | tr -d '\0')
@@ -1728,12 +1737,6 @@ RALPH_VALIDATE_EOF
       # Output has already been streamed via tee, just show completion message
       echo ""
       echo "--- Validation complete ---"
-
-      echo ""
-      echo "📋 Validation Results:"
-      echo "-----------------------------------"
-      echo "$validation_result"
-      echo "-----------------------------------"
 
       # Extract and check validation status
       VALIDATION_STATUS=$(get_validation_status "$validation_result")
@@ -1748,20 +1751,13 @@ RALPH_VALIDATE_EOF
         rm -f "$VALIDATION_ISSUES_FILE"
         exit 0
       else
-        echo ""
         echo "⚠️ Validation FAILED. Saving issues for next iteration..."
-        # Extract and save validation issues
-        ISSUES=$(get_validation_issues "$validation_result")
-        RECOMMENDATIONS=$(get_validation_recommendations "$validation_result")
 
-        # Combine issues and recommendations for the next iteration
-        {
-          echo "## Issues Found:"
-          echo "$ISSUES"
-          echo ""
-          echo "## Recommendations:"
-          echo "$RECOMMENDATIONS"
-        } >"$VALIDATION_ISSUES_FILE"
+        echo ""
+        echo "📋 Validation Results:"
+        echo "-----------------------------------"
+        echo "$validation_result"
+        echo "-----------------------------------"
 
         echo "Issues saved to ${VALIDATION_ISSUES_FILE}"
         echo "Agent will prioritize fixing these in next iteration."
