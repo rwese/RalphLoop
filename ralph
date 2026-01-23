@@ -65,7 +65,7 @@ RESUME_ORIGINAL_DIR=""
 
 # Trap SIGINT (Ctrl+C) to exit gracefully
 # This ensures we don't leave processes running or temp files behind
-trap 'echo ""; echo "🛑 Caught Ctrl+C (SIGINT) - stopping RalphLoop..."; rm -f "${TEMP_FILE_PREFIX}"* 2>/dev/null; fail_session "$SESSION_ID" 2>/dev/null; exit 130' INT
+trap 'echo ""; echo "🛑 Caught Ctrl+C (SIGINT) - stopping RalphLoop..."; rm -f "${TEMP_FILE_PREFIX}"* 2>/dev/null; save_session "$SESSION_ID" 0 "$MAX_ROUNDS" 2>/dev/null; exit 130' INT
 
 # =============================================================================
 # Command-line Arguments
@@ -188,10 +188,17 @@ save_session() {
   local session_id="$1"
   local iteration="$2"
   local max_iterations="$3"
-  local session_dir prompt_file progress_file issues_file
+  local session_dir prompt_file progress_file issues_file created_at
 
   session_dir=$(get_session_dir "$session_id")
   mkdir -p "$session_dir"
+
+  # Preserve original creation time if session already exists
+  if [ -f "${session_dir}/session.json" ]; then
+    created_at=$(grep '"created_at"' "${session_dir}/session.json" | sed 's/.*"\([^"]*\)".*/\1/')
+  else
+    created_at=$(date -Iseconds)
+  fi
 
   # Copy current temp files to session directory
   prompt_file="${TEMP_FILE_PREFIX}_prompt.md"
@@ -203,7 +210,7 @@ save_session() {
 {
   "session_id": "${session_id}",
   "directory": "${PWD}",
-  "created_at": "$(date -Iseconds)",
+  "created_at": "${created_at}",
   "iteration": ${iteration},
   "max_iterations": ${max_iterations},
   "status": "incomplete"
@@ -1355,6 +1362,31 @@ else
 
   echo "📁 Session ID: $SESSION_ID"
   echo ""
+
+  # Create session directory immediately so interrupted sessions show up
+  session_dir=$(get_session_dir "$SESSION_ID")
+  mkdir -p "$session_dir"
+
+  # Save session metadata
+  cat > "${session_dir}/session.json" <<EOF
+{
+  "session_id": "${SESSION_ID}",
+  "directory": "${PWD}",
+  "created_at": "$(date -Iseconds)",
+  "iteration": 0,
+  "max_iterations": ${MAX_ROUNDS},
+  "status": "incomplete"
+}
+EOF
+  touch "${session_dir}/.incomplete"
+
+  # Copy current temp files to session directory
+  if [ -f "$PROMPT_FILE" ]; then
+    cp "$PROMPT_FILE" "${session_dir}/prompt.md" 2>/dev/null || true
+  fi
+  if [ -f "$PROGRESS_FILE" ]; then
+    cp "$PROGRESS_FILE" "${session_dir}/progress.md" 2>/dev/null || true
+  fi
 
   for ((i = 1; i <= MAX_ROUNDS; i++)); do
     echo "========================================"
