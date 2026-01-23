@@ -237,3 +237,26 @@ generate_session_id() {
   ts=$(date +%Y%m%d-%H%M%S)
   echo "${dir_name}_${ts}"
 }
+
+# =============================================================================
+# Validation Agent Configuration
+# =============================================================================
+
+# Get the validation agent to use for validation tasks
+# Priority: RALPH_AGENT_VALIDATION > RALPH_AGENT > AGENT_RALPH (default)
+get_validation_agent() {
+  if [ -n "${RALPH_AGENT_VALIDATION:-}" ]; then
+    # RALPH_AGENT_VALIDATION is set, use it for validation
+    echo "$RALPH_AGENT_VALIDATION"
+  elif [ -n "${RALPH_AGENT:-}" ]; then
+    # RALPH_AGENT_VALIDATION not set, fall back to RALPH_AGENT
+    # Log the fallback behavior for transparency
+    if [ -z "${RALPH_AGENT_VALIDATION:-}" ]; then
+      echo "ℹ️  RALPH_AGENT_VALIDATION not set, falling back to RALPH_AGENT for validation" >&2
+    fi
+    echo "$RALPH_AGENT"
+  else
+    # Neither is set, use default
+    echo "AGENT_RALPH"
+  fi
+}

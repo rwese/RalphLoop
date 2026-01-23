@@ -123,3 +123,70 @@
 - Create comprehensive unit tests for each module (as planned in original refactoring)
 - Update remaining tests to fully use the new modular structure
 - Consider adding integration tests for the new modules
+
+## RALPH_AGENT_VALIDATION Feature
+
+### Feature Implementation Complete
+**Date**: Fri Jan 23 2026
+**Status**: Completed
+
+**Task**: Implement support for RALPH_AGENT_VALIDATION environment variable for separate validation agent configuration
+
+**Actions Taken**:
+- ✅ Added `get_validation_agent()` function to `lib/core.sh`:
+  - Checks `RALPH_AGENT_VALIDATION` first
+  - Falls back to `RALPH_AGENT` if not set
+  - Falls back to `AGENT_RALPH` if neither is set
+  - Provides clear logging when falling back
+- ✅ Added `build_validation_opencode_opts()` function to `lib/exec.sh`:
+  - Builds opencode options with validation agent
+  - Logs which agent is being used for validation
+  - Supports all existing backend options
+- ✅ Modified validation section in `run_main_loop()`:
+  - Calls `build_validation_opencode_opts()` before validation
+  - Uses `VALIDATION_OPENCODE_OPTS` instead of `OPENCODE_OPTS` for validation
+- ✅ All syntax checks pass
+- ✅ Function availability verified
+- ✅ Fallback behavior tested and confirmed working
+
+**Changes Made**:
+- Modified: `lib/core.sh` - Added `get_validation_agent()` function (~15 lines)
+- Modified: `lib/exec.sh` - Added `build_validation_opencode_opts()` function (~15 lines)
+- Modified: `lib/exec.sh` - Updated validation section to use validation agent (~2 line changes)
+
+**Configuration Cascade**:
+| Priority | Variable                  | Purpose                    | Fallback Behavior       |
+|----------|--------------------------|----------------------------|------------------------|
+| 1        | `RALPH_AGENT_VALIDATION` | Primary validation agent   | Use `RALPH_AGENT`      |
+| 2        | `RALPH_AGENT`            | Default execution agent    | No fallback            |
+| 3        | Default agent            | Built-in fallback          | N/A                    |
+
+**Usage Examples**:
+```bash
+# Use default agent for validation
+RALPH_AGENT=opencode:gpt-4 ./ralph 10
+
+# Use separate validation agent
+RALPH_AGENT=opencode:gpt-4 RALPH_AGENT_VALIDATION=claude-code:sonnet ./ralph 10
+```
+
+**Verification**:
+- ✅ All syntax checks pass (bash -n)
+- ✅ Functions are correctly exported and available
+- ✅ Test 1 (no vars): Returns `AGENT_RALPH` as default
+- ✅ Test 2 (RALPH_AGENT only): Falls back to `RALPH_AGENT` with logging
+- ✅ Test 3 (both vars): Uses `RALPH_AGENT_VALIDATION` (no fallback)
+- ✅ Quick tests pass (4/5, 1 pre-existing unrelated failure)
+- ✅ No regressions in existing functionality
+
+**Acceptance Criteria Met**:
+- ✅ System checks for `RALPH_AGENT_VALIDATION` before validation
+- ✅ If set, validation uses that agent configuration
+- ✅ If unset, falls back to `RALPH_AGENT` for validation
+- ✅ Validation agent executes all validation checks
+- ✅ Validation results reported with clear pass/fail status
+- ✅ Failed validation prevents commit from proceeding
+- ✅ Uses appropriate agent backend based on configuration
+- ✅ Environment variable takes precedence over default
+- ✅ Supports all existing agent backend options
+- ✅ Clear logging when falling back

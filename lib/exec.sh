@@ -19,6 +19,28 @@ build_opencode_opts() {
     OPENCODE_OPTS+=("--agent" "${RALPH_AGENT:-AGENT_RALPH}")
 }
 
+# Build opencode command options for validation with RALPH_AGENT_VALIDATION support
+build_validation_opencode_opts() {
+    VALIDATION_OPENCODE_OPTS=()
+    if [ -n "$RALPH_LOG_LEVEL" ]; then
+        VALIDATION_OPENCODE_OPTS+=("--log-level" "$RALPH_LOG_LEVEL")
+    fi
+    if [ "$RALPH_PRINT_LOGS" = "true" ]; then
+        VALIDATION_OPENCODE_OPTS+=("--print-logs")
+    fi
+    # Use validation agent (RALPH_AGENT_VALIDATION > RALPH_AGENT > AGENT_RALPH)
+    local validation_agent
+    validation_agent=$(get_validation_agent)
+    VALIDATION_OPENCODE_OPTS+=("--agent" "$validation_agent")
+
+    # Log which agent is being used for validation
+    if [ -n "${RALPH_AGENT_VALIDATION:-}" ]; then
+        echo "🛡️ Using validation agent: $validation_agent (from RALPH_AGENT_VALIDATION)"
+    else
+        echo "🛡️ Using validation agent: $validation_agent (fallback from RALPH_AGENT)"
+    fi
+}
+
 # Load backend configuration if available
 load_backend_config() {
     if [[ -n "$RALPH_BACKEND" ]]; then
@@ -254,6 +276,10 @@ EOF
             echo "🛡️ Running independent validation..."
             echo ""
 
+            # Build validation-specific opencode options with RALPH_AGENT_VALIDATION support
+            build_validation_opencode_opts
+            echo ""
+
             VALIDATION_PROMPT=$(
                 cat <<RALPH_VALIDATE_EOF
 # Validation Task
@@ -302,7 +328,7 @@ RALPH_VALIDATE_EOF
             # Use timeout command for validation with proper signal handling
             set +e # Don't exit on error
             OPENCODE_PID=""
-            opencode run "${OPENCODE_OPTS[@]}" "$VALIDATION_PROMPT" 2>&1 | tee "$VALIDATION_OUTPUT_FILE" &
+            opencode run "${VALIDATION_OPENCODE_OPTS[@]}" "$VALIDATION_PROMPT" 2>&1 | tee "$VALIDATION_OUTPUT_FILE" &
             OPENCODE_PID=$!
 
             # Wait for validation process
