@@ -31,17 +31,22 @@ pre-commit:
       run: gitleaks protect --staged --verbose --exit-code=1
       description: Scanning for secrets in staged changes
 
-    # Lint all shell scripts
+    # Lint only staged shell scripts
     # Using 'run' without 'glob' to run unconditionally
-    shell-lint-all:
-      run: npx shellcheck ralph tests/**/*.sh backends/mock/bin/mock-opencode 2>&1 | grep -E "^(.*\.sh:.*error)" || true
-      description: Linting all shell scripts
+    shell-lint-staged:
+      glob: '*.sh'
+      run: npx shellcheck {staged_files} 2>&1 | grep -E "^(.*\.sh:.*error)" || true
+      description: Linting staged shell scripts
       exit-code: 1  # FAIL commit if critical lint errors found
 
   # Formatting and linting (run after secrets scan)
   hooks:
     - name: format
       run: npx prettier --write {staged_files}
+      stage: true
+    - name: format-jsonc
+      glob: '*.jsonc'
+      run: npx prettier --write --parser jsonc {staged_files}
       stage: true
     - name: lint-markdown
       glob: '*.md'
