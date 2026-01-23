@@ -22,7 +22,8 @@ TESTS_SKIPPED=0
 # Paths
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-RALPH_SCRIPT="$PROJECT_ROOT/ralph"
+RALPH_SCRIPT="$PROJECT_ROOT/bin/ralph"
+RALPH_LIB="$PROJECT_ROOT/lib.sh"
 MOCK_OPENCODE="$PROJECT_ROOT/backends/mock/bin/mock-opencode"
 
 # Print functions

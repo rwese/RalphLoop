@@ -7,8 +7,8 @@
 # Configuration Variables
 # =============================================================================
 
-# Default iterations (can be overridden by first argument or environment)
-MAX_ROUNDS=${1:-${MAX_ROUNDS:-100}}
+# Default iterations (from environment only - set from args in bin/ralph after parsing)
+MAX_ROUNDS=${MAX_ROUNDS:-100}
 
 # Temporary file management
 TEMP_FILE="$(mktemp)"

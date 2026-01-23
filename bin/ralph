@@ -9,345 +9,71 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Set the lib directory for sourcing
 LIB_DIR="${SCRIPT_DIR}/../lib"
 
-# Source the unified library loader
-source "${SCRIPT_DIR}/../lib.sh"
-
 # Ensure proper error handling
 set -e -u -o pipefail
 
 # =============================================================================
-# Main Entry Point
+# Initialize Library
 # =============================================================================
 
-# Parse command-line arguments
-RALPH_RESUME=""
-RALPH_SESSIONS=false
-RALPH_CLEANUP=""
-RALPH_CLEANUP_DAYS=7
+# Source the unified library loader
+source "${SCRIPT_DIR}/../lib.sh"
 
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-  --sessions)
-    RALPH_SESSIONS=true
-    shift
-    ;;
-  --resume)
-    if [[ -z "$2" || "$2" == --* ]]; then
-      echo "Error: --resume requires a session ID argument"
-      exit 1
-    fi
-    RALPH_RESUME="$2"
-    shift 2
-    ;;
-  --cleanup)
-    if [[ -n "$2" && "$2" != --* ]]; then
-      if [[ "$2" =~ ^[0-9]+$ ]]; then
-        RALPH_CLEANUP_DAYS="$2"
-      else
-        echo "Warning: Invalid argument for --cleanup, using default of 7 days"
-      fi
-      shift
-    else
-      RALPH_CLEANUP="$RALPH_CLEANUP_DAYS"
-    fi
-    RALPH_CLEANUP="$RALPH_CLEANUP_DAYS"
-    shift
-    ;;
-  --cleanup-all)
-    RALPH_CLEANUP="all"
-    shift
-    ;;
-  -h | --help)
-    cat <<EOF
-RalphLoop - Autonomous Development Agent
-
-Usage: ./ralph [options] [iterations]
-
-Options:
-  --sessions           List all sessions
-  --resume <id>        Resume a specific session
-  --cleanup [days]     Clean up incomplete sessions older than N days (default: 7)
-  --cleanup-all        Clean up ALL incomplete sessions
-  -h, --help           Show this help message
-
-Session Management:
-  Sessions are automatically saved and can be resumed after interruption.
-  Session files are stored in ~/.cache/ralph/sessions/
-
-Examples:
-  ./ralph 10                  Run 10 iterations
-  ./ralph --sessions          List all sessions
-  ./ralph --resume myproject_20240123-143000
-  ./ralph --cleanup 3         Clean up incomplete sessions older than 3 days
-EOF
-    exit 0
-    ;;
-  *)
-    # Not a known option, stop parsing
-    break
-    ;;
-  esac
-done
-
-# Handle session management commands before main execution
-if [ "$RALPH_SESSIONS" = "true" ]; then
-  list_sessions
-  exit 0
-fi
-
-if [ -n "$RALPH_CLEANUP" ]; then
-  cleanup_sessions "$RALPH_CLEANUP"
-  exit 0
-fi
-
-if [ -n "$RALPH_RESUME" ]; then
-  RESUME_ITERATION=$(resume_session "$RALPH_RESUME")
-  if [ $? -eq 0 ] && [ -n "$RESUME_ITERATION" ]; then
-    # Use the existing session ID for the resumed session
-    SESSION_ID="$RALPH_RESUME"
-
-    # Mark prompt as accepted for resumed sessions (session already exists on disk)
-    PROMPT_ACCEPTED=true
-
-    # Update MAX_ROUNDS to continue from where we left off
-    # Ensure MAX_ROUNDS is numeric first (re-initialize from default if needed)
-    if [[ -z "$MAX_ROUNDS" || ! "$MAX_ROUNDS" =~ ^[0-9]+$ ]]; then
-      MAX_ROUNDS=100
-    fi
-    MAX_ROUNDS=$((MAX_ROUNDS + RESUME_ITERATION - 1))
-    echo "   Continuing from iteration $RESUME_ITERATION (total: $MAX_ROUNDS)"
-  else
-    exit 1
-  fi
-  echo ""
-fi
-
-# Reset positional parameters to remaining arguments (iterations count)
-set -- "$@"
+# =============================================================================
+# Custom Command Configuration
+# =============================================================================
 
 # Custom command configuration
 RALPH_COMMAND="${RALPH_COMMAND:-}"
 RALPH_BACKEND="${RALPH_BACKEND:-}"
 RALPH_MODE="${RALPH_MODE:-autonomous}"
 
-# Build opencode command with logging options
-OPENCODE_OPTS=()
-if [ -n "$RALPH_LOG_LEVEL" ]; then
-  OPENCODE_OPTS+=("--log-level" "$RALPH_LOG_LEVEL")
-fi
-if [ "$RALPH_PRINT_LOGS" = "true" ]; then
-  OPENCODE_OPTS+=("--print-logs")
-fi
-OPENCODE_OPTS+=("--agent" "${RALPH_AGENT:-AGENT_RALPH}")
+# Handle custom command mode
+handle_custom_command() {
+    if [[ -n "$RALPH_COMMAND" ]]; then
+        echo "========================================"
+        echo "🔧 Custom Command Mode: $RALPH_COMMAND"
+        echo "========================================"
+        echo "  Backend: ${RALPH_BACKEND:-default}"
+        echo "  Mode: $RALPH_MODE"
+        echo "========================================"
 
-# =============================================================================
-# Main Execution Logic
-# =============================================================================
-
-# Generate session ID for tracking
-SESSION_ID=$(generate_session_id)
-
-# Get the session prompt file path
-SESSION_PROMPT_FILE=$(get_session_prompt_marker)
-
-# Function to get validation status from output
-get_validation_status() {
-  local output="$1"
-  if echo "$output" | grep -q "<validation_status>PASS</validation_status>"; then
-    echo "PASS"
-  elif echo "$output" | grep -q "<validation_status>FAIL</validation_status>"; then
-    echo "FAIL"
-  else
-    echo "UNKNOWN"
-  fi
+        # Export backend and mode for the agent
+        export RALPH_BACKEND="$RALPH_BACKEND"
+        export RALPH_MODE="$RALPH_MODE"
+    fi
 }
 
-# Run the main execution if not in special mode
+# =============================================================================
+# Main Entry Point
+# =============================================================================
+
+# Initialize custom command support
+handle_custom_command
+
+# Parse command-line arguments
+parse_cli_args "$@"
+shift $#
+
+# Handle session management commands before main execution
+handle_session_commands
+
+# For cleanup commands, exit early (handle_session_commands handles --cleanup)
+if [ -n "$RALPH_CLEANUP" ]; then
+    exit 0
+fi
+
+# Set MAX_ROUNDS from remaining positional parameters (iteration count)
+if [ $# -gt 0 ]; then
+    MAX_ROUNDS="$1"
+fi
+
+# Ensure progress file exists
+if [ ! -f "$PROGRESS_FILE" ]; then
+    touch "$PROGRESS_FILE"
+fi
+
+# Run the main execution if not in special command mode
 if [ -z "$RALPH_COMMAND" ]; then
-  # Set up signal handlers
-  trap 'cleanup; exit 130' INT TERM
-
-  # Main loop
-  for ((i = 1; i <= MAX_ROUNDS; i++)); do
-    echo ""
-    echo "========================================"
-    echo "🚀 RalphLoop Iteration $i of $MAX_ROUNDS"
-    echo "========================================"
-
-    # Get prompt (interactive or from file/env)
-    USER_PROMPT=""
-    USER_PROMPT_FILE=""
-
-    # Determine prompt source priority:
-    # 1. RALPH_PROMPT environment variable (direct prompt text)
-    # 2. RALPH_PROMPT_FILE environment variable (path to prompt file)
-    # 3. prompt.md file in current directory
-    if [ -n "${RALPH_PROMPT:-}" ]; then
-      USER_PROMPT="${RALPH_PROMPT}"
-      echo "📝 Using prompt from RALPH_PROMPT environment variable"
-    elif [ -n "${RALPH_PROMPT_FILE:-}" ] && [ -f "${RALPH_PROMPT_FILE}" ]; then
-      USER_PROMPT_FILE="${RALPH_PROMPT_FILE}"
-      USER_PROMPT=$(cat "$USER_PROMPT_FILE")
-      echo "📝 Using prompt from RALPH_PROMPT_FILE: $RALPH_PROMPT_FILE"
-    elif [ -f "prompt.md" ]; then
-      USER_PROMPT_FILE="prompt.md"
-      USER_PROMPT=$(cat "prompt.md")
-      echo "📝 Using prompt from prompt.md (current directory)"
-    else
-      # Create a default prompt if none provided
-      USER_PROMPT="Complete the current task. Output <promise>COMPLETE</promise> when done."
-      echo "📝 No prompt file found - using default prompt"
-    fi
-
-    # Save user's prompt to temp file for session management
-    echo "$USER_PROMPT" >"$PROMPT_FILE"
-
-    # Construct the final prompt by appending Ralph's context to user's prompt
-    FINAL_PROMPT="${USER_PROMPT}
-
-${RALPH_PROMPTS}"
-
-    # Show prompt source and length info
-    prompt_length=${#FINAL_PROMPT}
-    echo "   Prompt length: $prompt_length chars"
-
-    # If this is the first iteration (not resumed), save the session
-    if [ -z "${RESUME_ITERATION:-}" ]; then
-      save_session "$SESSION_ID" 0 "$MAX_ROUNDS" "${USER_PROMPT_FILE:-}"
-    else
-      # For resumed sessions, just update the iteration
-      save_session "$SESSION_ID" "$RESUME_ITERATION" "$MAX_ROUNDS" "${USER_PROMPT_FILE:-}"
-    fi
-
-    # Validate MAX_ROUNDS before execution
-    if ! validate_max_rounds; then
-      echo "❌ Invalid MAX_ROUNDS configuration"
-      exit 1
-    fi
-
-    # Check if we should run validation instead of normal execution
-    if [ -f "$VALIDATION_ISSUES_FILE" ]; then
-      echo "📋 Running validation to verify previous iteration..."
-
-      # Read issues from file
-      local validation_issues
-      validation_issues=$(cat "$VALIDATION_ISSUES_FILE")
-
-      # Read progress if it exists
-      local progress_content=""
-      if [ -f "$PROGRESS_FILE" ]; then
-        progress_content=$(cat "$PROGRESS_FILE")
-      fi
-
-      # Construct validation prompt
-      local VALIDATION_PROMPT="
-
-RALPH_VALIDATE_EOF
-Please validate the current state by checking the following issues from the previous iteration:
-
-## Previous Issues:
-${validation_issues}
-
-## Current Progress:
-${progress_content}
-
-## Your Task:
-1. READ any relevant files to understand the current state
-2. RUN comprehensive verification:
-   - Build/compile the code if applicable
-   - Run tests if available
-   - Check for linting errors
-   - Verify all acceptance criteria are met
-3. OUTPUT your findings in this exact XML format:
-
-no issues found: <validation_status>PASS</validation_status>
-issues fund: <validation_status>FAIL</validation_status>
-
-<validation_issues>
-- [List each failing criterion with specific details]
-- Leave empty if PASS
-</validation_issues>
-
-<validation_recommendations>
-- [Specific actions needed to fix each issue]
-- Leave empty if PASS
-</validation_recommendations>
-
-IMPORTANT:
-- If ALL checks pass, use <validation_status>PASS</validation_status>
-- If ANY check fails, use <validation_status>FAIL</validation_status> and list all issues
-- Do NOT trust the previous agent's assessment. Verify independently.
-RALPH_VALIDATE_EOF
-      "
-
-      # Use timeout command for validation with proper signal handling
-      set +e # Don't exit on error
-      OPENCODE_PID=""
-      opencode run "${OPENCODE_OPTS[@]}" "$VALIDATION_PROMPT" 2>&1 | tee "$VALIDATION_OUTPUT_FILE" &
-      OPENCODE_PID=$!
-      wait "$OPENCODE_PID" 2>/dev/null
-      VALIDATION_EXIT_CODE=${PIPESTATUS[0]} # Get exit code from timeout/opencode command
-      set -e                                # Re-enable exit on error
-
-      if [ "$VALIDATION_EXIT_CODE" == "0" ]; then
-        echo "⚠️  Validation process exited with code: $VALIDATION_EXIT_CODE" >&2
-      fi
-
-      signal_name=$(check_signal_termination "$VALIDATION_EXIT_CODE")
-      if [ -n "$signal_name" ]; then
-        echo ""
-        echo "🛑 Validation terminated by $signal_name"
-        echo "   Stopping RalphLoop iterations."
-        echo "========================================"
-        rm -f "$VALIDATION_OUTPUT_FILE"
-        fail_session "$SESSION_ID"
-        exit 130
-      fi
-
-      validation_result=$(cat "$VALIDATION_OUTPUT_FILE" | tr -d '\0')
-      rm -f "$VALIDATION_OUTPUT_FILE"
-
-      # Output has already been streamed via tee, just show completion message
-      echo ""
-      echo "--- Validation complete ---"
-
-      # Extract and check validation status
-      VALIDATION_STATUS=$(get_validation_status "$validation_result")
-
-      if [ "$VALIDATION_STATUS" = "PASS" ]; then
-        echo ""
-        echo "🎉 Validation PASSED! RalphLoop mission complete!"
-        echo "========================================"
-        # Mark session as complete
-        complete_session "$SESSION_ID"
-        # Progress file management is delegated to the AI agent
-        rm -f "$VALIDATION_ISSUES_FILE"
-        exit 0
-      else
-        echo "⚠️ Validation FAILED. Saving issues for next iteration..."
-
-        echo ""
-        echo "📋 Validation Results:"
-        echo "-----------------------------------"
-        echo "$validation_result"
-        echo "-----------------------------------"
-
-        echo "Issues saved to ${VALIDATION_ISSUES_FILE}"
-        echo "Agent will prioritize fixing these in next iteration."
-        echo ""
-      fi
-    fi
-
-    # Save session state after each iteration
-    save_session "$SESSION_ID" "$i" "$MAX_ROUNDS"
-
-    echo ""
-    echo "✅ Iteration $i complete. Continuing..."
-    echo ""
-  done
-
-  echo "========================================"
-  echo "🏁 Max iterations ($MAX_ROUNDS) reached."
-  echo "   RalphLoop will rest for now."
-  echo "========================================"
+    run_main_loop
 fi
