@@ -2,7 +2,7 @@
   "name": "Mock Backend",
   "version": "1.0.0",
   "description": "Mock backend for testing RalphLoop without actual OpenCode API calls - simulates agent responses for development and debugging",
-  "enabled": false,
+  "enabled": true,
   "cli": {
     "name": "mock",
     "installUrl": null,
