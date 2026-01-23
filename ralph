@@ -34,7 +34,8 @@ set -e -u -o pipefail
 
 # Configuration
 MAX_ROUNDS=${1:-${MAX_ROUNDS:-100}}
-TEMP_FILE_PREFIX="$(mktemp)"
+TEMP_FILE="$(mktemp)"
+TEMP_FILE_PREFIX="${TEMP_FILE}_ralph"
 PROGRESS_FILE="${TEMP_FILE_PREFIX}_progress.md"
 PROMPT_FILE="${TEMP_FILE_PREFIX}_prompt.md"
 VALIDATION_ISSUES_FILE="${TEMP_FILE_PREFIX}_issues.md"
@@ -64,19 +65,6 @@ fi
 RALPH_COMMAND="${RALPH_COMMAND:-}"
 RALPH_BACKEND="${RALPH_BACKEND:-}"
 RALPH_MODE="${RALPH_MODE:-autonomous}"
-
-# Memory management to prevent OOM kills (exit code 137)
-# Note: ulimit commands cause opencode to crash in containers, so they are disabled.
-# Container memory limits are handled by Docker/Podman, not by ulimit.
-# The RALPH_MEMORY_LIMIT env var is kept for backwards compatibility but is not used.
-
-# # Cleanup temp files and session marker on exit
-# ralph_cleanup() {
-#   rm -f "${TEMP_FILE_PREFIX}_ralph_output_*.txt" /tmp/ralph_validation_*.txt 2>/dev/null
-#   local cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/ralph"
-#   rm -f "${cache_dir}/.session_prompt_$$" "${cache_dir}/.ai_skip_editor_$$" 2>/dev/null
-# }
-# trap 'ralph_cleanup' EXIT
 
 # Handle custom command mode
 handle_custom_command() {
@@ -451,8 +439,8 @@ _ai_show_review_menu() {
 generate_ai_enhanced_prompt() {
   local cache_dir idea_file edit_file editor template_content user_idea generated choice
   cache_dir=$(get_ralph_cache_dir)
-  idea_file="${cache_dir}/.ai_idea_temp_$$.md"
-  edit_file="${cache_dir}/.ai_edit_temp_$$.md"
+  idea_file="${TEMP_FILE_PREFIX}_ai_idea_temp.md"
+  edit_file="${TEMP_FILE_PREFIX}_ai_edit_temp.md"
   editor=$(get_editor)
 
   # Track the previous idea for re-prompting
@@ -849,7 +837,7 @@ After fixing, mark complete with <promise>COMPLETE</promise> for re-validation.
 
     # Run OpenCode agent with current context - stream output for real-time feedback
     # Timeout controlled by RALPH_TIMEOUT (default: 600 seconds)
-    OUTPUT_FILE="${TEMP_FILE_PREFIX}_ralph_output.txt"
+    OUTPUT_FILE="${TEMP_FILE_PREFIX}_output.txt"
 
     # Show progress indicator while command runs
     echo "🚀 Starting agent execution..."
@@ -859,7 +847,7 @@ After fixing, mark complete with <promise>COMPLETE</promise> for re-validation.
     # Use tee to both save to file AND display output in real-time
     # This provides feedback while ensuring output is captured for later analysis
     set -x
-    tmp_prompt_file="$(mktemp)"
+    tmp_prompt_file="${TEMP_FILE_PREFIX}_prompt.txt"
     cat <<RALPH_EOF_XYZ123 >"$tmp_prompt_file"
 # Goals and Resources
 
@@ -968,7 +956,7 @@ RALPH_EOF_XYZ123
 
       # Run validation prompt to verify completion criteria are truly met - stream output for real-time feedback
       # Timeout controlled by RALPH_TIMEOUT (default: 600 seconds)
-      VALIDATION_OUTPUT_FILE="/tmp/ralph_validation_$$.txt"
+      VALIDATION_OUTPUT_FILE="${TEMP_FILE_PREFIX}_validation.txt"
 
       echo "🛡️ Running independent validation..."
       echo ""
