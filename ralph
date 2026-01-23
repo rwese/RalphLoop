@@ -1,7 +1,14 @@
 #!/usr/bin/env bash
 
 # ralph - RalphLoop Autonomous Development Agent
-# Usage: ./ralph <iterations>
+# Usage: ./ralph [options] [iterations]
+#
+# Options:
+#   --sessions           List all sessions
+#   --resume <id>        Resume a specific session
+#   --cleanup [days]     Clean up incomplete sessions older than N days (default: 7)
+#   --cleanup-all        Clean up ALL incomplete sessions
+#   -h, --help           Show this help message
 #
 # Prompt can be provided via:
 # 1. prompt.md file (default)
@@ -20,7 +27,7 @@
 #
 # Environment variables:
 #   RALPH_TIMEOUT       - Timeout for opencode commands in seconds (default: 1800 = 30 minutes)
-#   RALPH_MEMORY_LIMIT  - Memory limit in KB (default: 2097152 = 2GB)
+#   RALPH_MEMORY_LIMIT  - Memory limit in KB (default: 4194304 = 4GB)
 #   RALPH_LOG_LEVEL     - OpenCode log level: DEBUG, INFO, WARN, ERROR (default: WARN)
 #   RALPH_PRINT_LOGS    - Print opencode logs to stderr: true/false (default: false)
 #   RALPH_PROMPT        - Direct prompt text
@@ -51,6 +58,451 @@ RALPH_PRINT_LOGS=${RALPH_PRINT_LOGS:-false} # Default: false (logs to file inste
 
 # Note: Progress file management is delegated entirely to the AI agent.
 # The agent is responsible for updating and maintaining progress.md.
+
+# Session tracking (initialized before trap)
+SESSION_ID=""
+
+# Trap SIGINT (Ctrl+C) to exit gracefully
+# This ensures we don't leave processes running or temp files behind
+trap 'echo ""; echo "🛑 Caught Ctrl+C (SIGINT) - stopping RalphLoop..."; rm -f "${TEMP_FILE_PREFIX}"* 2>/dev/null; fail_session "$SESSION_ID" 2>/dev/null; exit 130' INT
+
+# =============================================================================
+# Command-line Arguments
+# =============================================================================
+
+# Parse command-line arguments
+RALPH_RESUME=""
+RALPH_SESSIONS=false
+RALPH_CLEANUP=""
+RALPH_CLEANUP_DAYS=7
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --sessions)
+      RALPH_SESSIONS=true
+      shift
+      ;;
+    --resume)
+      if [[ -z "$2" || "$2" == --* ]]; then
+        echo "Error: --resume requires a session ID argument"
+        exit 1
+      fi
+      RALPH_RESUME="$2"
+      shift 2
+      ;;
+    --cleanup)
+      if [[ -n "$2" && "$2" != --* ]]; then
+        if [[ "$2" =~ ^[0-9]+$ ]]; then
+          RALPH_CLEANUP_DAYS="$2"
+        else
+          echo "Warning: Invalid argument for --cleanup, using default of 7 days"
+        fi
+        shift
+      else
+        RALPH_CLEANUP="$RALPH_CLEANUP_DAYS"
+      fi
+      shift
+      ;;
+    --cleanup-all)
+      RALPH_CLEANUP="all"
+      shift
+      ;;
+    -h|--help)
+      cat <<EOF
+RalphLoop - Autonomous Development Agent
+
+Usage: ./ralph [options] [iterations]
+
+Options:
+  --sessions           List all sessions
+  --resume <id>        Resume a specific session
+  --cleanup [days]     Clean up incomplete sessions older than N days (default: 7)
+  --cleanup-all        Clean up ALL incomplete sessions
+  -h, --help           Show this help message
+
+Session Management:
+  Sessions are automatically saved and can be resumed after interruption.
+  Session files are stored in ~/.cache/ralph/sessions/
+
+Examples:
+  ./ralph 10                  Run 10 iterations
+  ./ralph --sessions          List all sessions
+  ./ralph --resume myproject_20240123-143000
+  ./ralph --cleanup 3         Clean up incomplete sessions older than 3 days
+EOF
+      exit 0
+      ;;
+    *)
+      # Not a known option, stop parsing
+      break
+      ;;
+  esac
+done
+
+# =============================================================================
+# Cache and Session Management Functions
+# =============================================================================
+
+# Get the Ralph cache directory for storing prompts
+get_ralph_cache_dir() {
+  local cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/ralph/prompts"
+  mkdir -p "$cache_dir"
+  echo "$cache_dir"
+}
+
+# Get the Ralph sessions directory
+get_ralph_sessions_dir() {
+  local sessions_dir="${XDG_CACHE_HOME:-$HOME/.cache}/ralph/sessions"
+  mkdir -p "$sessions_dir"
+  echo "$sessions_dir"
+}
+
+# Get sanitized directory name for session filename
+get_sanitized_dirname() {
+  local dir_name
+  dir_name=$(basename "$PWD")
+  # Replace spaces and special chars with underscores
+  echo "${dir_name//[^a-zA-Z0-9_-]/_}"
+}
+
+# Generate a unique session ID based on directory and timestamp
+generate_session_id() {
+  local dir_name
+  dir_name=$(get_sanitized_dirname)
+  local ts
+  ts=$(date +%Y%m%d-%H%M%S)
+  echo "${dir_name}_${ts}"
+}
+
+# Get session directory for a specific session ID
+get_session_dir() {
+  local session_id="$1"
+  local sessions_dir
+  sessions_dir=$(get_ralph_sessions_dir)
+  echo "${sessions_dir}/${session_id}"
+}
+
+# Save current session state
+save_session() {
+  local session_id="$1"
+  local iteration="$2"
+  local max_iterations="$3"
+  local session_dir prompt_file progress_file issues_file
+
+  session_dir=$(get_session_dir "$session_id")
+  mkdir -p "$session_dir"
+
+  # Copy current temp files to session directory
+  prompt_file="${TEMP_FILE_PREFIX}_prompt.md"
+  progress_file="${PROGRESS_FILE}"
+  issues_file="${VALIDATION_ISSUES_FILE}"
+
+  # Save session metadata
+  cat > "${session_dir}/session.json" <<EOF
+{
+  "session_id": "${session_id}",
+  "directory": "${PWD}",
+  "created_at": "$(date -Iseconds)",
+  "iteration": ${iteration},
+  "max_iterations": ${max_iterations},
+  "status": "incomplete"
+}
+EOF
+
+  # Copy prompt file if it exists
+  if [ -f "$prompt_file" ]; then
+    cp "$prompt_file" "${session_dir}/prompt.md"
+  fi
+
+  # Copy progress file if it exists
+  if [ -f "$progress_file" ]; then
+    cp "$progress_file" "${session_dir}/progress.md"
+  fi
+
+  # Copy validation issues file if it exists
+  if [ -f "$issues_file" ]; then
+    cp "$issues_file" "${session_dir}/issues.md"
+  fi
+
+  # Create incomplete marker
+  touch "${session_dir}/.incomplete"
+
+  echo "💾 Session saved: $session_id"
+}
+
+# Mark session as complete
+complete_session() {
+  local session_id="$1"
+  local session_dir
+  session_dir=$(get_session_dir "$session_id")
+
+  if [ -d "$session_dir" ]; then
+    rm -f "${session_dir}/.incomplete"
+    # Update status metadata
+    if [ -f "${session_dir}/session.json" ]; then
+      sed -i 's/"status": "incomplete"/"status": "complete"/' "${session_dir}/session.json" 2>/dev/null || \
+      sed -i '' 's/"status": "incomplete"/"status": "complete"/' "${session_dir}/session.json"
+    fi
+    echo "✅ Session completed: $session_id"
+  fi
+}
+
+# Mark session as failed
+fail_session() {
+  local session_id="$1"
+  local session_dir
+  session_dir=$(get_session_dir "$session_id")
+
+  if [ -d "$session_dir" ]; then
+    # Update status in metadata
+    if [ -f "${session_dir}/session.json" ]; then
+      sed -i 's/"status": "incomplete"/"status": "failed"/' "${session_dir}/session.json" 2>/dev/null || \
+      sed -i '' 's/"status": "incomplete"/"status": "failed"/' "${session_dir}/session.json"
+    fi
+    echo "❌ Session failed: $session_id"
+  fi
+}
+
+# List all sessions
+list_sessions() {
+  local sessions_dir
+  sessions_dir=$(get_ralph_sessions_dir)
+
+  if [ ! -d "$sessions_dir" ] || [ -z "$(ls -A "$sessions_dir" 2>/dev/null)" ]; then
+    echo "No sessions found."
+    return 0
+  fi
+
+  echo "========================================"
+  echo "📂 RalphLoop Sessions"
+  echo "========================================"
+  echo ""
+
+  local count=0
+  while IFS= read -r session_dir; do
+    local session_id
+    session_id=$(basename "$session_dir")
+
+    # Read session metadata
+    local status="unknown"
+    local iteration="?"
+    local directory="?"
+    local created="?"
+
+    if [ -f "${session_dir}/session.json" ]; then
+      status=$(grep '"status"' "${session_dir}/session.json" | sed 's/.*: *"\([^"]*\)".*/\1/')
+      iteration=$(grep '"iteration"' "${session_dir}/session.json" | sed 's/.*: *\([0-9]*\).*/\1/')
+      directory=$(grep '"directory"' "${session_dir}/session.json" | sed 's/.*: *"\([^"]*\)".*/\1/')
+      created=$(grep '"created_at"' "${session_dir}/session.json" | sed 's/.*: *"\([^"]*\)".*/\1/' | cut -d'T' -f1)
+    fi
+
+    # Check for incomplete marker
+    local incomplete_marker=""
+    if [ -f "${session_dir}/.incomplete" ]; then
+      incomplete_marker=" [INCOMPLETE]"
+    fi
+
+    # Status icon
+    local icon="📄"
+    case "$status" in
+      complete) icon="✅" ;;
+      failed) icon="❌" ;;
+      incomplete) icon="⏳" ;;
+    esac
+
+    printf "%s %s%s\n" "$icon" "$session_id" "$incomplete_marker"
+    printf "   📁 %s\n" "$directory"
+    printf "   📊 Iteration: %s | Created: %s\n" "$iteration" "$created"
+    echo ""
+
+    count=$((count + 1))
+  done < <(find "$sessions_dir" -mindepth 1 -maxdepth 1 -type d | sort -r)
+
+  echo "-----------------------------------"
+  echo "Total sessions: $count"
+  echo ""
+  echo "Resume a session: ./ralph --resume <session_id>"
+  echo "Clean up sessions: ./ralph --cleanup"
+}
+
+# Cleanup old sessions (remove incomplete ones older than specified days)
+cleanup_sessions() {
+  local days="${1:-7}"
+  local sessions_dir
+  sessions_dir=$(get_ralph_sessions_dir)
+
+  if [ ! -d "$sessions_dir" ]; then
+    echo "No sessions to clean up."
+    return 0
+  fi
+
+  local count=0
+  local deleted=0
+
+  while IFS= read -r session_dir; do
+    local session_id
+    session_id=$(basename "$session_dir")
+
+    # Only remove incomplete sessions
+    if [ -f "${session_dir}/.incomplete" ]; then
+      # Check age
+      local age
+      age=$(find "$session_dir" -type f -mtime +${days} 2>/dev/null | wc -l)
+
+      if [ "$age" -gt 0 ]; then
+        rm -rf "$session_dir"
+        echo "🗑️  Deleted incomplete session: $session_id (older than ${days} days)"
+        deleted=$((deleted + 1))
+      fi
+    fi
+
+    count=$((count + 1))
+  done < <(find "$sessions_dir" -mindepth 1 -maxdepth 1 -type d 2>/dev/null)
+
+  echo ""
+  echo "Cleaned up $deleted incomplete sessions."
+}
+
+# Resume a specific session
+resume_session() {
+  local session_id="$1"
+  local session_dir
+  session_dir=$(get_session_dir "$session_id")
+
+  if [ ! -d "$session_dir" ]; then
+    echo "❌ Session not found: $session_id"
+    return 1
+  fi
+
+  if [ ! -f "${session_dir}/session.json" ]; then
+    echo "❌ Session metadata not found: $session_id"
+    return 1
+  fi
+
+  # Read session metadata
+  local iteration max_iterations directory
+  iteration=$(grep '"iteration"' "${session_dir}/session.json" | sed 's/.*: *\([0-9]*\).*/\1/')
+  max_iterations=$(grep '"max_iterations"' "${session_dir}/session.json" | sed 's/.*: *\([0-9]*\).*/\1/')
+  directory=$(grep '"directory"' "${session_dir}/session.json" | sed 's/.*: *"\([^"]*\)".*/\1/')
+
+  # Check if we're in the right directory
+  if [ "$directory" != "$(pwd)" ]; then
+    echo "⚠️  Warning: Session was created in different directory:"
+    echo "   Session: $directory"
+    echo "   Current: $(pwd)"
+    echo ""
+    echo "You may need to cd to the correct directory first."
+    echo ""
+  fi
+
+  # Restore files to temp locations
+  if [ -f "${session_dir}/prompt.md" ]; then
+    cp "${session_dir}/prompt.md" "${TEMP_FILE_PREFIX}_prompt.md"
+  fi
+
+  if [ -f "${session_dir}/progress.md" ]; then
+    cp "${session_dir}/progress.md" "$PROGRESS_FILE"
+  fi
+
+  if [ -f "${session_dir}/issues.md" ]; then
+    cp "${session_dir}/issues.md" "$VALIDATION_ISSUES_FILE"
+  fi
+
+  echo "🔄 Resuming session: $session_id"
+  echo "   Directory: $directory"
+  echo "   Starting from iteration: $iteration"
+  echo "   Max iterations: $max_iterations"
+  echo ""
+
+  # Return the iteration to resume from
+  echo "$iteration"
+}
+
+# Check for incomplete sessions in current directory
+check_incomplete_sessions() {
+  local sessions_dir
+  sessions_dir=$(get_ralph_sessions_dir)
+  local current_dir
+  current_dir=$(pwd)
+  local found=0
+
+  if [ ! -d "$sessions_dir" ]; then
+    return 1
+  fi
+
+  while IFS= read -r session_dir; do
+    local session_id
+    session_id=$(basename "$session_dir")
+
+    # Check if this session is for the current directory and is incomplete
+    if [ -f "${session_dir}/.incomplete" ] && grep -q "\"directory\": *\"${current_dir}\"" "${session_dir}/session.json" 2>/dev/null; then
+      if [ "$found" -eq 0 ]; then
+        echo "========================================"
+        echo "⚠️  Incomplete session(s) found!"
+        echo "========================================"
+        echo ""
+        found=1
+      fi
+
+      local iteration
+      iteration=$(grep '"iteration"' "${session_dir}/session.json" | sed 's/.*: *\([0-9]*\).*/\1/')
+      printf "  🔄 %s (iteration %s)\n" "$session_id" "$iteration"
+    fi
+  done < <(find "$sessions_dir" -mindepth 1 -maxdepth 1 -type d 2>/dev/null)
+
+  if [ "$found" -eq 1 ]; then
+    echo ""
+    echo "Resume with: ./ralph --resume <session_id>"
+    echo "Or list all: ./ralph --sessions"
+    return 0
+  fi
+
+  return 1
+}
+
+# Get the session prompt file path (stores path to current session's prompt)
+get_session_prompt_marker() {
+  local cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/ralph"
+  mkdir -p "$cache_dir"
+  echo "${cache_dir}/.session_prompt_$$"
+}
+
+# Get the user's preferred editor
+get_editor() {
+  if [ -n "${VISUAL:-}" ]; then
+    echo "$VISUAL"
+  elif [ -n "${EDITOR:-}" ]; then
+    echo "$EDITOR"
+  else
+    echo "vi"
+  fi
+}
+
+# Handle session management commands
+if [ "$RALPH_SESSIONS" = "true" ]; then
+  list_sessions
+  exit 0
+fi
+
+if [ -n "$RALPH_CLEANUP" ]; then
+  cleanup_sessions "$RALPH_CLEANUP"
+  exit 0
+fi
+
+if [ -n "$RALPH_RESUME" ]; then
+  RESUME_ITERATION=$(resume_session "$RALPH_RESUME")
+  if [ $? -eq 0 ] && [ -n "$RESUME_ITERATION" ]; then
+    # Update MAX_ROUNDS to continue from where we left off
+    MAX_ROUNDS=$((MAX_ROUNDS + RESUME_ITERATION - 1))
+    echo "   Continuing from iteration $RESUME_ITERATION (total: $MAX_ROUNDS)"
+  else
+    exit 1
+  fi
+  echo ""
+fi
+
+# Reset positional parameters to remaining arguments (iterations count)
+set -- "$@"
 
 # Build opencode command with logging options
 OPENCODE_OPTS=""
@@ -537,44 +989,7 @@ generate_ai_enhanced_prompt() {
   done
 }
 
-# =============================================================================
-# Cache and Session Management
-# =============================================================================
 
-# Get the Ralph cache directory for storing prompts
-get_ralph_cache_dir() {
-  local cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/ralph/prompts"
-  mkdir -p "$cache_dir"
-  echo "$cache_dir"
-}
-
-# Get the session prompt file path (stores path to current session's prompt)
-get_session_prompt_marker() {
-  local cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/ralph"
-  mkdir -p "$cache_dir"
-  echo "${cache_dir}/.session_prompt_$$"
-}
-
-# Get sanitized directory name for prompt filename
-get_sanitized_dirname() {
-  local dir_name
-  dir_name=$(basename "$PWD")
-  # Replace spaces and special chars with underscores
-  echo "${dir_name//[^a-zA-Z0-9_-]/_}"
-}
-
-# Get the user's preferred editor
-get_editor() {
-  if [ -n "${VISUAL:-}" ]; then
-    echo "$VISUAL"
-  elif [ -n "${EDITOR:-}" ]; then
-    echo "$EDITOR"
-  else
-    echo "vi"
-  fi
-}
-
-# =============================================================================
 # Prompt Functions
 # =============================================================================
 
@@ -801,6 +1216,15 @@ fi
 if [ "${RALPH_SOURCED_FOR_TEST:-0}" = "1" ]; then
   : # Skip main loop when sourcing for testing
 else
+  # Generate session ID for tracking
+  SESSION_ID=$(generate_session_id)
+
+  # Check for existing incomplete sessions in this directory
+  check_incomplete_sessions || true
+
+  echo "📁 Session ID: $SESSION_ID"
+  echo ""
+
   for ((i = 1; i <= MAX_ROUNDS; i++)); do
     echo "========================================"
     echo "🔄 RalphLoop Iteration $i of $MAX_ROUNDS"
@@ -846,6 +1270,9 @@ After fixing, mark complete with <promise>COMPLETE</promise> for re-validation.
 
     # Use tee to both save to file AND display output in real-time
     # This provides feedback while ensuring output is captured for later analysis
+    # Use set +e to allow opencode to fail without exiting the script
+    # Ctrl+C (SIGINT) still works to terminate the process
+    set +e
     set -x
     tmp_prompt_file="${TEMP_FILE_PREFIX}_prompt.txt"
     cat <<RALPH_EOF_XYZ123 >"$tmp_prompt_file"
@@ -923,6 +1350,33 @@ RALPH_EOF_XYZ123
     # Get exit code from timeout/opencode command
     EXIT_CODE=${PIPESTATUS[0]}
 
+    # Check if process was terminated by a signal (e.g., Ctrl+C)
+    # Signal exit codes are 128 + signal number
+    # SIGINT (Ctrl+C) = 130, SIGTERM = 143
+    check_signal_termination() {
+        local code="$1"
+        if [ "$code" -ge 128 ]; then
+            local signal_num=$((code - 128))
+            case "$signal_num" in
+                2)  echo "SIGINT (Ctrl+C)"; return 0 ;;
+                15) echo "SIGTERM"; return 0 ;;
+                *)  echo "Signal $signal_num"; return 0 ;;
+            esac
+        fi
+        return 1
+    }
+
+    local signal_name
+    if signal_name=$(check_signal_termination "$EXIT_CODE"); then
+        echo ""
+        echo "🛑 Process terminated by $signal_name"
+        echo "   Stopping RalphLoop iterations."
+        echo "========================================"
+        rm -f "$OUTPUT_FILE"
+        fail_session "$SESSION_ID"
+        exit 130
+    fi
+
     # Check if timeout or error occurred
     if [ "$EXIT_CODE" -eq 124 ]; then
       {
@@ -962,6 +1416,9 @@ RALPH_EOF_XYZ123
       echo ""
 
       # Use tee to both save to file AND display output in real-time
+      # Use set +e to allow opencode to fail without exiting the script
+      # Ctrl+C (SIGINT) still works to terminate the process
+      set +e
       set -x
       timeout "$RALPH_TIMEOUT" opencode run $OPENCODE_OPTS --agent "${RALPH_AGENT:-AGENT_RALPH}" <<RALPH_VALIDATE_EOF 2>&1 | tee "$VALIDATION_OUTPUT_FILE"
 # Validation Task
@@ -1013,6 +1470,31 @@ RALPH_VALIDATE_EOF
       VALIDATION_EXIT_CODE=${PIPESTATUS[0]} # Get exit code from timeout/opencode command
       set -e                                # Re-enable exit on error
 
+      # Check if validation process was terminated by a signal (e.g., Ctrl+C)
+      check_signal_termination() {
+          local code="$1"
+          if [ "$code" -ge 128 ]; then
+              local signal_num=$((code - 128))
+              case "$signal_num" in
+                  2)  echo "SIGINT (Ctrl+C)"; return 0 ;;
+                  15) echo "SIGTERM"; return 0 ;;
+                  *)  echo "Signal $signal_num"; return 0 ;;
+              esac
+          fi
+          return 1
+      }
+
+      local signal_name
+      if signal_name=$(check_signal_termination "$VALIDATION_EXIT_CODE"); then
+          echo ""
+          echo "🛑 Validation terminated by $signal_name"
+          echo "   Stopping RalphLoop iterations."
+          echo "========================================"
+          rm -f "$VALIDATION_OUTPUT_FILE"
+          fail_session "$SESSION_ID"
+          exit 130
+      fi
+
       # Check if timeout or error occurred
       if [ "$VALIDATION_EXIT_CODE" -eq 124 ]; then
         {
@@ -1047,6 +1529,8 @@ RALPH_VALIDATE_EOF
         echo ""
         echo "🎉 Validation PASSED! RalphLoop mission complete!"
         echo "========================================"
+        # Mark session as complete
+        complete_session "$SESSION_ID"
         # Progress file management is delegated to the AI agent
         rm -f "$VALIDATION_ISSUES_FILE"
         exit 0
@@ -1071,6 +1555,9 @@ RALPH_VALIDATE_EOF
         echo ""
       fi
     fi
+
+    # Save session state after each iteration
+    save_session "$SESSION_ID" "$i" "$MAX_ROUNDS"
 
     echo ""
     echo "✅ Iteration $i complete. Continuing..."
