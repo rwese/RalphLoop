@@ -62,10 +62,50 @@ RALPH_PRINT_LOGS=${RALPH_PRINT_LOGS:-false} # Default: false (logs to file inste
 # Session tracking (initialized before trap)
 SESSION_ID=""
 RESUME_ORIGINAL_DIR=""
+OPENCODE_PID=""  # PID of background opencode process for signal handling
 
-# Trap SIGINT (Ctrl+C) to exit gracefully
-# This ensures we don't leave processes running or temp files behind
-trap 'echo ""; echo "🛑 Caught Ctrl+C (SIGINT) - stopping RalphLoop..."; rm -f "${TEMP_FILE_PREFIX}"* 2>/dev/null; save_session "$SESSION_ID" 0 "$MAX_ROUNDS" 2>/dev/null; exit 130' INT
+# Cleanup function for graceful termination
+# This function handles SIGINT (Ctrl+C) and SIGTERM signals
+# It ensures the opencode process is properly terminated and temp files are cleaned up
+cleanup() {
+    echo "" >&2
+    echo "🛑 Caught signal - initiating graceful shutdown..." >&2
+
+    # Kill opencode process if running
+    if [ -n "$OPENCODE_PID" ] && kill -0 "$OPENCODE_PID" 2>/dev/null; then
+        echo "   Terminating opencode process (PID: $OPENCODE_PID)..." >&2
+        kill -TERM "$OPENCODE_PID" 2>/dev/null || true
+
+        # Wait briefly for graceful shutdown, then force kill if still running
+        local count=0
+        while kill -0 "$OPENCODE_PID" 2>/dev/null && [ $count -lt 5 ]; do
+            sleep 1
+            count=$((count + 1))
+        done
+
+        # Force kill if process is still running after 5 seconds
+        if kill -0 "$OPENCODE_PID" 2>/dev/null; then
+            echo "   Process still running - sending SIGKILL..." >&2
+            kill -9 "$OPENCODE_PID" 2>/dev/null || true
+        fi
+    fi
+
+    # Clean up temp files
+    echo "   Cleaning up temporary files..." >&2
+    rm -f "${TEMP_FILE_PREFIX}"* 2>/dev/null || true
+
+    # Save session state if we have one
+    if [ -n "$SESSION_ID" ]; then
+        echo "   Saving session state..." >&2
+        save_session "$SESSION_ID" 0 "$MAX_ROUNDS" 2>/dev/null || true
+    fi
+
+    echo "   Shutdown complete." >&2
+}
+
+# Trap SIGINT (Ctrl+C) and SIGTERM for graceful cleanup
+# Exit code 130 = 128 + 2 (SIGINT signal number)
+trap 'cleanup; exit 130' INT TERM
 
 # =============================================================================
 # Command-line Arguments
@@ -1423,7 +1463,7 @@ After fixing, mark complete with <promise>COMPLETE</promise> for re-validation.
     fi
 
     # Run OpenCode agent with current context - stream output for real-time feedback
-    # Timeout controlled by RALPH_TIMEOUT (default: 600 seconds)
+    # Using trap-based signal handling instead of timeout command for full control
     OUTPUT_FILE="${TEMP_FILE_PREFIX}_output.txt"
 
     # Show progress indicator while command runs
@@ -1434,9 +1474,8 @@ After fixing, mark complete with <promise>COMPLETE</promise> for re-validation.
     # Use tee to both save to file AND display output in real-time
     # This provides feedback while ensuring output is captured for later analysis
     # Use set +e to allow opencode to fail without exiting the script
-    # Ctrl+C (SIGINT) still works to terminate the process
+    # Signal handling via trap (see cleanup function above) provides graceful termination
     set +e
-    set -x
     tmp_prompt_file="${TEMP_FILE_PREFIX}_prompt.txt"
     cat <<RALPH_EOF_XYZ123 >"$tmp_prompt_file"
 # Goals and Resources
@@ -1504,14 +1543,28 @@ The loop succeeds when:
 
 If the current goal is complete, output <promise>COMPLETE</promise>.
 RALPH_EOF_XYZ123
-    timeout "$RALPH_TIMEOUT" opencode run "$OPENCODE_OPTS" --agent "${RALPH_AGENT:-AGENT_RALPH}" <"$tmp_prompt_file" 2>&1 | tee "$OUTPUT_FILE"
-    set +x
 
-    # Read output from file BEFORE checking PIPESTATUS (trap may delete the file)
+    # Run opencode in background with trap-based signal handling
+    # This replaces the timeout command for better control over signals
+    OPENCODE_PID=""
+    opencode run "$OPENCODE_OPTS" --agent "${RALPH_AGENT:-AGENT_RALPH}" <"$tmp_prompt_file" 2>&1 | tee "$OUTPUT_FILE" &
+    OPENCODE_PID=$!
+
+    # Wait for opencode process with proper signal handling
+    # Using a loop to detect edge cases where wait returns early
+    set +e  # Don't exit on non-zero exit from wait
+    while kill -0 "$OPENCODE_PID" 2>/dev/null; do
+        if ! wait "$OPENCODE_PID" 2>/dev/null; then
+            # wait returned early - process may have exited unexpectedly
+            echo "⚠️  wait returned early for PID $OPENCODE_PID - process may have exited unexpectedly" >&2
+            break
+        fi
+    done
+    EXIT_CODE=$?
+    set -e  # Re-enable exit on error
+
+    # Read output from file (trap may delete the file if interrupted)
     result=$(cat "$OUTPUT_FILE" 2>/dev/null | tr -d '\0' || echo "")
-
-    # Get exit code from timeout/opencode command
-    EXIT_CODE=${PIPESTATUS[0]}
 
     # Check if process was terminated by a signal (e.g., Ctrl+C)
     # Signal exit codes are 128 + signal number
@@ -1540,14 +1593,8 @@ RALPH_EOF_XYZ123
         exit 130
     fi
 
-    # Check if timeout or error occurred
-    if [ "$EXIT_CODE" -eq 124 ]; then
-      {
-        echo "❌ TIMEOUT: opencode command exceeded ${RALPH_TIMEOUT}s ($((RALPH_TIMEOUT / 60)) minutes) - killed to prevent memory issues"
-        echo "This may indicate the agent is stuck or consuming too much memory."
-        echo "💡 Tip: Increase timeout with: export RALPH_TIMEOUT=$((RALPH_TIMEOUT * 2))"
-      } >>"$OUTPUT_FILE"
-    elif [ "$EXIT_CODE" -ne 0 ]; then
+    # Check for non-zero exit code from opencode
+    if [ "$EXIT_CODE" -ne 0 ]; then
       echo "❌ ERROR: opencode command failed with exit code $EXIT_CODE" >>"$OUTPUT_FILE"
     fi
 
@@ -1572,7 +1619,7 @@ RALPH_EOF_XYZ123
       echo "========================================"
 
       # Run validation prompt to verify completion criteria are truly met - stream output for real-time feedback
-      # Timeout controlled by RALPH_TIMEOUT (default: 600 seconds)
+      # Using trap-based signal handling instead of timeout command for full control
       VALIDATION_OUTPUT_FILE="${TEMP_FILE_PREFIX}_validation.txt"
 
       echo "🛡️ Running independent validation..."
@@ -1580,10 +1627,14 @@ RALPH_EOF_XYZ123
 
       # Use tee to both save to file AND display output in real-time
       # Use set +e to allow opencode to fail without exiting the script
-      # Ctrl+C (SIGINT) still works to terminate the process
+      # Signal handling via trap provides graceful termination
       set +e
-      set -x
-      timeout "$RALPH_TIMEOUT" opencode run $OPENCODE_OPTS --agent "${RALPH_AGENT:-AGENT_RALPH}" <<RALPH_VALIDATE_EOF 2>&1 | tee "$VALIDATION_OUTPUT_FILE"
+
+      # Run opencode in background with trap-based signal handling
+      OPENCODE_PID=""
+      opencode run $OPENCODE_OPTS --agent "${RALPH_AGENT:-AGENT_RALPH}" <<RALPH_VALIDATE_EOF 2>&1 | tee "$VALIDATION_OUTPUT_FILE" &
+      OPENCODE_PID=$!
+
 # Validation Task
 
 The agent previously indicated completion with <promise>COMPLETE</promise>.
@@ -1628,10 +1679,18 @@ IMPORTANT:
 - If ANY check fails, use <validation_status>FAIL</validation_status> and list all issues
 - Do NOT trust the previous agent's assessment. Verify independently.
 RALPH_VALIDATE_EOF
-      set +x
 
-      VALIDATION_EXIT_CODE=${PIPESTATUS[0]} # Get exit code from timeout/opencode command
-      set -e                                # Re-enable exit on error
+      # Wait for opencode process with proper signal handling
+      # Using a loop to detect edge cases where wait returns early
+      while kill -0 "$OPENCODE_PID" 2>/dev/null; do
+          if ! wait "$OPENCODE_PID" 2>/dev/null; then
+              # wait returned early - process may have exited unexpectedly
+              echo "⚠️  wait returned early for PID $OPENCODE_PID - process may have exited unexpectedly" >&2
+              break
+          fi
+      done
+      VALIDATION_EXIT_CODE=$?
+      set -e  # Re-enable exit on error
 
       # Check if validation process was terminated by a signal (e.g., Ctrl+C)
       check_signal_termination() {
@@ -1658,17 +1717,8 @@ RALPH_VALIDATE_EOF
           exit 130
       fi
 
-      # Check if timeout or error occurred
-      if [ "$VALIDATION_EXIT_CODE" -eq 124 ]; then
-        {
-          echo "❌ VALIDATION TIMEOUT: exceeded ${RALPH_TIMEOUT}s ($((RALPH_TIMEOUT / 60)) minutes)"
-          echo "<validation_status>FAIL</validation_status>"
-          echo "<validation_issues>"
-          echo "- Validation timed out after ${RALPH_TIMEOUT}s ($((RALPH_TIMEOUT / 60)) minutes)"
-          echo "- Increase timeout with: export RALPH_TIMEOUT=$((RALPH_TIMEOUT * 2))"
-          echo "</validation_issues>"
-        } >>"$VALIDATION_OUTPUT_FILE"
-      elif [ "$VALIDATION_EXIT_CODE" -ne 0 ]; then
+      # Check for non-zero exit code from validation
+      if [ "$VALIDATION_EXIT_CODE" -ne 0 ]; then
         echo "❌ VALIDATION ERROR: failed with exit code $VALIDATION_EXIT_CODE" >>"$VALIDATION_OUTPUT_FILE"
       fi
 
