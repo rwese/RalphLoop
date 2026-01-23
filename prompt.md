@@ -6,7 +6,7 @@ Test that ralph works
 
 ## Acceptance Criteria
 
-- [ ] Script runs without errors
+- [x] Script runs without errors
 
 ## Context
 
