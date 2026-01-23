@@ -61,6 +61,7 @@ RALPH_PRINT_LOGS=${RALPH_PRINT_LOGS:-false} # Default: false (logs to file inste
 
 # Session tracking (initialized before trap)
 SESSION_ID=""
+RESUME_ORIGINAL_DIR=""
 
 # Trap SIGINT (Ctrl+C) to exit gracefully
 # This ensures we don't leave processes running or temp files behind
@@ -385,19 +386,26 @@ resume_session() {
   max_iterations=$(grep '"max_iterations"' "${session_dir}/session.json" | sed 's/.*: *\([0-9]*\).*/\1/')
   directory=$(grep '"directory"' "${session_dir}/session.json" | sed 's/.*: *"\([^"]*\)".*/\1/')
 
-  # Check if we're in the right directory
+  # Save original directory globally for later use
+  RESUME_ORIGINAL_DIR="$directory"
+
+   # Check if we're in the right directory
   if [ "$directory" != "$(pwd)" ]; then
-    echo "⚠️  Warning: Session was created in different directory:"
-    echo "   Session: $directory"
-    echo "   Current: $(pwd)"
-    echo ""
-    echo "You may need to cd to the correct directory first."
-    echo ""
+    echo "⚠️  Warning: Session was created in different directory:" >&2
+    echo "   Session: $directory" >&2
+    echo "   Current: $(pwd)" >&2
+    echo "" >&2
+    echo "You may need to cd to the correct directory first." >&2
+    echo "" >&2
   fi
 
   # Restore files to temp locations
+  # Copy prompt file if it exists in session dir
   if [ -f "${session_dir}/prompt.md" ]; then
     cp "${session_dir}/prompt.md" "${TEMP_FILE_PREFIX}_prompt.md"
+  elif [ -f "${directory}/prompt.md" ]; then
+    # Fallback: copy from original session directory
+    cp "${directory}/prompt.md" "${TEMP_FILE_PREFIX}_prompt.md"
   fi
 
   if [ -f "${session_dir}/progress.md" ]; then
@@ -408,11 +416,11 @@ resume_session() {
     cp "${session_dir}/issues.md" "$VALIDATION_ISSUES_FILE"
   fi
 
-  echo "🔄 Resuming session: $session_id"
-  echo "   Directory: $directory"
-  echo "   Starting from iteration: $iteration"
-  echo "   Max iterations: $max_iterations"
-  echo ""
+  echo "🔄 Resuming session: $session_id" >&2
+  echo "   Directory: $directory" >&2
+  echo "   Starting from iteration: $iteration" >&2
+  echo "   Max iterations: $max_iterations" >&2
+  echo "" >&2
 
   # Return the iteration to resume from
   echo "$iteration"
@@ -492,7 +500,14 @@ fi
 if [ -n "$RALPH_RESUME" ]; then
   RESUME_ITERATION=$(resume_session "$RALPH_RESUME")
   if [ $? -eq 0 ] && [ -n "$RESUME_ITERATION" ]; then
+    # Use the existing session ID for the resumed session
+    SESSION_ID="$RALPH_RESUME"
+    
     # Update MAX_ROUNDS to continue from where we left off
+    # Ensure MAX_ROUNDS is numeric first (re-initialize from default if needed)
+    if [[ -z "$MAX_ROUNDS" || ! "$MAX_ROUNDS" =~ ^[0-9]+$ ]]; then
+      MAX_ROUNDS=100
+    fi
     MAX_ROUNDS=$((MAX_ROUNDS + RESUME_ITERATION - 1))
     echo "   Continuing from iteration $RESUME_ITERATION (total: $MAX_ROUNDS)"
   else
@@ -1094,7 +1109,7 @@ launch_editor_for_prompt() {
 
 # Determine prompt source and return content
 get_prompt() {
-  local session_marker session_prompt_file
+  local session_marker session_prompt_file response
 
   # Priority 1: RALPH_PROMPT environment variable
   if [ -n "${RALPH_PROMPT:-}" ]; then
@@ -1125,15 +1140,127 @@ get_prompt() {
     fi
   fi
 
-  # Priority 4: Default prompt.md file
+  # Priority 4: Default prompt.md file (or temp file from resume)
   if [ -f "$PROMPT_FILE" ]; then
+    # When resuming, offer to review/modify the prompt
+    if [ -n "$RALPH_RESUME" ]; then
+      if [ -t 0 ]; then
+        echo "📝 Found prompt from previous session:" >&2
+        echo "" >&2
+        echo "----------------------------------------" >&2
+        head -20 "$PROMPT_FILE" >&2
+        if [ $(wc -l < "$PROMPT_FILE") -gt 20 ]; then
+          echo "   ... (more lines)" >&2
+        fi
+        echo "----------------------------------------" >&2
+        echo "" >&2
+        echo "Would you like to review and modify it before continuing?" >&2
+        echo "(y/n, default: y)" >&2
+        echo -n "   > " >&2
+        read -r response </dev/tty >/dev/tty
+        echo "" >&2
+        if [[ "$response" =~ ^[Yy] ]] || [ -z "$response" ]; then
+          echo "Opening editor with your prompt..." >&2
+          echo "Press :wq to save and exit." >&2
+          echo "" >&2
+          launch_editor_for_prompt_with_file "$PROMPT_FILE"
+          echo "" >&2
+        fi
+        echo "📝 Using modified prompt." >&2
+        cat "$PROMPT_FILE"
+        return
+      else
+        echo "Using PROMPT_FILE from resume" >&2
+        cat "$PROMPT_FILE"
+        return
+      fi
+    fi
     echo "Using PROMPT_FILE" >&2
     cat "$PROMPT_FILE"
     return
   fi
 
-  # Priority 5: Launch interactive editor with template selection
+  # Priority 5: No prompt found - guide through creation
+  echo "" >&2
+  echo "📝 No prompt found for this session." >&2
+  echo "" >&2
+
+  # Check if we have TTY for interactive input
+  if [ -t 0 ]; then
+    echo "Would you like to create a new prompt?" >&2
+    echo "(y/n, default: y)" >&2
+    echo -n "   > " >&2
+    read -r response </dev/tty >/dev/tty
+    echo "" >&2
+    if [[ "$response" =~ ^[Nn] ]]; then
+      echo "Aborting: No prompt to work with." >&2
+      exit 1
+    fi
+  else
+    # Non-interactive: try to find prompt.md in the original directory
+    if [ -n "$RESUME_ORIGINAL_DIR" ] && [ -f "${RESUME_ORIGINAL_DIR}/prompt.md" ]; then
+      cp "${RESUME_ORIGINAL_DIR}/prompt.md" "$PROMPT_FILE"
+      echo "Using prompt.md from session directory" >&2
+      cat "$PROMPT_FILE"
+      return
+    fi
+    echo "Error: No prompt found and running non-interactive. Aborting." >&2
+    exit 1
+  fi
+
+  # Launch interactive editor with template selection
   launch_editor_for_prompt
+}
+
+# Launch editor to modify an existing prompt file
+launch_editor_for_prompt_with_file() {
+  local prompt_file="$1"
+  local session_marker editor original_mtime original_content new_mtime new_content
+
+  if [ ! -f "$prompt_file" ]; then
+    echo "Error: Prompt file not found: $prompt_file" >&2
+    return 1
+  fi
+
+  session_marker=$(get_session_prompt_marker)
+  editor=$(get_editor)
+
+  # Capture original state for modification check
+  original_content=$(cat "$prompt_file")
+  # stat -f %m for macOS, stat -c %Y for Linux
+  original_mtime=$(stat -f %m "$prompt_file" 2>/dev/null || stat -c %Y "$prompt_file" 2>/dev/null)
+
+  echo "" >&2
+  echo "Opening editor to modify your prompt..." >&2
+  echo "Press :wq to save and exit." >&2
+
+  # Only try TTY if we have one
+  if [ -t 0 ]; then
+    "$editor" "$prompt_file" </dev/tty >/dev/tty
+  else
+    "$editor" "$prompt_file"
+  fi
+
+  # Check if file was modified
+  new_mtime=$(stat -f %m "$prompt_file" 2>/dev/null || stat -c %Y "$prompt_file" 2>/dev/null)
+  new_content=$(cat "$prompt_file")
+
+  # If not modified, keep original content
+  if [ "$original_mtime" = "$new_mtime" ]; then
+    echo "Note: Prompt was not saved. Using original content." >&2
+    return 0
+  fi
+
+  # Fail if file is empty or only whitespace
+  if [ ! -s "$prompt_file" ] || ! grep -q '[^[:space:]]' "$prompt_file"; then
+    echo "Error: Prompt file is empty. Keeping original content." >&2
+    echo "$original_content" >"$prompt_file"
+    return 1
+  fi
+
+  # Store the prompt file path in session marker for reuse
+  echo "$prompt_file" >"$session_marker"
+  echo "Prompt updated." >&2
 }
 
 # Get prompt without interactive fallback (for validation)
@@ -1216,11 +1343,15 @@ fi
 if [ "${RALPH_SOURCED_FOR_TEST:-0}" = "1" ]; then
   : # Skip main loop when sourcing for testing
 else
-  # Generate session ID for tracking
-  SESSION_ID=$(generate_session_id)
+  # Generate session ID for tracking (skip if already set by resume)
+  if [ -z "$SESSION_ID" ]; then
+    SESSION_ID=$(generate_session_id)
+  fi
 
-  # Check for existing incomplete sessions in this directory
-  check_incomplete_sessions || true
+  # Check for existing incomplete sessions in this directory (skip when resuming)
+  if [ -z "$RALPH_RESUME" ]; then
+    check_incomplete_sessions || true
+  fi
 
   echo "📁 Session ID: $SESSION_ID"
   echo ""
