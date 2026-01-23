@@ -180,6 +180,10 @@ The RalphLoop script has been successfully tested and verified to work correctly
 - ✅ Session management and restoration logic tested and confirmed working
 - ✅ Session metadata handling and iteration adjustment verified
 - ✅ Session listing and cleanup functionality tested
+- ✅ **Live resume test completed**: Resumed session `TestResume_20260123-120000` from iteration 3
+- ✅ **Mock backend integration verified**: Resume works with `RALPH_MOCK_RESPONSE=success`
+- ✅ **Iteration continuation confirmed**: Session correctly continued from saved iteration count
+- ✅ **Session state management validated**: Progress files properly restored and updated
 
 **Resume Flow Verification Results:**
 - ✅ Session detection: `./ralph --sessions` lists incomplete sessions correctly
@@ -188,6 +192,8 @@ The RalphLoop script has been successfully tested and verified to work correctly
 - ✅ Iteration adjustment: `MAX_ROUNDS=$((MAX_ROUNDS + RESUME_ITERATION - 1))` functioning
 - ✅ Session directory management: `~/.cache/ralph/sessions/` structure supported
 - ✅ Session cleanup: Old incomplete sessions can be cleaned up
+- ✅ Live session resumption: Successfully resumed from iteration 3 to iteration 102 total
+- ✅ Mock backend testing: Resume functionality works with simulated responses
 
 **Technical Details:**
 - Resume function: `resume_session()` at lines 367-426
@@ -195,9 +201,19 @@ The RalphLoop script has been successfully tested and verified to work correctly
 - Session metadata: `session.json` with iteration, max_iterations, status
 - Progress restoration: `progress.md`, `prompt.md`, `issues.md` files
 - Iteration adjustment: Continues from saved iteration count
+- Test command: `RALPH_MOCK_RESPONSE=success ./ralph --resume <session_id> 1`
 
 **Bug Fix Applied:**
 - Fixed unbound variable error in `get_prompt()` function
+
+**Final Resume Test Results:**
+- Session resumed: `TestResume_20260123-120000`
+- Starting iteration: 3 (correctly detected)
+- Total iterations: 102 (properly calculated)
+- Session status: Incomplete (as expected during resume)
+- All functionality working correctly
+
+**Status:** ✅ **RESUME FUNCTIONALITY FULLY OPERATIONAL**
 - Added `RESUME_ORIGINAL_DIR=""` initialization at line 64
 - Prevents errors when running in non-interactive mode without resume
 
@@ -298,3 +314,34 @@ The RalphLoop script has been successfully tested and verified to work correctly
 - Live session resumption working: ✅ VERIFIED
 - Session file restoration confirmed: ✅ VERIFIED
 - Iteration counter continuation confirmed: ✅ VERIFIED
+
+### E2E Resume Workflow Test (2026-01-23)
+**Date:** 2026-01-23
+
+**What was accomplished:**
+- ✅ **Created E2E test for resume workflow**: Added `test_e2e_resume_flow()` function to test suite
+- ✅ **Integrated into test framework**: Test added to `tests/e2e/test-workflows.sh` 
+- ✅ **Tests resume functionality**: Verifies help commands, session listing, and cleanup options
+- ✅ **Proper grep handling**: Fixed flag interpretation issues with proper grep patterns
+- ✅ **All assertions pass**: Help contains resume, sessions list correctly, cleanup options available
+
+**Verification:**
+- Resume help verification: ✅ VERIFIED
+- Session listing: ✅ VERIFIED
+- Cleanup functionality: ✅ VERIFIED
+- E2E test integration: ✅ VERIFIED
+
+**Technical Details:**
+- Test function: `test_e2e_resume_flow()` in `tests/e2e/test-workflows.sh`
+- Tests: Help contains "resume", session listing shows header, cleanup options present
+- Uses manual assertions to avoid grep flag interpretation issues
+- All tests pass in isolation and integration testing
+
+**Test Results:**
+```
+--- Test: E2E - Resume workflow ---
+✓ PASS: Help should include resume option
+✓ PASS: Should show sessions header  
+✓ PASS: Should show cleanup options
+Resume test completed successfully
+```
