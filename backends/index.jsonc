@@ -1,0 +1,31 @@
+{
+  "version": "1.0.0",
+  "name": "RalphLoop Backends Configuration",
+  "description": "Backend integrations for RalphLoop autonomous development",
+  "backends": {
+    "opencode": {
+      "name": "OpenCode",
+      "description": "Primary autonomous agent backend",
+      "enabled": true,
+      "path": "backends/opencode/"
+    },
+    "mock": {
+      "name": "Mock Backend",
+      "description": "Testing backend for development and CI/CD",
+      "enabled": false,
+      "path": "backends/mock/"
+    }
+  },
+  "customCommands": {
+    "enabled": true,
+    "triggerPattern": "ralph-",
+    "evaluationLoopTrigger": "ralph-trigger",
+    "configFile": "backends/index.json"
+  },
+  "evaluation": {
+    "modes": ["autonomous", "interactive", "validation"],
+    "defaultMode": "autonomous",
+    "maxIterations": 100,
+    "validationEnabled": true
+  }
+}

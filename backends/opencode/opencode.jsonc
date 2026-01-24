@@ -1,6 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["opencode-pty"],
+  // opencode-pty plugin removed - will be managed separately
   "agent": {
     "AGENT_RALPH": {
       "description": "Fast execution mode - minimal safety checks",

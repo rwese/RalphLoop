@@ -1,0 +1,83 @@
+{
+  "name": "OpenCode Backend",
+  "version": "1.0.0",
+  "description": "Primary autonomous agent backend using OpenCode",
+  "enabled": true,
+  "cli": {
+    "name": "opencode",
+    "installUrl": "https://opencode.ai",
+    "commands": {
+      "trigger": "opencode run",
+      "status": "opencode status",
+      "config": "opencode config"
+    }
+  },
+  "integration": {
+    "evaluationTrigger": {
+      "command": "opencode run",
+      "description": "Run OpenCode agent for autonomous development",
+      "arguments": ["--agent", "--prompt"]
+    },
+    "statusCheck": {
+      "command": "opencode status",
+      "description": "Check OpenCode agent status",
+      "arguments": []
+    },
+    "configuration": {
+      "command": "opencode config",
+      "description": "Configure OpenCode settings",
+      "arguments": []
+    }
+  },
+  "hooks": {
+    "preEvaluation": [],
+    "postEvaluation": [],
+    "onError": ["logError", "notifyUser"]
+  },
+  "environment": {
+    "OPENCODE_API_KEY": {
+      "required": false,
+      "description": "OpenCode API key for cloud features"
+    },
+    "OPENCODE_AUTH": {
+      "required": true,
+      "description": "OpenCode authentication data (JSON format)"
+    }
+  },
+  "customCommands": [
+    {
+      "name": "evaluate",
+      "command": "opencode",
+      "arguments": ["run", "--agent", "AGENT_RALPH"],
+      "description": "Start evaluation loop with OpenCode agent",
+      "mode": "autonomous"
+    },
+    {
+      "name": "status",
+      "command": "opencode",
+      "arguments": ["status"],
+      "description": "Check OpenCode backend status",
+      "mode": "interactive"
+    },
+    {
+      "name": "validate",
+      "command": "opencode",
+      "arguments": ["validate"],
+      "description": "Validate with OpenCode backend",
+      "mode": "validation"
+    }
+  ],
+  "documentation": {
+    "readme": "https://opencode.ai/docs",
+    "examples": "backends/opencode/examples/"
+  },
+  "testing": {
+    "scenarios": [
+      {
+        "name": "Standard Operation",
+        "description": "Normal OpenCode agent execution",
+        "environment": {}
+      }
+    ]
+  }
+}

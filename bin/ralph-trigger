@@ -3,14 +3,14 @@
 # ralph-trigger - Custom command trigger for RalphLoop evaluation loops
 # Usage: ralph-trigger [options]
 #
-# This script can be called by external CLIs (Claude Code, Codex, Kilo)
-# to trigger RalphLoop evaluation loops with custom configuration.
+# This script can be called by external CLIs to trigger RalphLoop evaluation loops
+# with custom configuration.
 #
 # Options:
 #   --iterations, -n <number>  Number of iterations to run (default: 1)
 #   --prompt, -p <file>        Path to prompt file
 #   --mode, -m <mode>          Evaluation mode: autonomous, interactive, validation
-#   --backend, -b <backend>    Backend to use: claude-code, codex, kilo
+#   --backend, -b <backend>    Backend to use: opencode, mock
 #   --config, -c <file>        Path to backend config file
 #   --status                    Show current status
 #   --config-get <key>         Get configuration value
@@ -19,7 +19,7 @@
 #
 # Examples:
 #   ralph-trigger --iterations 5 --mode autonomous
-#   ralph-trigger --prompt ./prompt.md --backend claude-code
+#   ralph-trigger --prompt ./prompt.md --backend opencode
 #   ralph-trigger --status
 #   ralph-trigger --config-get evaluation.maxIterations
 
@@ -28,7 +28,7 @@ set -e -u -o pipefail
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKENDS_DIR="${SCRIPT_DIR}/../backends"
-CONFIG_FILE="${BACKENDS_DIR}/index.json"
+CONFIG_FILE="${BACKENDS_DIR}/index.jsonc"
 RALPH_SCRIPT="${SCRIPT_DIR}/../ralph"
 
 # Default values
@@ -52,7 +52,7 @@ OPTIONS
     --iterations, -n <number>  Number of iterations to run (default: 1)
     --prompt, -p <file>        Path to prompt file
     --mode, -m <mode>          Evaluation mode: autonomous, interactive, validation
-    --backend, -b <backend>    Backend to use: claude-code, codex, kilo
+    --backend, -b <backend>    Backend to use: opencode, mock
     --config, -c <file>        Path to backend config file
     --status                    Show current status
     --config-get <key>         Get configuration value
@@ -65,9 +65,8 @@ MODES
     validation   Run validation checks only
 
 BACKENDS
-    claude-code  Use Claude Code CLI integration
-    codex        Use OpenAI Codex CLI integration
-    kilo         Use Kilo CLI integration
+    opencode  Use OpenCode backend (primary)
+    mock      Use Mock backend for testing
 
 EXAMPLES
     # Run autonomous development for 5 iterations
@@ -76,8 +75,8 @@ EXAMPLES
     # Run with specific prompt file
     ralph-trigger --prompt ./my-prompt.md --iterations 10
 
-    # Use Claude Code backend
-    ralph-trigger --backend claude-code --mode autonomous
+    # Use OpenCode backend
+    ralph-trigger --backend opencode --mode autonomous
 
     # Check current status
     ralph-trigger --status
@@ -96,8 +95,8 @@ ENVIRONMENT VARIABLES
     RALPH_MODE           Default evaluation mode
 
 FILES
-    backends/index.json  Main backend configuration
-    backends/*/config.json  Backend-specific configurations
+    backends/index.jsonc      Main backend configuration
+    backends/*/config.jsonc   Backend-specific configurations
     progress.md          Current progress tracking
 
 For more information, see: https://github.com/rwese/RalphLoop
@@ -170,8 +169,8 @@ validate_args() {
 
   # Validate backend
   if [[ -n "$BACKEND" ]]; then
-    if [[ ! "$BACKEND" =~ ^(claude-code|codex|kilo)$ ]]; then
-      echo "Error: Backend must be one of: claude-code, codex, kilo" >&2
+    if [[ ! "$BACKEND" =~ ^(opencode|mock)$ ]]; then
+      echo "Error: Backend must be one of: opencode, mock" >&2
       echo "Got: '$BACKEND'" >&2
       exit 1
     fi
@@ -285,7 +284,7 @@ show_status() {
       if [[ -d "$backend_dir" ]]; then
         local backend_name
         backend_name=$(basename "$backend_dir")
-        local backend_config="${backend_dir}config.json"
+        local backend_config="${backend_dir}config.jsonc"
 
         if [[ -f "$backend_config" ]]; then
           local enabled

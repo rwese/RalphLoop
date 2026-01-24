@@ -283,32 +283,10 @@ Output `<promise>COMPLETE</promise>` when:
 
 ### Supported Backends
 
-| Backend     | Type     | Description                |
-| ----------- | -------- | -------------------------- |
-| OpenCode    | Primary  | Autonomous agent operation |
-| Claude Code | Optional | Anthropic's CLI            |
-| Codex       | Optional | OpenAI's code generation   |
-| Kilo CLI    | Optional | Autonomous workflows       |
-| Mock        | Testing  | API-free testing           |
-
-### Backend Configuration
-
-```bash
-# Enable backend
-ralph-config --enable claude-code
-
-# Trigger evaluation
-claude ralf-trigger --iterations 5 --mode autonomous
-codex ralf-trigger --iterations 10
-kilo ralf-trigger --mode validation
-
-# Check status
-ralf-status --progress --state --backends
-
-# Configure settings
-ralf-config --get evaluation.maxIterations
-ralf-config --set evaluation.maxIterations=50
-```
+| Backend  | Type    | Description                |
+| -------- | ------- | -------------------------- |
+| OpenCode | Primary | Autonomous agent operation |
+| Mock     | Testing | API-free testing           |
 
 ### Evaluation Modes
 

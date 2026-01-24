@@ -18,7 +18,7 @@ set -e -u -o pipefail
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKENDS_DIR="${SCRIPT_DIR}/../backends"
-CONFIG_FILE="${BACKENDS_DIR}/index.json"
+CONFIG_FILE="${BACKENDS_DIR}/index.jsonc"
 
 # Default values
 GET_KEY=""
@@ -41,15 +41,14 @@ OPTIONS
     --get <key>          Get configuration value
     --set <key>=<value>  Set configuration value
     --list, -l           List all configuration
-    --backend <name>     Backend to configure (claude-code, codex, kilo)
+    --backend <name>     Backend to configure
     --enable <backend>   Enable a backend
     --disable <backend>  Disable a backend
     --reset              Reset to defaults
     --help, -h           Show this help message
 
 KEYS (dot notation)
-    backends.claude-code.enabled
-    backends.claude-code.environment.RALPH_LOOP_ENABLED
+    backends.opencode.enabled
     evaluation.maxIterations
     evaluation.defaultMode
     evaluation.validationEnabled
@@ -65,18 +64,9 @@ EXAMPLES
     # Set a value
     ralph-config --set evaluation.maxIterations=50
 
-    # Enable Claude Code backend
-    ralph-config --enable claude-code
-
-    # Disable a backend
-    ralph-config --disable codex
-
-    # Configure specific backend
-    ralph-config --backend claude-code --set environment.RALPH_LOOP_ENABLED=true
-
 FILES
-    backends/index.json          Main configuration file
-    backends/*/config.json       Backend-specific configurations
+    backends/index.jsonc        Main configuration file
+    backends/*/config.jsonc     Backend-specific configurations
 
 For more information, see: https://github.com/rwese/RalphLoop
 EOF
@@ -140,23 +130,23 @@ validate_args() {
 
   # Validate backend name if specified
   if [[ -n "$BACKEND_NAME" ]]; then
-    if [[ ! "$BACKEND_NAME" =~ ^(claude-code|codex|kilo)$ ]]; then
+    if [[ ! "$BACKEND_NAME" =~ ^(opencode|mock)$ ]]; then
       echo "Error: Invalid backend name: $BACKEND_NAME" >&2
-      echo "Must be one of: claude-code, codex, kilo" >&2
+      echo "Must be one of: opencode, mock" >&2
       exit 1
     fi
   fi
 
   # Validate enable/disable backend names
   if [[ -n "$ENABLE_BACKEND" ]]; then
-    if [[ ! "$ENABLE_BACKEND" =~ ^(claude-code|codex|kilo)$ ]]; then
+    if [[ ! "$ENABLE_BACKEND" =~ ^(opencode|mock)$ ]]; then
       echo "Error: Invalid backend name: $ENABLE_BACKEND" >&2
       exit 1
     fi
   fi
 
   if [[ -n "$DISABLE_BACKEND" ]]; then
-    if [[ ! "$DISABLE_BACKEND" =~ ^(claude-code|codex|kilo)$ ]]; then
+    if [[ ! "$DISABLE_BACKEND" =~ ^(opencode|mock)$ ]]; then
       echo "Error: Invalid backend name: $DISABLE_BACKEND" >&2
       exit 1
     fi
@@ -294,7 +284,7 @@ list_config() {
 # Enable a backend
 enable_backend() {
   local backend="$1"
-  local backend_config="${BACKENDS_DIR}/${backend}/config.json"
+  local backend_config="${BACKENDS_DIR}/${backend}/config.jsonc"
 
   if [[ ! -f "$backend_config" ]]; then
     echo "Error: Backend config not found: $backend_config" >&2
@@ -308,7 +298,7 @@ enable_backend() {
 # Disable a backend
 disable_backend() {
   local backend="$1"
-  local backend_config="${BACKENDS_DIR}/${backend}/config.json"
+  local backend_config="${BACKENDS_DIR}/${backend}/config.jsonc"
 
   if [[ ! -f "$backend_config" ]]; then
     echo "Error: Backend config not found: $backend_config" >&2
@@ -337,14 +327,6 @@ reset_config() {
   set_config "evaluation.defaultMode" "\"autonomous\""
   set_config "evaluation.validationEnabled" "true"
 
-  # Disable all backends
-  for backend in claude-code codex kilo; do
-    local backend_config="${BACKENDS_DIR}/${backend}/config.json"
-    if [[ -f "$backend_config" ]]; then
-      set_config "enabled" "false" "$backend_config"
-    fi
-  done
-
   echo "✅ Configuration reset to defaults"
 
   rm -f "${CONFIG_FILE}.bak"
@@ -361,7 +343,7 @@ main() {
     list_config
   elif [[ -n "$GET_KEY" ]]; then
     if [[ -n "$BACKEND_NAME" ]]; then
-      get_config "$GET_KEY" "${BACKENDS_DIR}/${BACKEND_NAME}/config.json"
+      get_config "$GET_KEY" "${BACKENDS_DIR}/${BACKEND_NAME}/config.jsonc"
     else
       get_config "$GET_KEY"
     fi
@@ -371,7 +353,7 @@ main() {
     value=$(echo "$SET_PAIR" | cut -d'=' -f2-)
 
     if [[ -n "$BACKEND_NAME" ]]; then
-      set_config "$key" "$value" "${BACKENDS_DIR}/${BACKEND_NAME}/config.json"
+      set_config "$key" "$value" "${BACKENDS_DIR}/${BACKEND_NAME}/config.jsonc"
     else
       set_config "$key" "$value"
     fi

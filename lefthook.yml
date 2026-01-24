@@ -50,5 +50,5 @@ pre-commit:
       stage: true
     - name: lint-markdown
       glob: '*.md'
-      run: npx markdownlint --fix --config .markdownlintrc.json {staged_files}
+      run: npx markdownlint --fix --config .markdownlintrc.jsonc {staged_files}
       stage: true
