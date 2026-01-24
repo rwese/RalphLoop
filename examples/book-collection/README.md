@@ -15,14 +15,15 @@ Build a complete library management system with:
 ## Running with RalphLoop
 
 ```bash
-# Run with 15 iterations (path is relative to /workspace inside container)
-RALPH_PROMPT_FILE=/workspace/examples/book-collection/prompt.md npm run container:run 15
+# Run with 15 iterations
+RALPH_PROMPT_FILE=examples/book-collection/prompt.md ./ralph 15
 
 # Or set RALPH_PROMPT directly from the file
-RALPH_PROMPT="$(cat examples/book-collection/prompt.md)" npm run container:run 15
-```
+RALPH_PROMPT="$(cat examples/book-collection/prompt.md)" ./ralph 15
 
-> **Note:** `RALPH_PROMPT_FILE` paths are relative to `/workspace` inside the container.
+# Or use npx
+npx ralphloop -p examples/book-collection/prompt.md 15
+```
 
 ## Key Features
 

@@ -1,33 +1,20 @@
 # RalphLoop Examples
 
-Ready-to-use project prompts for RalphLoop autonomous development system. These examples are pre-installed in the container at `/usr/share/ralphloop/examples/`.
+Ready-to-use project prompts for RalphLoop autonomous development system.
 
 ## Quick Start (Recommended)
 
-All examples are pre-installed in the container. Run any example with a single command:
+Run any example with the ralph script:
 
 ```bash
-# Build the container first
-podman build -t ralphloop .
-
 # Run the todo app example (10 iterations)
-podman run -it --rm \
-  --userns=keep-id \
-  -v "$(pwd):/workspace" \
-  -w "/workspace" \
-  -e "RALPH_PROMPT_FILE=/usr/share/ralphloop/examples/todo-app/prompt.md" \
-  -e "OPENCODE_AUTH=$(< ~/.local/share/opencode/auth.json)" \
-  ralphloop ./ralph 10
-```
+RALPH_PROMPT_FILE=examples/todo-app/prompt.md ./ralph 10
 
-Or using npm scripts:
+# Or use the npx CLI
+npx ralphloop -p examples/todo-app/prompt.md 10
 
-```bash
-# Build image
-npm run container:build
-
-# Run with example prompt (path is inside the container)
-RALPH_PROMPT_FILE=/usr/share/ralphloop/examples/todo-app/prompt.md npm run container:run 10
+# Or set the prompt directly
+RALPH_PROMPT="$(cat examples/todo-app/prompt.md)" ./ralph 10
 ```
 
 ## Available Examples
@@ -54,61 +41,31 @@ Each example folder contains:
 ### Todo App (Quickest to Complete)
 
 ```bash
-podman run -it --rm \
-  --userns=keep-id \
-  -v "$(pwd):/workspace" \
-  -w "/workspace" \
-  -e "RALPH_PROMPT_FILE=/usr/share/ralphloop/examples/todo-app/prompt.md" \
-  -e "OPENCODE_AUTH=$(< ~/.local/share/opencode/auth.json)" \
-  ralphloop ./ralph 10
+RALPH_PROMPT_FILE=examples/todo-app/prompt.md ./ralph 10
 ```
 
 ### Book Collection
 
 ```bash
-podman run -it --rm \
-  --userns=keep-id \
-  -v "$(pwd):/workspace" \
-  -w "/workspace" \
-  -e "RALPH_PROMPT_FILE=/usr/share/ralphloop/examples/book-collection/prompt.md" \
-  -e "OPENCODE_AUTH=$(< ~/.local/share/opencode/auth.json)" \
-  ralphloop ./ralph 15
+RALPH_PROMPT_FILE=examples/book-collection/prompt.md ./ralph 15
 ```
 
 ### Finance Dashboard
 
 ```bash
-podman run -it --rm \
-  --userns=keep-id \
-  -v "$(pwd):/workspace" \
-  -w "/workspace" \
-  -e "RALPH_PROMPT_FILE=/usr/share/ralphloop/examples/finance-dashboard/prompt.md" \
-  -e "OPENCODE_AUTH=$(< ~/.local/share/opencode/auth.json)" \
-  ralphloop ./ralph 15
+RALPH_PROMPT_FILE=examples/finance-dashboard/prompt.md ./ralph 15
 ```
 
 ### Weather CLI
 
 ```bash
-podman run -it --rm \
-  --userns=keep-id \
-  -v "$(pwd):/workspace" \
-  -w "/workspace" \
-  -e "RALPH_PROMPT_FILE=/usr/share/ralphloop/examples/weather-cli/prompt.md" \
-  -e "OPENCODE_AUTH=$(< ~/.local/share/opencode/auth.json)" \
-  ralphloop ./ralph 5
+RALPH_PROMPT_FILE=examples/weather-cli/prompt.md ./ralph 5
 ```
 
 ### YouTube CLI
 
 ```bash
-podman run -it --rm \
-  --userns=keep-id \
-  -v "$(pwd):/workspace" \
-  -w "/workspace" \
-  -e "RALPH_PROMPT_FILE=/usr/share/ralphloop/examples/youtube-cli/prompt.md" \
-  -e "OPENCODE_AUTH=$(< ~/.local/share/opencode/auth.json)" \
-  ralphloop ./ralph 10
+RALPH_PROMPT_FILE=examples/youtube-cli/prompt.md ./ralph 10
 ```
 
 ### PromptBuilder
@@ -116,13 +73,7 @@ podman run -it --rm \
 Build an interactive tool that helps users transform raw ideas into quality prompts:
 
 ```bash
-podman run -it --rm \
-  --userns=keep-id \
-  -v "$(pwd):/workspace" \
-  -w "/workspace" \
-  -e "RALPH_PROMPT_FILE=/usr/share/ralphloop/examples/prompt-builder/prompt.md" \
-  -e "OPENCODE_AUTH=$(< ~/.local/share/opencode/auth.json)" \
-  ralphloop ./ralph 5
+RALPH_PROMPT_FILE=examples/prompt-builder/prompt.md ./ralph 5
 ```
 
 Or using the quick command:
@@ -131,55 +82,25 @@ Or using the quick command:
 npx ralphloop quick prompt
 ```
 
-Or using npm scripts:
-
-```bash
-# Run with example prompt (path is inside the container)
-RALPH_PROMPT_FILE=/usr/share/ralphloop/examples/prompt-builder/prompt.md npm run container:run 5
-```
-
-## Interactive Mode
-
-Get a shell inside the container to experiment:
-
-```bash
-podman run -it --rm \
-  --userns=keep-id \
-  -v "$(pwd):/workspace" \
-  -w "/workspace" \
-  -e "OPENCODE_AUTH=$(< ~/.local/share/opencode/auth.json)" \
-  ralphloop bash
-```
-
-Inside the container:
-
-```bash
-# List all examples (pre-installed in container)
-ls -la /usr/share/ralphloop/examples/
-
-# Run an example
-RALPH_PROMPT_FILE=/usr/share/ralphloop/examples/todo-app/prompt.md ./ralph 10
-```
-
 ## Using Your Own Prompts
 
 You can also use prompts from your local project:
 
 ```bash
-# Using a local prompt file (path relative to mounted workspace at /workspace)
-RALPH_PROMPT_FILE=/workspace/examples/my-custom-prompt/prompt.md npm run container:run 10
+# Using a local prompt file (path relative to current directory)
+RALPH_PROMPT_FILE=examples/my-custom-prompt/prompt.md ./ralph 10
 
 # Or set the prompt directly
-RALPH_PROMPT="Build a new feature X for my app" npm run container:run 5
+RALPH_PROMPT="Build a new feature X for my app" ./ralph 5
 ```
 
 ## Environment Variables
 
-| Variable            | Description                                                                      |
-| ------------------- | -------------------------------------------------------------------------------- |
-| `RALPH_PROMPT`      | Direct prompt text for the autonomous loop                                       |
-| `RALPH_PROMPT_FILE` | Path to a prompt file (e.g., `/usr/share/ralphloop/examples/todo-app/prompt.md`) |
-| `OPENCODE_AUTH`     | OpenCode authentication data (JSON format, required)                             |
+| Variable            | Description                                                 |
+| ------------------- | ----------------------------------------------------------- |
+| `RALPH_PROMPT`      | Direct prompt text for the autonomous loop                  |
+| `RALPH_PROMPT_FILE` | Path to a prompt file (e.g., `examples/todo-app/prompt.md`) |
+| `OPENCODE_AUTH`     | OpenCode authentication data (JSON format, required)        |
 
 ### Setting Up OPENCODE_AUTH
 
@@ -192,11 +113,11 @@ RALPH_PROMPT="Build a new feature X for my app" npm run container:run 5
 
 2. **The auth file is at:** `~/.local/share/opencode/auth.json`
 
-3. **Pass to container:**
+3. **Pass to script:**
 
    ```bash
    # Using shell substitution
-   OPENCODE_AUTH=$(cat ~/.local/share/opencode/auth.json) npx ralphloop 10
+   OPENCODE_AUTH=$(cat ~/.local/share/opencode/auth.json) ./ralph 10
 
    # Or using --env flag
    npx ralphloop --env "OPENCODE_AUTH=$(cat ~/.local/share/opencode/auth.json)" 10
@@ -208,8 +129,7 @@ RALPH_PROMPT="Build a new feature X for my app" npm run container:run 5
 - Review `progress.md` after each run
 - RalphLoop commits after each iteration
 - Check git log to see progress: `git log --oneline`
-- Examples are pre-installed - no source checkout needed
-- Your changes persist in your project directory (mounted volume)
+- Your changes persist in your project directory
 
 ## Creating Your Own
 
@@ -219,5 +139,5 @@ RALPH_PROMPT="Build a new feature X for my app" npm run container:run 5
 4. Run with:
 
 ```bash
-RALPH_PROMPT_FILE=/workspace/examples/your-project/prompt.md npm run container:run
+RALPH_PROMPT_FILE=examples/your-project/prompt.md ./ralph
 ```

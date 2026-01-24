@@ -281,22 +281,19 @@ npx ralphloop --ralph-prompt-file examples/todo-app/prompt.md 10
 # Using short form
 npx ralphloop -p examples/todo-app/prompt.md 10
 
-# Note: RALPH_PROMPT_FILE paths are relative to /workspace inside the container
-RALPH_PROMPT_FILE=/workspace/examples/todo-app/prompt.md npm run container:run 10
+# Using ralph script
+RALPH_PROMPT_FILE=/workspace/examples/todo-app/prompt.md ./ralph 10
 
-# Or use the container script directly
-RALPH_PROMPT_FILE=/workspace/examples/todo-app/prompt.md ./bin/container.sh run 10
-
-# Set RALPH_PROMPT directly from the file (no path conversion needed)
-RALPH_PROMPT="$(cat examples/todo-app/prompt.md)" npm run container:run 10
+# Set RALPH_PROMPT directly from the file
+RALPH_PROMPT="$(cat examples/todo-app/prompt.md)" ./ralph 10
 
 # Copy the prompt to your project and run there
 cp examples/todo-app/prompt.md my-project/
 cd my-project
-RALPH_PROMPT="$(cat prompt.md)" npm run container:run 10
+RALPH_PROMPT="$(cat prompt.md)" ./ralph 10
 ```
 
-> **Note:** `RALPH_PROMPT_FILE` must be a path relative to `/workspace` inside the container (where your project is mounted). For local development, `--ralph-prompt-file` or `-p` is recommended as it reads the file directly.
+> **Note:** `RALPH_PROMPT_FILE` paths are relative to the current directory when using the shell script directly.
 
 ### Environment Variables for Prompts
 

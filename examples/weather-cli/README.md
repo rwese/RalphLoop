@@ -14,14 +14,15 @@ Build a terminal-based weather tool with:
 ## Running with RalphLoop
 
 ```bash
-# Run with 5 iterations (path is relative to /workspace inside container)
-RALPH_PROMPT_FILE=/workspace/examples/weather-cli/prompt.md npm run container:run 5
+# Run with 5 iterations
+RALPH_PROMPT_FILE=examples/weather-cli/prompt.md ./ralph 5
 
 # Or set RALPH_PROMPT directly from the file
-RALPH_PROMPT="$(cat examples/weather-cli/prompt.md)" npm run container:run 5
-```
+RALPH_PROMPT="$(cat examples/weather-cli/prompt.md)" ./ralph 5
 
-> **Note:** `RALPH_PROMPT_FILE` paths are relative to `/workspace` inside the container.
+# Or use npx
+npx ralphloop -p examples/weather-cli/prompt.md 5
+```
 
 ## Key Features
 

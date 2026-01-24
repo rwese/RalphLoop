@@ -103,18 +103,6 @@ ls -la /usr/share/ralphloop/examples/
 RALPH_PROMPT_FILE=/usr/share/ralphloop/examples/todo-app/prompt.md ./ralph 10
 ```
 
-## Using npm Scripts
-
-The project includes npm scripts for convenience:
-
-```bash
-# Build the image
-npm run container:build
-
-# Run with an example (set RALPH_PROMPT_FILE to the container path)
-RALPH_PROMPT_FILE=/usr/share/ralphloop/examples/todo-app/prompt.md npm run container:run 10
-```
-
 ## Authentication
 
 The container requires OpenCode authentication. If you don't have an auth file, you can:
