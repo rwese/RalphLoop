@@ -74,11 +74,12 @@ RalphLoop runs itself to achieve goals using OpenCode as the agent runtime.
 
 ### API Keys
 
-| Variable           | Description                       |
-| ------------------ | --------------------------------- |
-| `CONTEXT7_API_KEY` | Context7 MCP documentation lookup |
-| `OPENCODE_API_KEY` | OpenCode API access               |
-| `GITHUB_TOKEN`     | GitHub CLI integration            |
+| Variable                  | Description                                                                  |
+| ------------------------- | ---------------------------------------------------------------------------- |
+| `CONTEXT7_API_KEY`        | Context7 MCP documentation lookup                                            |
+| `OPENCODE_API_KEY`        | OpenCode API access                                                          |
+| `GITHUB_TOKEN`            | GitHub CLI integration                                                       |
+| `OPENCODE_CONFIG_CONTENT` | OpenCode inline config (JSONC content from backends/opencode/opencode.jsonc) |
 
 ## Project Structure
 
@@ -87,7 +88,6 @@ RalphLoop/
 ├── ralph                    # Autonomous loop script (entry point)
 ├── bin/
 │   ├── ralphloop.js         # npx CLI tool entry point
-│   ├── container.sh         # Container build/run scripts
 │   └── doctor.js            # System diagnostic tool
 ├── prompt.md                # Default project objectives
 ├── progress.md              # Iteration tracking
@@ -335,12 +335,10 @@ ralf-config --set evaluation.maxIterations=50
 
 ### npm Scripts
 
-| Script                    | Description               |
-| ------------------------- | ------------------------- |
-| `npm run container:build` | Build Docker image        |
-| `npm run container:run`   | Run container             |
-| `npm run format`          | Format code with Prettier |
-| `npm run lint:markdown`   | Lint markdown files       |
+| Script                  | Description               |
+| ----------------------- | ------------------------- |
+| `npm run format`        | Format code with Prettier |
+| `npm run lint:markdown` | Lint markdown files       |
 
 ## Examples
 
@@ -360,8 +358,8 @@ ralf-config --set evaluation.maxIterations=50
 # Using npx
 npx ralphloop -p examples/todo-app/prompt.md 10
 
-# Using container
-RALPH_PROMPT_FILE=/workspace/examples/todo-app/prompt.md ./bin/container.sh run 10
+# Using ralph script
+RALPH_PROMPT_FILE=/workspace/examples/todo-app/prompt.md ./ralph 10
 ```
 
 ## Lessons Learned

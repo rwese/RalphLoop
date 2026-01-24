@@ -7,6 +7,18 @@
 # Configuration and Setup
 # =============================================================================
 
+# Load opencode.jsonc and export as OPENCODE_CONFIG_CONTENT for inline override
+load_opencode_config() {
+    local opencode_config="${BACKENDS_DIR:-.}/opencode/opencode.jsonc"
+    if [[ -f "$opencode_config" ]]; then
+        echo "📄 Loading OpenCode config: $opencode_config"
+        export OPENCODE_CONFIG_CONTENT=$(cat "$opencode_config")
+        echo "✅ OpenCode config loaded (${#OPENCODE_CONFIG_CONTENT} bytes)"
+    else
+        echo "⚠️ OpenCode config not found: $opencode_config"
+    fi
+}
+
 # Build opencode command with logging options
 build_opencode_opts() {
     OPENCODE_OPTS=()
@@ -96,6 +108,9 @@ get_validation_status() {
 run_main_loop() {
     # Set up signal handlers
     trap 'cleanup; exit 130' INT TERM
+
+    # Load OpenCode configuration
+    load_opencode_config
 
     # Build opencode options
     build_opencode_opts
