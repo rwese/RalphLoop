@@ -54,3 +54,10 @@ fi
 if [ -f "${LIB_DIR}/lib/exec.sh" ]; then
   source "${LIB_DIR}/lib/exec.sh"
 fi
+
+# =============================================================================
+# Pipeline Module (depends on core.sh, sessions.sh)
+# =============================================================================
+if [ -f "${LIB_DIR}/lib/pipeline.sh" ]; then
+  source "${LIB_DIR}/lib/pipeline.sh"
+fi

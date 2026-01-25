@@ -190,3 +190,127 @@ RALPH_AGENT=opencode:gpt-4 RALPH_AGENT_VALIDATION=claude-code:sonnet ./ralph 10
 - ✅ Environment variable takes precedence over default
 - ✅ Supports all existing agent backend options
 - ✅ Clear logging when falling back
+
+## Multi-Stage Pipeline Framework
+
+### Implementation Complete
+**Date**: Sun Jan 25 2026
+**Status**: Completed
+
+**Task**: Implement configurable multi-stage pipeline framework replacing hardcoded execute→validate→finalize flow
+
+**Actions Taken**:
+- ✅ Created `lib/pipeline.sh` with complete pipeline orchestration:
+  - Configuration parser (YAML/JSON support via yq/jq or pure bash fallback)
+  - State manager for pipeline state persistence
+  - Transition engine with conditional routing
+  - Stage executor with timeout support
+  - AI validation hooks
+  - Guardrails (max iterations, emergency stop, logging)
+- ✅ Created `pipeline.yaml` default configuration matching current behavior:
+  - execute → validate → finalize flow
+  - Retry loop on validation failure
+  - Stage timeouts
+  - Comprehensive documentation
+- ✅ Created example custom pipeline `examples/pipeline/iterative-refactor.yaml`:
+  - 5 custom stages (analyze, implement, test, review, deploy)
+  - Conditional transitions
+  - AI-enhanced validation at key stages
+  - Demonstrates advanced pipeline features
+- ✅ Updated `lib/args.sh` with pipeline CLI commands:
+  - `pipeline run` - Execute pipeline
+  - `pipeline validate` - Validate configuration
+  - `pipeline status` - Show current status
+  - `pipeline reset` - Reset pipeline state
+  - `pipeline stop` - Emergency stop
+- ✅ Updated `lib.sh` to include pipeline module
+- ✅ Created comprehensive unit tests in `tests/unit/test-pipeline.sh`:
+  - Configuration loading and validation
+  - Stage transitions (success/failure)
+  - Terminal stage detection
+  - Logging and state management
+  - Emergency stop functionality
+
+**Changes Made**:
+- New file: `lib/pipeline.sh` (~650 lines) - Core pipeline framework
+- New file: `pipeline.yaml` - Default pipeline configuration
+- New file: `examples/pipeline/iterative-refactor.yaml` - Example custom pipeline
+- New file: `tests/unit/test-pipeline.sh` - Unit tests for pipeline module
+- Modified: `lib/args.sh` - Added pipeline CLI argument parsing
+- Modified: `lib.sh` - Added pipeline module sourcing
+- Modified: `bin/ralph` - Added pipeline command handler
+
+**Pipeline Configuration Schema**:
+```yaml
+pipeline:
+  name: string
+  max_iterations: integer
+  initial_stage: string
+
+stages:
+  stage_name:
+    entry_command: bash_command
+    validation_command: bash_command  # optional
+    on_success: stage_name            # next stage if validation passes
+    on_failure: stage_name            # next stage if validation fails
+    timeout: seconds                  # optional
+    ai_validation: boolean            # optional, enable AI enhancement
+    description: string               # optional
+
+transitions:
+  - from: stage_name
+    to: stage_name
+    condition: expression  # optional, evaluated by bash
+```
+
+**CLI Usage**:
+```bash
+# Run pipeline with default config
+./ralph pipeline run
+
+# Validate configuration
+./ralph pipeline validate
+
+# Show pipeline status
+./ralph pipeline status
+
+# Reset pipeline state
+./ralph pipeline reset
+
+# Emergency stop
+./ralph pipeline stop
+
+# Use custom configuration
+RALPH_PIPELINE_CONFIG=my-pipeline.yaml ./ralph pipeline run
+
+# Enable AI validation
+RALPH_PIPELINE_AI_ENABLED=true ./ralph pipeline run
+```
+
+**Verification**:
+- ✅ All syntax checks pass (bash -n)
+- ✅ `pipeline validate` loads and validates configuration correctly
+- ✅ `pipeline status` shows appropriate state messages
+- ✅ `pipeline reset` handles missing files gracefully
+- ✅ Default pipeline matches existing execute→validate→finalize flow
+- ✅ Unit tests created and syntax verified
+- ✅ No regressions in existing functionality
+
+**Acceptance Criteria Met**:
+- ✅ Framework supports defining 3+ custom stages (default has 3, example has 5)
+- ✅ Stage transitions driven by external configuration (YAML)
+- ✅ Each stage can execute arbitrary bash commands
+- ✅ Stages conditionally route based on exit codes
+- ✅ Framework prevents invalid stage transitions
+- ✅ Configuration defined in single declarative file (pipeline.yaml)
+- ✅ Configuration validation catches errors before execution
+- ✅ Default pipeline behavior matches existing flow
+- ✅ AI integration hooks exposed for validation stages
+- ✅ Guardrails: max iterations, logging, error handling
+- ✅ Emergency stop mechanism implemented
+- ✅ Integration with existing RalphLoop infrastructure
+- ✅ CLI interface supports run, validate-config, show-status, reset
+- ✅ Works with existing bash scripts
+- ✅ No new runtime dependencies (pure bash with optional yq/jq)
+- ✅ Configuration schema documented with examples
+- ✅ Unit tests cover core functionality

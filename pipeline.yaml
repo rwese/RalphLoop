@@ -1,0 +1,164 @@
+# RalphLoop Pipeline Configuration
+# Default pipeline matching the execute -> validate -> finalize flow
+#
+# This configuration file defines the stages and transitions for the pipeline.
+# The framework will load this file automatically if present in the current directory.
+#
+# Configuration Format:
+# - pipeline: Global pipeline settings
+# - stages: List of stage definitions
+# - transitions: Optional explicit transition rules with conditions
+#
+# For more information, see: https://github.com/rwese/RalphLoop#pipeline-configuration
+
+# =============================================================================
+# Pipeline Metadata
+# =============================================================================
+
+pipeline:
+  name: default
+  description: Default RalphLoop pipeline with execute, validate, and finalize stages
+  max_iterations: 100
+  initial_stage: execute
+
+# =============================================================================
+# Stage Definitions
+# =============================================================================
+
+stages:
+  # ---------------------------------------------------------------------------
+  # Execute Stage
+  # ---------------------------------------------------------------------------
+  # Primary workload execution stage
+  # Runs the main agent loop until work is complete
+  #
+  - name: execute
+    description: Execute the main workload using the AI agent
+    entry_command: run_agent_execution
+    validation_command: check_execution_complete
+    on_success: validate
+    on_failure: finalize
+    timeout: 1800
+    ai_validation: false
+
+  # ---------------------------------------------------------------------------
+  # Validate Stage
+  # ---------------------------------------------------------------------------
+  # Validation stage that checks if work meets acceptance criteria
+  # Can loop back to execute if validation fails
+  #
+  - name: validate
+    description: Validate execution results against acceptance criteria
+    entry_command: run_validation
+    validation_command: check_validation_passed
+    on_success: finalize
+    on_failure: execute
+    timeout: 300
+    ai_validation: false
+
+  # ---------------------------------------------------------------------------
+  # Finalize Stage
+  # ---------------------------------------------------------------------------
+  # Terminal stage for cleanup, commits, and completion tasks
+  # This stage should always succeed and transition to completion
+  #
+  - name: finalize
+    description: Finalize pipeline, commit changes, and complete
+    entry_command: run_finalization
+    validation_command: ""
+    on_success: ""
+    on_failure: ""
+    timeout: 120
+    ai_validation: false
+
+# =============================================================================
+# Transition Rules
+# =============================================================================
+# Optional explicit transition rules with conditions
+# Use this for complex routing logic beyond simple on_success/on_failure
+#
+# Each transition specifies:
+# - from: Source stage name
+# - to: Target stage name
+# - condition: Bash expression evaluated to determine if transition is allowed
+#
+# Transitions are checked in order - first matching transition is used
+# If no transitions match, the on_success/on_failure from stage definition is used
+#
+transitions:
+  # Example: Only transition to finalize if no pending issues
+  # - from: validate
+  #   to: finalize
+  #   condition: "[[ ! -f $VALIDATION_ISSUES_FILE ]]"
+
+  # Example: Skip validation in fast mode
+  # - from: execute
+  #   to: finalize
+  #   condition: "[[ $RALPH_PIPELINE_FAST_MODE == true ]]"
+
+  # Example: Retry with backoff on repeated failures
+  # - from: execute
+  #   to: execute
+  #   condition: "[[ $PIPELINE_CURRENT_ITERATION -lt 3 ]]"
+
+# =============================================================================
+# Stage Commands Reference
+# =============================================================================
+#
+# The following built-in commands are available:
+#
+# Built-in Commands:
+#   run_agent_execution    - Run the main AI agent loop
+#   run_validation         - Run validation checks
+#   run_finalization       - Finalize and commit
+#
+# Validation Functions:
+#   check_execution_complete  - Check if work is complete
+#   check_validation_passed   - Check if validation passed
+#
+# Custom Commands:
+#   You can specify any bash command or script as entry_command
+#   or validation_command
+#
+# Examples:
+#   entry_command: "./scripts/my-script.sh"
+#   entry_command: "npm run build"
+#   validation_command: "[[ -f build/output.txt ]] && grep -q SUCCESS build/output.txt"
+#
+# =============================================================================
+# AI Integration
+# =============================================================================
+#
+# To enable AI-enhanced validation for a stage, set:
+#   ai_validation: true
+#
+# This will trigger AI validation hooks that can make decisions
+# about stage transitions based on context and goals.
+#
+# AI validation is controlled by the following environment variables:
+#   RALPH_PIPELINE_AI_ENABLED    - Enable AI features (default: false)
+#   RALPH_AGENT_VALIDATION       - Agent to use for validation
+#
+# Note: AI validation is optional and does not break bash-only workflows
+#
+# =============================================================================
+# Timeout Configuration
+# =============================================================================
+#
+# Stage timeouts are specified in seconds:
+#   timeout: 1800    # 30 minutes
+#   timeout: 300     # 5 minutes
+#   timeout: 0       # No timeout (use with caution)
+#
+# If a stage times out, the pipeline treats it as a failure
+# and follows the on_failure transition path.
+#
+# =============================================================================
+# Examples
+# =============================================================================
+#
+# For more complex pipeline examples, see:
+#   examples/pipeline/ci-cd.yaml
+#   examples/pipeline/iterative-refactor.yaml
+#   examples/pipeline/quick-prototype.yaml
+#

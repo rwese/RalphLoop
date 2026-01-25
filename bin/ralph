@@ -63,6 +63,9 @@ if [ -n "$RALPH_CLEANUP" ]; then
     exit 0
 fi
 
+# Handle pipeline commands (exit after handling)
+handle_pipeline_commands
+
 # Set MAX_ROUNDS from remaining positional parameters (iteration count)
 if [ $# -gt 0 ]; then
     MAX_ROUNDS="$1"

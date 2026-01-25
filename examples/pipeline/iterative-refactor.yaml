@@ -1,0 +1,173 @@
+# RalphLoop Custom Pipeline Example: Iterative Refactoring Pipeline
+#
+# This configuration demonstrates advanced pipeline features:
+# - 5 custom stages (analyze, implement, test, review, deploy)
+# - Conditional transitions based on test results
+# - AI-enhanced validation at key stages
+# - Different timeout configurations per stage
+#
+# Usage:
+#   RALPH_PIPELINE_CONFIG=examples/pipeline/iterative-refactor.yaml ./ralph 20
+#   RALPH_PIPELINE_AI_ENABLED=true ./ralph pipeline run
+#
+# =============================================================================
+# Pipeline Metadata
+# =============================================================================
+
+pipeline:
+  name: iterative-refactor
+  description: Multi-stage pipeline for iterative code refactoring with AI review
+  max_iterations: 50
+  initial_stage: analyze
+
+# =============================================================================
+# Stage Definitions
+# =============================================================================
+
+stages:
+  # ---------------------------------------------------------------------------
+  # Stage 1: Analyze
+  # ---------------------------------------------------------------------------
+  # Analyze the codebase to identify refactoring opportunities
+  # Uses AI to understand code structure and suggest improvements
+  #
+  - name: analyze
+    description: Analyze codebase structure and identify refactoring targets
+    entry_command: run_code_analysis
+    validation_command: check_analysis_complete
+    on_success: implement
+    on_failure: review
+    timeout: 600
+    ai_validation: true
+
+  # ---------------------------------------------------------------------------
+  # Stage 2: Implement
+  # ---------------------------------------------------------------------------
+  # Implement the refactoring changes
+  # Returns to analyze if implementation encounters issues
+  #
+  - name: implement
+    description: Implement refactoring changes
+    entry_command: run_implementation
+    validation_command: check_implementation_complete
+    on_success: test
+    on_failure: analyze
+    timeout: 900
+    ai_validation: false
+
+  # ---------------------------------------------------------------------------
+  # Stage 3: Test
+  # ---------------------------------------------------------------------------
+  # Run tests to verify refactoring doesn't break functionality
+  # Loops back to implement if tests fail
+  #
+  - name: test
+    description: Run tests to verify refactoring
+    entry_command: run_tests
+    validation_command: check_tests_passed
+    on_success: review
+    on_failure: implement
+    timeout: 300
+    ai_validation: true
+
+  # ---------------------------------------------------------------------------
+  # Stage 4: Review
+  # ---------------------------------------------------------------------------
+  # AI-powered code review of changes
+  # Can trigger re-implementation if issues found
+  #
+  - name: review
+    description: AI-powered code review of changes
+    entry_command: run_code_review
+    validation_command: check_review_passed
+    on_success: deploy
+    on_failure: implement
+    timeout: 600
+    ai_validation: true
+
+  # ---------------------------------------------------------------------------
+  # Stage 5: Deploy
+  # ---------------------------------------------------------------------------
+  # Finalize and deploy changes
+  # Terminal stage - pipeline completes here
+  #
+  - name: deploy
+    description: Deploy and finalize refactoring
+    entry_command: run_deployment
+    validation_command: ""
+    on_success: ""
+    on_failure: ""
+    timeout: 120
+    ai_validation: false
+
+# =============================================================================
+# Transition Rules
+# =============================================================================
+
+transitions:
+  # Skip test stage in fast mode for quick iterations
+  - from: implement
+    to: review
+    condition: "[[ $RALPH_PIPELINE_FAST_MODE == true ]]"
+
+  # Skip review for simple changes
+  - from: test
+    to: deploy
+    condition: "[[ $PIPELINE_CURRENT_ITERATION -le 2 ]] && [[ -z $(git diff --name-only) ]]"
+
+  # Emergency rollback if critical issues found
+  - from: review
+    to: analyze
+    condition: "[[ -f .critical_issues ]]"
+
+# =============================================================================
+# Custom Stage Commands (examples)
+# =============================================================================
+#
+# These commands would be defined in lib/pipeline.sh or custom scripts:
+#
+# run_code_analysis:
+#   - Run static analysis tools
+#   - Call AI to understand code structure
+#   - Generate analysis report
+#
+# run_implementation:
+#   - Apply refactoring changes
+#   - Update related files
+#   - Commit changes
+#
+# run_tests:
+#   - Run unit tests
+#   - Run integration tests
+#   - Generate coverage report
+#
+# run_code_review:
+#   - Send changes to AI for review
+#   - Check coding standards
+#   - Generate review report
+#
+# run_deployment:
+#   - Tag release
+#   - Push to remote
+#   - Update documentation
+#
+# Validation Functions:
+#   check_analysis_complete:    Analysis report exists
+#   check_implementation_complete: Changes committed
+#   check_tests_passed:         All tests passing
+#   check_review_passed:        No critical issues
+#
+# =============================================================================
+# Environment Variables
+# =============================================================================
+#
+# This pipeline responds to:
+#   RALPH_PIPELINE_FAST_MODE    - Skip test/review for quick iterations
+#   RALPH_PIPELINE_AI_ENABLED   - Enable AI validation (default: false)
+#   RALPH_PIPELINE_MAX_RETRIES  - Max retries per stage (default: 3)
+#
+# Example usage:
+#   RALPH_PIPELINE_FAST_MODE=true ./ralph pipeline run
+#   RALPH_PIPELINE_AI_ENABLED=true ./ralph pipeline run
+#
+# =============================================================================
