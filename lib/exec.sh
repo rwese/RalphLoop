@@ -10,9 +10,12 @@
 # Load opencode.jsonc and export as OPENCODE_CONFIG_CONTENT for inline override
 load_opencode_config() {
   local opencode_config="${BACKENDS_DIR:-.}/opencode/opencode.jsonc"
+  export OPENCODE_CONFIG_CONTENT="{}"
   if [[ -f "$opencode_config" ]]; then
     echo "📄 Loading OpenCode config: $opencode_config"
-    export OPENCODE_CONFIG_CONTENT=$(cat "$opencode_config")
+    local read_opencode_config
+    read_opencode_config=$(cat "$opencode_config")
+    export OPENCODE_CONFIG_CONTENT="$read_opencode_config"
     echo "✅ OpenCode config loaded (${#OPENCODE_CONFIG_CONTENT} bytes)"
   else
     echo "⚠️ OpenCode config not found: $opencode_config"
@@ -77,6 +80,37 @@ load_backend_config() {
   fi
 }
 
+# Validate OpenCode backend configuration
+# Runs 'opencode debug config' to verify the config is valid
+validate_opencode_config() {
+  echo "🔍 Validating OpenCode configuration..."
+
+  # First check if opencode is available
+  if ! command -v opencode &>/dev/null; then
+    echo "❌ Error: 'opencode' command not found"
+    echo "   Please install OpenCode before running RalphLoop"
+    return 1
+  fi
+
+  # Run opencode debug config to validate the configuration
+  local config_output
+  local config_exit_code
+
+  config_output=$(opencode debug config 2>&1)
+  config_exit_code=$?
+
+  if [ $config_exit_code -eq 0 ]; then
+    echo "✅ OpenCode configuration is valid"
+    return 0
+  else
+    echo "❌ OpenCode configuration validation failed:"
+    echo "$config_output"
+    echo ""
+    echo "Please fix your opencode.jsonc configuration before running RalphLoop"
+    return 1
+  fi
+}
+
 # Display configuration info
 display_config() {
   echo "========================================"
@@ -117,6 +151,14 @@ run_main_loop() {
 
   # Load backend configuration
   load_backend_config
+
+  # Validate OpenCode configuration if using opencode backend
+  if [[ -z "$RALPH_BACKEND" || "$RALPH_BACKEND" == "opencode" ]]; then
+    if ! validate_opencode_config; then
+      echo "❌ Configuration validation failed. Exiting."
+      exit 1
+    fi
+  fi
 
   # Display configuration
   display_config

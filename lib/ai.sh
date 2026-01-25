@@ -31,24 +31,18 @@ Output ONLY the markdown specification, no explanations.
 METAPROMPT
   )
 
-  local generated
-  if generated=$(timeout 600 opencode run "${OPENCODE_OPTS[@]}" <<<"$meta_prompt" 2>/dev/null); then
+  local generated error_output
+  # Run opencode and capture both stdout and stderr to diagnose failures
+  error_output=$(mktemp)
+  if generated=$(timeout 600 opencode run "${OPENCODE_OPTS[@]}" <<<"$meta_prompt" 2>"$error_output"); then
+    rm -f "$error_output"
     echo "$generated"
   else
-    echo "ai generation failed, using default template." >&2
-    # Fallback if AI fails
-    cat <<FALLBACK
-# Goal
+    local error_msg
+    error_msg=$(cat "$error_output" 2>/dev/null || echo "Unknown error")
+    rm -f "$error_output"
 
-${user_idea}
-
-## Approach
-
-- [ ] Extract Acceptance criteria
-- [ ] Break down work into chunks
-- [ ] Tests passing
-
-FALLBACK
+    echo "⚠️  AI generation failed: $error_msg" >&2
   fi
 }
 
