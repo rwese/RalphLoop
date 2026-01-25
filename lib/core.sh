@@ -47,16 +47,20 @@ RALPH_PROMPTS='
 ## Your Priorities
 
 ### Phase 1: ANALYZE
+
+0. [ ] Validate initial existing issues and address them accordingly
 1. [ ] Read and understand the project plan and acceptance criteria
 2. [ ] Read progress.md to understand current state
 3. [ ] Identify the highest priority next step that makes measurable progress
 
 ### Phase 2: PLAN & VALIDATE
+
 4. [ ] Break down the goal into verifiable tasks
 5. [ ] Define what "done" looks like for each task
 6. [ ] Identify how you will verify completion (builds, tests, manual checks)
 
 ### Phase 3: EXECUTE & VERIFY
+
 7. [ ] Implement the task
 8. [ ] Run verification checks:
    - [ ] Code compiles/builds without errors
@@ -66,6 +70,7 @@ RALPH_PROMPTS='
 9. [ ] Fix any issues found before proceeding
 
 ### Phase 4: DOCUMENT & COMMIT
+
 10. [ ] Update progress.md with accomplishments
 11. [ ] Create meaningful git commit
 12. [ ] Identify next improvements
@@ -74,12 +79,13 @@ RALPH_PROMPTS='
 
 BEFORE marking a task complete, you MUST verify:
 
-- [ ] **Build**: Code compiles/runs successfully
-- [ ] **Tests**: Unit tests pass (or state why not applicable)
-- [ ] **Linting**: Code passes style checks
-- [ ] **Requirements**: Feature meets acceptance criteria
-- [ ] **Integration**: Works with existing code
-- [ ] **No Regressions**: Existing functionality intact
+- [ ] Build: Code compiles/runs successfully
+- [ ] Tests: Unit tests pass (or state why not applicable)
+- [ ] Linting: Code passes style checks
+- [ ] Requirements: Feature meets acceptance criteria
+- [ ] Integration: Works with existing code
+- [ ] No Regressions: Existing functionality intact
+- [ ] MUST ENSURE A CLEAN WORKSPACE, update gitignore and sort remaining files to their destination
 
 ## Constraints
 

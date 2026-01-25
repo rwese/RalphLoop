@@ -52,16 +52,6 @@ launch_editor_for_prompt() {
     # Write content to prompt file
     echo "$template_content" >"$prompt_file"
 
-    # Check if AI flow already handled editing (skip editor marker exists)
-    if [ -f "$skip_editor_marker" ]; then
-        rm -f "$skip_editor_marker"
-        # Store the prompt file path in session marker for reuse across iterations
-        echo "$prompt_file" >"$session_marker"
-        echo "Prompt saved to: $prompt_file" >&2
-        cat "$prompt_file"
-        return 0
-    fi
-
     # Capture original state for modification check
     original_content=$(cat "$prompt_file")
     # stat -f %m for macOS, stat -c %Y for Linux
@@ -86,7 +76,7 @@ launch_editor_for_prompt() {
     fi
 
     # Fail if content is unchanged from template
-    if [ "$new_content" = "$original_content" ]; then
+    if [ "$new_content" = "$original_content" ] && [ ! "$template_type" = "ai" ]; then
         echo "Error: Prompt file was not modified from template. Aborting." >&2
         rm -f "$prompt_file"
         exit 1

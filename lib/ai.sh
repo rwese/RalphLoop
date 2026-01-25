@@ -161,8 +161,6 @@ generate_ai_enhanced_prompt() {
 
     case "$choice" in
     accept)
-      # User accepts as-is, signal to skip editor via marker file
-      touch "${cache_dir}/.ai_skip_editor_$$"
       echo "$generated"
       return 0
       ;;
@@ -173,8 +171,6 @@ generate_ai_enhanced_prompt() {
       local edited
       edited=$(cat "$edit_file")
       rm -f "$edit_file"
-      # Signal to skip editor via marker file
-      touch "${cache_dir}/.ai_skip_editor_$$"
       echo "$edited"
       return 0
       ;;
