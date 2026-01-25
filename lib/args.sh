@@ -16,11 +16,22 @@ parse_cli_args() {
   RALPH_CLEANUP_DAYS=7
   RALPH_PIPELINE_CMD=""
   RALPH_PIPELINE_ARGS=""
+  RALPH_SESSIONS_FILTER_DIR=""
+  RALPH_FORCE_RESUME=false
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
     --sessions)
       RALPH_SESSIONS=true
+      # Check for --dir filter
+      local next_arg=""
+      if [[ $# -gt 1 ]]; then
+        next_arg="$2"
+      fi
+      if [[ -n "$next_arg" && "$next_arg" != --* ]]; then
+        RALPH_SESSIONS_FILTER_DIR="$2"
+        shift
+      fi
       shift
       ;;
     --resume)
@@ -47,11 +58,27 @@ parse_cli_args() {
       RALPH_CLEANUP="all"
       shift
       ;;
+    --dir)
+      if [[ -z "$2" || "$2" == --* ]]; then
+        echo "Error: --dir requires a directory argument"
+        exit 1
+      fi
+      RALPH_SESSIONS_FILTER_DIR="$2"
+      shift 2
+      ;;
+    --force-resume)
+      RALPH_FORCE_RESUME=true
+      shift
+      ;;
     pipeline)
       # Pipeline management command
-      if [[ -z "$2" ]]; then
+      local next_arg=""
+      if [[ $# -gt 1 ]]; then
+        next_arg="$2"
+      fi
+      if [[ -z "$next_arg" || "$next_arg" == --* ]]; then
         echo "Error: 'pipeline' command requires a subcommand"
-        echo "Usage: ./ralph pipeline [run|validate-config|show-status|reset|stop]"
+        echo "Usage: ./ralph pipeline [run|resume|validate|status|reset|stop]"
         exit 1
       fi
       RALPH_PIPELINE_CMD="$2"
@@ -81,14 +108,17 @@ Usage: ./ralph [options] [iterations]
        ./ralph pipeline <command> [options]
 
 Options:
-  --sessions           List all sessions
-  --resume <id>        Resume a specific session
-  --cleanup [days]     Clean up incomplete sessions older than N days (default: 7)
-  --cleanup-all        Clean up ALL incomplete sessions
-  -h, --help           Show this help message
+  --sessions [--dir <path>]  List sessions (optionally filter by directory)
+  --resume <id>              Resume a specific session
+  --cleanup [days]           Clean up incomplete sessions older than N days (default: 7)
+  --cleanup-all              Clean up ALL incomplete sessions
+  --dir <path>               Filter sessions by directory
+  --force-resume             Force resume without prompting (for pipeline)
+  -h, --help                 Show this help message
 
 Pipeline Commands:
   pipeline run         Run the configured pipeline
+  pipeline resume      Resume interrupted pipeline
   pipeline validate    Validate pipeline configuration
   pipeline status      Show current pipeline status
   pipeline reset       Reset pipeline state
@@ -106,9 +136,11 @@ Session Management:
 Examples:
   ./ralph 10                                  Run 10 iterations
   ./ralph --sessions                          List all sessions
+  ./ralph --sessions --dir /path/to/project   List sessions for specific project
   ./ralph --resume myproject_20240123-143000
   ./ralph --cleanup 3                         Clean up incomplete sessions older than 3 days
   ./ralph pipeline run                        Run pipeline
+  ./ralph pipeline resume                     Resume interrupted pipeline
   ./ralph pipeline validate                   Validate pipeline config
   RALPH_PIPELINE_AI_ENABLED=true ./ralph pipeline run
 EOF
@@ -117,7 +149,7 @@ EOF
 # Handle session management commands
 handle_session_commands() {
   if [ "$RALPH_SESSIONS" = "true" ]; then
-    list_sessions
+    list_sessions "$RALPH_SESSIONS_FILTER_DIR"
     exit 0
   fi
 
@@ -155,10 +187,17 @@ handle_pipeline_commands() {
     return 0
   fi
 
+  # Export force resume flag for pipeline functions
+  export RALPH_FORCE_RESUME
+
   case "$RALPH_PIPELINE_CMD" in
   run)
     echo "🚀 Starting pipeline..."
     run_pipeline
+    exit $?
+    ;;
+  resume)
+    resume_pipeline_command "${RALPH_FORCE_RESUME:-false}"
     exit $?
     ;;
   validate | validate-config)
@@ -179,7 +218,7 @@ handle_pipeline_commands() {
     ;;
   *)
     echo "Error: Unknown pipeline command: $RALPH_PIPELINE_CMD"
-    echo "Usage: ./ralph pipeline [run|validate|status|reset|stop]"
+    echo "Usage: ./ralph pipeline [run|resume|validate|status|reset|stop]"
     exit 1
     ;;
   esac

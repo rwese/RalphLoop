@@ -32,6 +32,12 @@ PIPELINE_START_TIME=""
 PIPELINE_STATUS="idle" # idle, running, completed, failed, stopped
 PIPELINE_ERROR=""
 
+# Validation status tracking (set by run_validate_stage, checked by check_validation_passed)
+VALIDATION_PASSED=false
+
+# Execution completion tracking (set by run_execute_stage, checked by check_execution_complete)
+EXECUTION_COMPLETE=false
+
 # Stage definitions (populated by config parser)
 declare -A STAGE_ENTRY_COMMANDS
 declare -A STAGE_VALIDATION_COMMANDS
@@ -76,7 +82,7 @@ load_pipeline_config() {
 
   if [[ -z "$config_file" ]]; then
     echo "⚠️  No pipeline configuration file found"
-    echo "   Using default pipeline configuration (execute -> validate -> finalize)"
+    echo "   Using default pipeline configuration (plan -> execute -> validate)"
     load_default_pipeline_config
     return 0
   fi
@@ -117,11 +123,11 @@ load_pipeline_config() {
   echo "   Initial Stage: $PIPELINE_INITIAL_STAGE"
 }
 
-# Load default pipeline configuration (execute -> validate -> finalize)
+# Load default pipeline configuration (plan -> execute -> validate)
 load_default_pipeline_config() {
   PIPELINE_NAME="default"
   PIPELINE_MAX_ITERATIONS="${MAX_ROUNDS:-100}"
-  PIPELINE_INITIAL_STAGE="execute"
+  PIPELINE_INITIAL_STAGE="plan"
 
   # Clear existing stage definitions
   unset STAGE_ENTRY_COMMANDS STAGE_VALIDATION_COMMANDS STAGE_ON_SUCCESS
@@ -131,35 +137,35 @@ load_default_pipeline_config() {
   declare -gA STAGE_ON_FAILURE STAGE_TIMEOUTS STAGE_AI_VALIDATION STAGE_DESCRIPTIONS
   declare -gA TRANSITION_CONDITIONS
 
+  # Define plan stage
+  STAGE_DESCRIPTIONS["plan"]="Analyze task and create implementation plan"
+  STAGE_ENTRY_COMMANDS["plan"]="run_plan_stage"
+  STAGE_VALIDATION_COMMANDS["plan"]="check_plan_complete"
+  STAGE_ON_SUCCESS["plan"]="execute"
+  STAGE_ON_FAILURE["plan"]=""
+  STAGE_TIMEOUTS["plan"]="${RALPH_TIMEOUT:-1800}"
+  STAGE_AI_VALIDATION["plan"]="false"
+
   # Define execute stage
-  STAGE_DESCRIPTIONS["execute"]="Execute the main workload"
-  STAGE_ENTRY_COMMANDS["execute"]="run_agent_execution"
+  STAGE_DESCRIPTIONS["execute"]="Execute the planned implementation"
+  STAGE_ENTRY_COMMANDS["execute"]="run_execute_stage"
   STAGE_VALIDATION_COMMANDS["execute"]="check_execution_complete"
   STAGE_ON_SUCCESS["execute"]="validate"
-  STAGE_ON_FAILURE["execute"]="finalize"
+  STAGE_ON_FAILURE["execute"]="plan" # Loop back to plan on failure
   STAGE_TIMEOUTS["execute"]="${RALPH_TIMEOUT:-1800}"
   STAGE_AI_VALIDATION["execute"]="false"
 
   # Define validate stage
-  STAGE_DESCRIPTIONS["validate"]="Validate execution results"
-  STAGE_ENTRY_COMMANDS["validate"]="run_validation"
+  STAGE_DESCRIPTIONS["validate"]="Validate execution results and quality"
+  STAGE_ENTRY_COMMANDS["validate"]="run_validate_stage"
   STAGE_VALIDATION_COMMANDS["validate"]="check_validation_passed"
-  STAGE_ON_SUCCESS["validate"]="finalize"
+  STAGE_ON_SUCCESS["validate"]=""        # Terminal stage - pipeline complete
   STAGE_ON_FAILURE["validate"]="execute" # Loop back to execute on failure
   STAGE_TIMEOUTS["validate"]="300"
   STAGE_AI_VALIDATION["validate"]="${RALPH_PIPELINE_AI_ENABLED:-false}"
 
-  # Define finalize stage
-  STAGE_DESCRIPTIONS["finalize"]="Finalize and complete the pipeline"
-  STAGE_ENTRY_COMMANDS["finalize"]="run_finalization"
-  STAGE_VALIDATION_COMMANDS["finalize"]=""
-  STAGE_ON_SUCCESS["finalize"]=""
-  STAGE_ON_FAILURE["finalize"]=""
-  STAGE_TIMEOUTS["finalize"]="120"
-  STAGE_AI_VALIDATION["finalize"]="false"
-
   # Define transitions
-  PIPELINE_STAGES=("execute" "validate" "finalize")
+  PIPELINE_STAGES=("plan" "execute" "validate")
 }
 
 # Parse YAML pipeline configuration (using yq if available, fallback to pure bash)
@@ -455,12 +461,14 @@ check_circular_dependencies() {
   # We only want to detect truly infinite cycles that never terminate
   # A cycle is only problematic if it has NO exit path to a terminal stage
 
-  # Find terminal stages (no transitions defined)
+  # Find terminal stages
+  # A stage is terminal if on_success is empty (doesn't continue on success)
+  # on_failure can point to retry, but if on_success is empty, the pipeline will complete
   local terminal_stages=()
   for stage in "${PIPELINE_STAGES[@]}"; do
     local success="${STAGE_ON_SUCCESS[$stage]:-}"
-    local failure="${STAGE_ON_FAILURE[$stage]:-}"
-    if [[ -z "$success" && -z "$failure" ]]; then
+    # A stage is terminal if it doesn't continue on success
+    if [[ -z "$success" ]]; then
       terminal_stages+=("$stage")
     fi
   done
@@ -591,7 +599,7 @@ log_pipeline_event() {
 
   echo "[$timestamp] [$event_type] $message" >>"$PIPELINE_LOG_FILE"
 
-  if [[ "$RALPH_PIPELINE_LOG_VERBOSE" == "true" ]]; then
+  if [[ "${RALPH_PIPELINE_LOG_VERBOSE:-false}" == "true" ]]; then
     echo "📝 [$event_type] $message"
   fi
 }
@@ -618,6 +626,9 @@ execute_stage() {
   PIPELINE_CURRENT_ITERATION=$((PIPELINE_CURRENT_ITERATION + 1))
 
   log_pipeline_event "STAGE_START" "Executing stage: $stage_name (iteration: $PIPELINE_CURRENT_ITERATION)"
+
+  # Save state BEFORE executing stage (enables resume on interruption)
+  save_pipeline_state
 
   # Check iteration limit
   if [[ $PIPELINE_CURRENT_ITERATION -gt $PIPELINE_MAX_ITERATIONS ]]; then
@@ -653,16 +664,26 @@ execute_stage() {
   if [[ -n "$entry_command" ]]; then
     log_pipeline_event "STAGE_COMMAND" "Running: $entry_command"
 
-    # Run with timeout if specified
-    if [[ -n "$stage_timeout" && "$stage_timeout" -gt 0 ]]; then
-      echo "⏱️  Stage timeout: ${stage_timeout}s"
-      if ! timeout "$stage_timeout" bash -c "$entry_command" 2>&1; then
+    # Check if it's a shell function (defined in this shell)
+    if declare -f "$entry_command" >/dev/null 2>&1; then
+      # It's a function, call it directly in the current shell
+      log_pipeline_event "STAGE_FUNCTION" "Calling function: $entry_command"
+      if ! "$entry_command" 2>&1; then
         stage_exit_code=$?
-        log_pipeline_event "STAGE_TIMEOUT" "Stage '$stage_name' timed out after ${stage_timeout}s"
       fi
     else
-      if ! bash -c "$entry_command" 2>&1; then
-        stage_exit_code=$?
+      # It's a command/script, run it via bash -c
+      log_pipeline_event "STAGE_COMMAND" "Executing: $entry_command"
+      if [[ -n "$stage_timeout" && "$stage_timeout" -gt 0 ]]; then
+        echo "⏱️  Stage timeout: ${stage_timeout}s"
+        if ! timeout "$stage_timeout" bash -c "$entry_command" 2>&1; then
+          stage_exit_code=$?
+          log_pipeline_event "STAGE_TIMEOUT" "Stage '$stage_name' timed out after ${stage_timeout}s"
+        fi
+      else
+        if ! bash -c "$entry_command" 2>&1; then
+          stage_exit_code=$?
+        fi
       fi
     fi
   fi
@@ -672,9 +693,19 @@ execute_stage() {
   if [[ -n "$validation_command" ]]; then
     log_pipeline_event "STAGE_VALIDATION" "Validating: $validation_command"
 
-    if ! bash -c "$validation_command" 2>&1; then
-      validation_passed=false
-      stage_exit_code=1
+    # Check if it's a shell function (defined in this shell)
+    if declare -f "$validation_command" >/dev/null 2>&1; then
+      # It's a function, call it directly in the current shell
+      if ! "$validation_command" 2>&1; then
+        validation_passed=false
+        stage_exit_code=1
+      fi
+    else
+      # It's a command/script, run it via bash -c
+      if ! bash -c "$validation_command" 2>&1; then
+        validation_passed=false
+        stage_exit_code=1
+      fi
     fi
   fi
 
@@ -697,6 +728,7 @@ execute_stage() {
     echo "❌ Stage '$stage_name' validation failed"
   fi
 
+  # Save state AFTER stage completion
   save_pipeline_state
 
   return $stage_exit_code
@@ -764,7 +796,9 @@ get_next_stage() {
 
   # If no next stage defined, check if this is a terminal stage
   if [[ -z "$next_stage" ]]; then
-    if [[ -z "${STAGE_ON_SUCCESS[$current_stage]}" && -z "${STAGE_ON_FAILURE[$current_stage]}" ]]; then
+    # A stage is terminal if on_success is empty
+    # (on_failure only matters when stage fails, not for success path)
+    if [[ -z "${STAGE_ON_SUCCESS[$current_stage]}" ]]; then
       log_pipeline_event "TERMINAL_STAGE" "Stage '$current_stage' is terminal"
       echo ""
     else
@@ -783,6 +817,12 @@ get_next_stage() {
 
 # Run the complete pipeline
 run_pipeline() {
+  # Load configuration first (must happen before printing stage info)
+  if ! load_pipeline_config; then
+    echo "❌ Failed to load pipeline configuration"
+    return 1
+  fi
+
   echo "🚀 Starting pipeline execution"
   echo "========================================"
   echo "   Pipeline: $PIPELINE_NAME"
@@ -791,23 +831,13 @@ run_pipeline() {
   echo "========================================"
   echo ""
 
-  # Load configuration
-  if ! load_pipeline_config; then
-    echo "❌ Failed to load pipeline configuration"
-    return 1
-  fi
-
-  # Initialize state
-  init_pipeline_state
-
-  # Check for saved state (resume capability)
-  if [[ -f "$PIPELINE_STATE_FILE" ]]; then
-    echo "📂 Found saved pipeline state. Loading..."
-    load_pipeline_state
-
-    if [[ "$PIPELINE_STATUS" == "running" ]]; then
-      echo "▶️  Resuming pipeline from stage: $PIPELINE_CURRENT_STAGE"
-    fi
+  # Check for existing pipeline state and handle resume
+  if check_and_handle_pipeline_resume; then
+    # Resume was successful, state already loaded
+    echo "▶️  Resuming from saved state..."
+  else
+    # No resume, initialize fresh state
+    init_pipeline_state
   fi
 
   # Main pipeline loop
@@ -1010,47 +1040,476 @@ emergency_stop_pipeline() {
 }
 
 # =============================================================================
+# Pipeline Resume Functions
+# =============================================================================
+
+# Prompt user about existing pipeline state
+prompt_pipeline_resume() {
+  local session_id="$1"
+  local session_dir
+  session_dir=$(get_session_dir "$session_id")
+
+  # Read session details
+  local iteration pipeline_stage max_iterations
+  iteration=$(grep '"iteration"' "${session_dir}/session.json" | sed 's/.*: *\([0-9]*\).*/\1/')
+  pipeline_stage=$(grep '"pipeline_stage"' "${session_dir}/session.json" | sed 's/.*: *"\([^"]*\)".*/\1/')
+  max_iterations=$(grep '"max_iterations"' "${session_dir}/session.json" | sed 's/.*: *\([0-9]*\).*/\1/')
+
+  echo ""
+  echo "========================================"
+  echo "⚠️  Existing pipeline state found!"
+  echo "========================================"
+  echo ""
+  echo "Session: $session_id"
+  echo "Stage: ${pipeline_stage:-unknown}"
+  echo "Iteration: $iteration / $max_iterations"
+  echo "Status: incomplete"
+  echo ""
+  echo "Options:"
+  echo "  [R] Resume from this state"
+  echo "  [N] Start new pipeline (keeps old session)"
+  echo "  [X] Cancel"
+  echo ""
+  echo -n "Choose: "
+
+  local choice
+  read -r choice
+
+  case "${choice^^}" in
+  R)
+    echo ""
+    echo "▶️  Resuming pipeline..."
+    return 0
+    ;;
+  N)
+    echo ""
+    echo "🔄 Starting new pipeline..."
+    return 1
+    ;;
+  X | *)
+    echo ""
+    echo "❌ Cancelled."
+    exit 1
+    ;;
+  esac
+}
+
+# Prompt for iteration count when resuming
+prompt_iteration_count() {
+  local resume_iteration="$1"
+  local current_max="$2"
+
+  local remaining=$((current_max - resume_iteration))
+  local new_total=$current_max
+
+  echo ""
+  echo "========================================"
+  echo "📊 Iteration Count Configuration"
+  echo "========================================"
+  echo ""
+  echo "Current max iterations: $current_max"
+  echo "Resume from iteration: $resume_iteration"
+  echo "Remaining iterations: $remaining"
+  echo ""
+  echo -n "Enter new total [$current_max]: "
+
+  local input
+  read -r input
+
+  if [[ -n "$input" && "$input" =~ ^[0-9]+$ ]]; then
+    new_total="$input"
+  fi
+
+  echo ""
+  echo "📝 Will run $((new_total - resume_iteration)) more iterations (total: $new_total)"
+  echo ""
+
+  # Return the new max iterations
+  echo "$new_total"
+}
+
+# Check for existing pipeline session and handle resume logic
+check_and_handle_pipeline_resume() {
+  local session_id
+  session_id=$(find_latest_pipeline_session)
+
+  if [ -z "$session_id" ]; then
+    # No existing session found, start fresh
+    return 1
+  fi
+
+  # Check for --force-resume flag
+  if [[ "${RALPH_FORCE_RESUME:-false}" == "true" ]]; then
+    echo "▶️  Force resuming from existing session: $session_id"
+    resume_session "$session_id" true
+    return 0
+  fi
+
+  # Prompt user
+  if prompt_pipeline_resume "$session_id"; then
+    # User chose to resume
+    local resume_iteration
+    resume_iteration=$(resume_session "$session_id" true | tail -1)
+
+    # Prompt for iteration count
+    local new_max
+    new_max=$(prompt_iteration_count "$resume_iteration" "$PIPELINE_MAX_ITERATIONS")
+
+    if [[ -n "$new_max" && "$new_max" =~ ^[0-9]+$ ]]; then
+      PIPELINE_MAX_ITERATIONS="$new_max"
+    fi
+
+    # Load pipeline state from session
+    load_pipeline_from_session "$session_id"
+    return 0
+  else
+    # User chose to start new, keep old session
+    echo "🔄 Starting fresh pipeline. Old session preserved: $session_id"
+    return 1
+  fi
+}
+
+# Resume pipeline from saved state (command entry point)
+resume_pipeline_command() {
+  local force="${1:-false}"
+
+  echo "🔄 Checking for pipeline session to resume..."
+
+  # Try to find latest pipeline session
+  local session_id
+  session_id=$(find_latest_pipeline_session)
+
+  if [ -z "$session_id" ]; then
+    echo "❌ No pipeline session found to resume"
+    echo "   Run './ralph pipeline run' to start a new pipeline"
+    return 1
+  fi
+
+  echo "📂 Found session: $session_id"
+
+  # Load session
+  local resume_iteration
+  resume_iteration=$(resume_session "$session_id" true | tail -1)
+
+  if [ -z "$resume_iteration" ]; then
+    echo "❌ Failed to resume session"
+    return 1
+  fi
+
+  # Load pipeline state
+  load_pipeline_from_session "$session_id"
+
+  echo "✅ Pipeline state loaded"
+  echo ""
+  echo "🚀 Starting pipeline from saved state..."
+
+  # Run the pipeline (it will pick up from loaded state)
+  run_pipeline
+}
+
+# =============================================================================
 # Default Stage Commands (called by pipeline)
 # =============================================================================
 
-# Default execution stage command
-run_agent_execution() {
-  # This calls the main agent execution logic
-  # In a full implementation, this would integrate with the existing run_main_loop
-  echo "🚀 Running agent execution..."
+# Plan stage command - analyze task and create implementation plan
+run_plan_stage() {
+  echo "📋 Running planning stage..."
 
-  # For now, just return success to test the pipeline flow
+  # Check if prompt is already set via environment variable
+  if [ -n "${RALPH_PROMPT:-}" ]; then
+    echo "📄 Using RALPH_PROMPT environment variable"
+    echo "$RALPH_PROMPT" >"$PROMPT_FILE"
+
+  # Check if prompt file is provided via environment variable
+  elif [ -n "${RALPH_PROMPT_FILE:-}" ]; then
+    if [ -f "$RALPH_PROMPT_FILE" ]; then
+      echo "📄 Using RALPH_PROMPT_FILE: $RALPH_PROMPT_FILE"
+      cp "$RALPH_PROMPT_FILE" "$PROMPT_FILE"
+    else
+      echo "❌ Error: RALPH_PROMPT_FILE not found: $RALPH_PROMPT_FILE"
+      return 1
+    fi
+
+  # Check if prompt.md exists in current directory
+  elif [ -f "prompt.md" ]; then
+    echo "📄 Using prompt.md from current directory"
+    cp "prompt.md" "$PROMPT_FILE"
+
+  # Check if PROMPT_FILE already exists (from resume or previous iteration)
+  elif [ -f "$PROMPT_FILE" ]; then
+    echo "📄 Using existing PROMPT_FILE"
+
+  # No prompt provided - need to create one
+  else
+    echo "📝 No prompt found. Creating one..."
+
+    # Check if we have a TTY for interactive mode
+    if [ -t 0 ]; then
+      # Interactive mode - use the full prompt creation flow
+      local prompt_content
+      prompt_content=$(get_prompt)
+
+      if [ -z "$prompt_content" ]; then
+        echo "❌ Error: No prompt was created. Aborting."
+        return 1
+      fi
+
+      # Save the prompt content to PROMPT_FILE for the pipeline
+      echo "$prompt_content" >"$PROMPT_FILE"
+      echo "✅ Prompt created and saved"
+    else
+      # Non-interactive mode - create a default prompt
+      echo "⚠️  No prompt found in non-interactive mode"
+      echo "   Creating default prompt..."
+      cat >"$PROMPT_FILE" <<'EOF'
+# Default Task
+
+## Goal
+Complete the work required by the system.
+
+## Acceptance Criteria
+- [ ] Work is completed successfully
+- [ ] All tests pass
+- [ ] Code is clean and functional
+EOF
+      echo "✅ Default prompt created"
+    fi
+  fi
+
+  # Read and display the prompt
+  if [ -f "$PROMPT_FILE" ]; then
+    echo ""
+    echo "========================================"
+    echo "📋 PROJECT PROMPT"
+    echo "========================================"
+    head -30 "$PROMPT_FILE"
+    if [ $(wc -l <"$PROMPT_FILE") -gt 30 ]; then
+      echo "   ... (truncated)"
+    fi
+    echo "========================================"
+    echo ""
+  else
+    echo "❌ Error: PROMPT_FILE was not created"
+    return 1
+  fi
+
   return 0
 }
 
-# Default validation stage command
-run_validation() {
-  echo "🛡️ Running validation..."
-
-  # This would run the validation logic from the existing system
-  # For now, just return success to test the pipeline flow
+# Check if plan is complete
+check_plan_complete() {
+  # This checks if the planning phase is complete
+  # In a real implementation, this would verify a plan was created
   return 0
 }
 
-# Default finalization stage command
-run_finalization() {
-  echo "🎉 Running finalization..."
+# Execute stage command - execute the planned implementation
+run_execute_stage() {
+  echo "🚀 Running execution stage..."
 
-  # This would run the completion logic
-  # For now, just return success to test the pipeline flow
-  return 0
+  # Ensure we have a prompt file
+  if [ ! -f "$PROMPT_FILE" ]; then
+    echo "❌ Error: No prompt file found. Cannot execute."
+    return 1
+  fi
+
+  # Read progress if exists
+  local progress_content=""
+  if [ -f "$PROGRESS_FILE" ]; then
+    progress_content=$(cat "$PROGRESS_FILE")
+  fi
+
+  # Read prompt
+  local prompt_content
+  prompt_content=$(cat "$PROMPT_FILE")
+
+  # Sanitize content to prevent heredoc injection
+  local sanitized_progress
+  local sanitized_prompt
+  sanitized_progress=$(sanitize_for_heredoc "$progress_content")
+  sanitized_prompt=$(sanitize_for_heredoc "$prompt_content")
+
+  # Build the prompt for OpenCode
+  local tmp_prompt_file="${TEMP_FILE_PREFIX}_prompt.txt"
+
+  # Check if we're resuming from a pipeline state
+  local pipeline_context=""
+  if [[ -n "$PIPELINE_CURRENT_STAGE" && "$PIPELINE_CURRENT_ITERATION" -gt 0 ]]; then
+    pipeline_context="
+## Pipeline State (Resumed)
+- Current Stage: $PIPELINE_CURRENT_STAGE
+- Iteration: $PIPELINE_CURRENT_ITERATION / $PIPELINE_MAX_ITERATIONS
+- Previous work completed: See progress.md below
+"
+  fi
+
+  cat >"$tmp_prompt_file" <<EOF
+# Goals and Resources
+
+## Project plan
+
+${sanitized_prompt}
+
+${pipeline_context}
+## Current Progress
+
+${sanitized_progress}
+${RALPH_PROMPTS}
+EOF
+
+  echo "📦 Building OpenCode options..."
+  build_opencode_opts
+
+  echo "🚀 Starting agent execution..."
+  echo "   (This may take a moment. Progress will be shown below.)"
+  echo ""
+
+  # Run opencode
+  set +e
+  local output_file="${TEMP_FILE_PREFIX}_output.txt"
+  opencode run "${OPENCODE_OPTS[@]}" <"$tmp_prompt_file" 2>&1 | tee "$output_file"
+  local exit_code=$?
+  set -e
+
+  rm -f "$tmp_prompt_file"
+
+  if [ $exit_code -ne 0 ]; then
+    echo "⚠️  Process exited with code: $exit_code"
+  fi
+
+  # Check for completion
+  local result
+  result=$(cat "$output_file" 2>/dev/null | tr -d '\0' || echo "")
+
+  rm -f "$output_file"
+
+  if echo "$result" | grep -q "<promise>COMPLETE</promise>"; then
+    echo ""
+    echo "✅ Agent indicated completion with <promise>COMPLETE</promise>"
+    EXECUTION_COMPLETE=true
+    return 0
+  else
+    echo ""
+    echo "⏳ Agent did not complete yet. Will continue in next iteration."
+    EXECUTION_COMPLETE=false
+    return 1
+  fi
 }
 
 # Check if execution is complete (for execute stage validation)
 check_execution_complete() {
   # This checks if the main workload is complete
-  # In a real implementation, this would check for <promise>COMPLETE</promise>
-  return 1 # Return failure to continue pipeline (testing)
+  # It reads the EXECUTION_COMPLETE variable set by run_execute_stage
+  if $EXECUTION_COMPLETE; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+# Validate stage command - validate execution results and quality
+run_validate_stage() {
+  echo "🛡️ Running validation stage..."
+
+  # Check if we have a prompt to validate against
+  local prompt_content
+  prompt_content=$(get_prompt_nointeractive)
+
+  if [ -z "$prompt_content" ] || echo "$prompt_content" | grep -q "No original prompt available"; then
+    echo "⚠️  No prompt found to validate against. Skipping validation."
+    return 0
+  fi
+
+  echo "📋 Validating against original project goals..."
+
+  # Build validation prompt
+  build_validation_opencode_opts
+
+  local validation_prompt_file="${TEMP_FILE_PREFIX}_validation.txt"
+  cat >"$validation_prompt_file" <<EOF
+# Validation Task
+
+The agent previously indicated completion with <promise>COMPLETE</promise>.
+
+You must INDEPENDENTLY VERIFY that all acceptance criteria are actually met.
+
+## Original Project Goal:
+$(get_prompt_nointeractive)
+
+## Your Validation Task:
+
+1. READ the current state of the project
+2. CHECK each acceptance criterion is actually satisfied:
+   - For each requirement, verify it exists and works
+   - Run tests, build commands, and manual checks
+3. RUN comprehensive verification:
+   - [ ] Code compiles/builds without errors
+   - [ ] Tests pass (if applicable)
+   - [ ] No linting errors
+   - [ ] All acceptance criteria from prompt are met
+   - [ ] No regressions in existing functionality
+4. OUTPUT your findings in this exact XML format:
+
+<validation_status>PASS</validation_status>  OR  <validation_status>FAIL</validation_status>
+
+<validation_issues>
+- List each failing criterion with specific details
+- Leave empty if PASS
+</validation_issues>
+
+<validation_recommendations>
+- Specific actions needed to fix each issue
+- Leave empty if PASS
+</validation_recommendations>
+
+IMPORTANT:
+- If ALL checks pass, use <validation_status>PASS</validation_status>
+- If ANY check fails, use <validation_status>FAIL</validation_status> and list all issues
+- Do NOT trust the previous agent's assessment. Verify independently.
+EOF
+
+  echo "🧠 Running independent validation..."
+
+  # Run validation with validation agent
+  set +e
+  local validation_output="${TEMP_FILE_PREFIX}_validation_output.txt"
+  opencode run "${VALIDATION_OPENCODE_OPTS[@]}" "$validation_prompt_file" 2>&1 | tee "$validation_output"
+  local validation_exit_code=$?
+  set -e
+
+  rm -f "$validation_prompt_file"
+
+  if [ $validation_exit_code -ne 0 ]; then
+    echo "⚠️  Validation process exited with code: $validation_exit_code"
+  fi
+
+  # Extract validation status
+  local validation_status
+  validation_status=$(get_validation_status "$(cat "$validation_output" 2>/dev/null || echo "")")
+
+  rm -f "$validation_output"
+
+  if [ "$validation_status" = "PASS" ]; then
+    echo ""
+    echo "🎉 Validation PASSED!"
+    VALIDATION_PASSED=true
+    return 0
+  else
+    echo ""
+    echo "⚠️  Validation FAILED"
+    echo "   The agent will need to fix issues in the next iteration."
+    VALIDATION_PASSED=false
+    return 1
+  fi
 }
 
 # Check if validation passed
 check_validation_passed() {
   # This checks if validation criteria are met
-  # In a real implementation, this would check validation results
-  return 0 # Return success to move to finalize
+  # It reads the VALIDATION_PASSED variable set by run_validate_stage
+  if $VALIDATION_PASSED; then
+    return 0
+  else
+    return 1
+  fi
 }

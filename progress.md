@@ -314,3 +314,260 @@ RALPH_PIPELINE_AI_ENABLED=true ./ralph pipeline run
 - ✅ No new runtime dependencies (pure bash with optional yq/jq)
 - ✅ Configuration schema documented with examples
 - ✅ Unit tests cover core functionality
+
+## Plan/Execute/Validate Pipeline Refactoring
+
+### Implementation Complete
+**Date**: Sun Jan 25 2026
+**Status**: Completed
+
+**Task**: Refactor pipeline structure to use plan/execute/validate stages instead of execute/validate/finalize
+
+**Actions Taken**:
+- ✅ Updated `lib/pipeline.sh` with new default pipeline configuration:
+  - Changed stages from (execute, validate, finalize) to (plan, execute, validate)
+  - Added `run_plan_stage()` and `check_plan_complete()` functions
+  - Renamed execution stage functions to match new structure
+  - Updated stage transitions: plan -> execute -> validate
+  - Added retry loop: validate failure -> execute (instead of finalize)
+- ✅ Updated `bin/ralph` to use pipeline as main driver:
+  - Changed main execution from `run_main_loop()` to `run_pipeline()`
+  - Maintains backward compatibility with existing functionality
+- ✅ Verified `lib/args.sh` pipeline command handling is compatible with new structure
+
+**Changes Made**:
+- Modified: `lib/pipeline.sh` - Updated default pipeline configuration (~50 lines changed)
+- Modified: `lib/pipeline.sh` - Added new plan stage command functions (~20 lines)
+- Modified: `bin/ralph` - Changed main driver to use pipeline (~2 lines changed)
+
+**New Pipeline Structure**:
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    PIPELINE FLOW                             │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────┐    ┌─────────┐    ┌─────────┐                 │
+│  │  PLAN   │───▶│ EXECUTE │───▶│ VALIDATE │                 │
+│  └─────────┘    └─────────┘    └─────────┘                 │
+│       │              │              │                       │
+│       │              │              │                       │
+│       ▼              ▼              ▼                       │
+│  Create plan    Implement work   Validate quality          │
+│  Break down     Execute tasks    Verify criteria           │
+│  Define done    Make changes     Check regressions         │
+│                                                             │
+│  On Failure:    On Failure:      On Failure:               │
+│  Terminal       Plan (retry)     Execute (retry)           │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Pipeline Stage Details**:
+| Stage    | Description                          | Timeout        | Retry On Failure |
+|----------|--------------------------------------|----------------|------------------|
+| plan     | Analyze task and create plan         | RALPH_TIMEOUT  | Terminal          |
+| execute  | Execute the planned implementation   | RALPH_TIMEOUT  | plan              |
+| validate | Validate results and quality         | 300s           | execute           |
+
+**Usage**:
+```bash
+# Run the new pipeline
+./ralph 10
+
+# Run with custom iterations
+./ralph 20
+
+# Pipeline commands still work
+./ralph pipeline status
+./ralph pipeline reset
+```
+
+**Verification**:
+- ✅ Syntax checks pass (bash -n)
+- ✅ Pipeline validates configuration correctly
+- ✅ Default stages load in correct order (plan -> execute -> validate)
+- ✅ Stage transitions work as expected
+- ✅ Terminal stage detection correctly identifies validate as terminal
+- ✅ Stage commands (run_plan_stage, etc.) are called correctly as shell functions
+- ✅ No regressions in existing functionality
+
+**Fixes Applied**:
+1. **Fixed shell function execution**: Modified execute_stage to detect and call shell functions directly instead of spawning subprocesses
+2. **Fixed terminal stage detection**: Updated get_next_stage to correctly identify terminal stages when on_success is empty
+3. **Fixed verbose logging variable**: Added default value for RALPH_PIPELINE_LOG_VERBOSE to prevent unbound variable errors
+4. **Fixed configuration loading order**: Moved load_pipeline_config before printing configuration info in run_pipeline
+
+## Interactive Prompt Support
+
+### Implementation Complete
+**Date**: Sun Jan 25 2026
+**Status**: Completed
+
+**Task**: Integrate interactive prompt creation into the plan stage
+
+**Actions Taken**:
+- ✅ Updated `run_plan_stage()` in `lib/pipeline.sh`:
+  - Checks RALPH_PROMPT environment variable first
+  - Checks RALPH_PROMPT_FILE environment variable
+  - Falls back to prompt.md in current directory
+  - Falls back to existing PROMPT_FILE (from resume)
+  - Creates default prompt in non-interactive mode if no prompt found
+  - Displays the prompt for user review
+- ✅ Updated `run_execute_stage()` in `lib/pipeline.sh`:
+  - Reads prompt from PROMPT_FILE
+  - Reads progress from PROGRESS_FILE
+  - Builds complete prompt with RALPH_PROMPTS context
+  - Executes OpenCode agent with the prompt
+  - Checks for `<promise>COMPLETE</promise>` signal
+- ✅ Updated `run_validate_stage()` in `lib/pipeline.sh`:
+  - Runs independent validation using validation agent
+  - Validates against original project goals
+  - Extracts validation status from XML output
+  - Returns pass/fail for pipeline transitions
+
+**Prompt Priority Order**:
+1. RALPH_PROMPT environment variable
+2. RALPH_PROMPT_FILE environment variable
+3. prompt.md in current directory
+4. Existing PROMPT_FILE (from resume)
+5. Default prompt (non-interactive fallback)
+
+**Pipeline Flow with Prompt Handling**:
+```
+1. PLAN STAGE
+   ├── Check for prompt (env var, file, or prompt.md)
+   ├── Create prompt if none found
+   └── Display prompt for review
+
+2. EXECUTE STAGE
+   ├── Read prompt and progress
+   ├── Build full prompt with context
+   └── Run OpenCode agent
+
+3. VALIDATE STAGE
+   ├── Run independent validation agent
+   ├── Check acceptance criteria
+   └── Pass/Fail based on validation
+```
+
+**Usage Examples**:
+```bash
+# Use prompt.md in current directory
+./ralph 10
+
+# Use environment variable
+RALPH_PROMPT="Build a REST API" ./ralph 10
+
+# Use prompt file
+RALPH_PROMPT_FILE=/path/to/prompt.md ./ralph 10
+
+# Interactive mode (no prompt provided)
+./ralph 10
+# → Plan stage will create a prompt interactively
+```
+
+**Verification**:
+- ✅ Plan stage correctly detects and loads prompts
+- ✅ Execute stage runs OpenCode with the prompt
+- ✅ Validate stage runs independent validation
+- ✅ Pipeline completes when validation passes
+- ✅ Retry loop works when validation fails
+
+**Benefits**:
+1. **Clearer Workflow**: Plan → Execute → Validate matches standard SDLC patterns
+2. **Better Planning**: Explicit planning stage before implementation
+3. **Improved Validation**: Dedicated validation stage with quality checks
+4. **Retry Logic**: Validation failures retry execution, not planning
+5. **Consistent Structure**: Three-stage pattern is intuitive and maintainable
+
+## Pipeline Resume Feature
+
+### Implementation Complete
+**Date**: Sun Jan 25 2026
+**Status**: Completed
+
+**Task**: Enable users to resume interrupted pipeline runs with full state restoration, integrated with the existing session system
+
+**Actions Taken**:
+- ✅ Extended `lib/sessions.sh` session schema:
+  - Added pipeline fields: pipeline_name, pipeline_stage, pipeline_iteration, pipeline_config, has_pipeline_state
+  - Modified `save_session()` to accept pipeline metadata parameters
+  - Added `save_pipeline_to_session()` function to save state + config to session
+  - Added `load_pipeline_from_session()` function to restore state + config
+  - Modified `resume_session()` to accept optional `load_pipeline` flag
+  - Added `list_sessions_filtered()` function for directory-filtered listing
+  - Added `find_latest_pipeline_session()` function
+  - Updated `check_incomplete_sessions()` to filter by directory and check for pipeline state
+
+- ✅ Updated `lib/pipeline.sh`:
+  - Modified `execute_stage()` to save state BEFORE executing each stage (enables resume on interruption)
+  - Added `prompt_pipeline_resume()` function for interactive resume/new/cancel prompt
+  - Added `prompt_iteration_count()` function for configuring iteration count on resume
+  - Added `check_and_handle_pipeline_resume()` function to check existing state and handle resume logic
+  - Added `resume_pipeline_command()` function as command entry point
+  - Updated `run_pipeline()` to check for existing session and prompt user
+  - Updated `run_execute_stage()` to include pipeline state context in prompt when resuming
+
+- ✅ Updated `lib/args.sh`:
+  - Added `--dir` filter option for session listing
+  - Added `--force-resume` flag for skipping prompts
+  - Added `resume` subcommand to pipeline commands
+  - Updated help text to show new options and commands
+
+**Changes Made**:
+- Modified: `lib/sessions.sh` - Extended session schema and added pipeline state functions (~120 lines added)
+- Modified: `lib/pipeline.sh` - Added resume prompts and integrated resume logic (~100 lines added)
+- Modified: `lib/args.sh` - Added resume command and filter options (~30 lines changed)
+
+**New Functions**:
+1. `save_pipeline_to_session(session_id)` - Save state + config to session
+2. `load_pipeline_from_session(session_id)` - Restore state + config
+3. `prompt_pipeline_resume()` - Interactive prompt for resume/new/cancel
+4. `prompt_iteration_count()` - Prompt for iteration count on resume
+5. `check_and_handle_pipeline_resume()` - Check existing state and handle resume
+6. `resume_pipeline_command()` - Command entry point for resume
+7. `list_sessions_filtered(filter_dir)` - Directory-filtered listing
+8. `find_latest_pipeline_session()` - Find latest pipeline session in current directory
+
+**Usage Flow**:
+```bash
+# Start pipeline
+./ralph pipeline run 10
+# ... iteration 1-5 complete ...
+# User presses Ctrl+C or process dies
+
+# Later - list sessions (shows only current dir)
+./ralph --sessions
+# → Shows incomplete pipeline sessions
+
+# Resume with prompt
+./ralph pipeline run
+# → Prompts user to resume/start new
+
+# Force resume
+./ralph pipeline resume --force-resume
+
+# Start new (keeps old session, creates new one)
+./ralph pipeline run
+# → User chooses "N" → new session created
+
+# Reset pipeline state (for current dir only)
+./ralph pipeline reset
+```
+
+**Verification**:
+- ✅ All syntax checks pass (bash -n)
+- ✅ Quick tests pass (3/4, 1 pre-existing unrelated failure)
+- ✅ Help text shows new options and commands
+- ✅ Session listing works with directory filter
+- ✅ Pipeline resume command is recognized
+
+**Acceptance Criteria Met**:
+- ✅ Session schema extended with pipeline fields
+- ✅ State saved before each iteration (enables resume on Ctrl+C)
+- ✅ Directory-filtered session listing
+- ✅ Pipeline resume subcommand added
+- ✅ Interactive prompt for resume/new/cancel
+- ✅ Iteration count prompt on resume
+- ✅ Agent context includes pipeline state when resuming
+- ✅ Backward compatibility maintained
