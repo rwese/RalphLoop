@@ -121,15 +121,7 @@ generate_ai_enhanced_prompt() {
       echo "$RALPH_PROMPT_FOR_AI" >"$idea_file"
     else
       # Open editor for user to write their idea
-      # Check if TTY is available for interactive editing
-      if [ -t 0 ] && [ -t 1 ]; then
-        "$editor" "$idea_file" </dev/tty >/dev/tty
-      else
-        # No TTY available - read idea from stdin
-        echo "Enter your idea (Ctrl+D when done):" >&2
-        user_idea=$(cat)
-        echo "$user_idea" >"$idea_file"
-      fi
+      "$editor" "$idea_file" </dev/tty >/dev/tty
     fi
 
     # Read the user's idea
