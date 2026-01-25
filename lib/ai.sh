@@ -116,8 +116,21 @@ generate_ai_enhanced_prompt() {
     get_ai_idea_template "$previous_idea" >"$idea_file"
     template_content=$(get_ai_idea_template "")
 
-    # Open editor for user to write their idea
-    "$editor" "$idea_file" </dev/tty >/dev/tty
+    # Check if RALPH_PROMPT_FOR_AI is set for non-interactive mode
+    if [ -n "${RALPH_PROMPT_FOR_AI:-}" ]; then
+      echo "$RALPH_PROMPT_FOR_AI" >"$idea_file"
+    else
+      # Open editor for user to write their idea
+      # Check if TTY is available for interactive editing
+      if [ -t 0 ] && [ -t 1 ]; then
+        "$editor" "$idea_file" </dev/tty >/dev/tty
+      else
+        # No TTY available - read idea from stdin
+        echo "Enter your idea (Ctrl+D when done):" >&2
+        user_idea=$(cat)
+        echo "$user_idea" >"$idea_file"
+      fi
+    fi
 
     # Read the user's idea
     user_idea=$(cat "$idea_file")
