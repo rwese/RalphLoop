@@ -2,12 +2,48 @@
 
 # lib/sessions.sh - Session management functions
 # Depends on: core.sh
+#
+# Purpose:
+#   Provides comprehensive session management functionality for RalphLoop,
+#   including session creation, resumption, listing, and cleanup.
+#
+# Key Responsibilities:
+#   - Session state persistence (save/load)
+#   - Session metadata management (iteration, status, pipeline info)
+#   - Session listing with filtering
+#   - Session cleanup (old/incomplete sessions)
+#   - Pipeline state integration for resume support
+#
+# Session Schema:
+#   Sessions are stored in ~/.cache/ralph/sessions/<session_id>/
+#   Files: session.json, prompt.md, progress.md, issues.md, pipeline_state.txt
+#
+# Usage:
+#   Sourced by lib.sh after core.sh. Functions called from pipeline and args modules.
+#
+# Related Files:
+#   - lib/core.sh: Uses generate_session_id(), get_ralph_sessions_dir()
+#   - lib/pipeline.sh: Uses save_session(), resume_session(), check_incomplete_sessions()
+#   - lib/args.sh: Uses list_sessions(), cleanup_sessions(), resume_session()
 
 # =============================================================================
 # Session Directory Functions
 # =============================================================================
 
 # Get session directory for a specific session ID
+# Constructs the full path to a session's directory.
+#
+# Purpose:
+#   Resolves a session ID to its corresponding filesystem path.
+#
+# Arguments:
+#   $1 - Session ID to locate
+#
+# Returns:
+#   Full path to the session directory
+#
+# Example:
+#   session_dir=$(get_session_dir "myproject_20250125-143022")
 get_session_dir() {
   local session_id="$1"
   local sessions_dir
@@ -16,6 +52,17 @@ get_session_dir() {
 }
 
 # Get the session prompt file path (stores path to current session's prompt)
+# Creates a unique temporary file path for storing current session prompt reference.
+#
+# Purpose:
+#   Provides a temporary marker file that stores the path to the current session's
+#   prompt, used during execution to track which session is active.
+#
+# Returns:
+#   Path to the session prompt marker file
+#
+# Note:
+#   The file is created with $$ (process ID) to ensure uniqueness
 get_session_prompt_marker() {
   local cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/ralph"
   mkdir -p "$cache_dir"
@@ -27,6 +74,33 @@ get_session_prompt_marker() {
 # =============================================================================
 
 # Save current session state with optional pipeline metadata
+# Persists all session information to disk for later resumption.
+#
+# Purpose:
+#   Comprehensive session persistence that saves metadata, prompts, progress,
+#   and pipeline state to enable interruption recovery.
+#
+# Arguments:
+#   $1 - session_id: Unique session identifier
+#   $2 - iteration: Current iteration number
+#   $3 - max_iterations: Total iterations planned
+#   $4 - user_prompt_file: (optional) Path to user's original prompt
+#   $5 - pipeline_name: (optional) Name of active pipeline, defaults to "default"
+#   $6 - pipeline_stage: (optional) Current pipeline stage
+#   $7 - pipeline_iteration: (optional) Current iteration within stage
+#   $8 - pipeline_config: (optional) Pipeline config file path
+#
+# Files Created:
+#   <session_dir>/session.json - Session metadata
+#   <session_dir>/prompt.md - User's original prompt
+#   <session_dir>/ralph-prompts.md - Ralph's execution prompts
+#   <session_dir>/progress.md - Progress tracking
+#   <session_dir>/issues.md - Validation issues
+#   <session_dir>/pipeline_state.txt - Pipeline state (if applicable)
+#   <session_dir>/.incomplete - Incomplete marker
+#
+# Example:
+#   save_session "myproject_20250125-143022" 5 10 "/path/to/prompt.md"
 save_session() {
   local session_id="$1"
   local iteration="$2"
@@ -95,6 +169,17 @@ EOF
 }
 
 # Mark session as complete
+# Updates session status to "complete" and removes incomplete marker.
+#
+# Purpose:
+#   Finalizes a session after successful completion, updating metadata
+#   to reflect the completed state.
+#
+# Arguments:
+#   $1 - session_id: Session to mark complete
+#
+# Example:
+#   complete_session "myproject_20250125-143022"
 complete_session() {
   local session_id="$1"
   local session_dir
@@ -112,6 +197,16 @@ complete_session() {
 }
 
 # Mark session as failed
+# Updates session status to "failed" after execution failure.
+#
+# Purpose:
+#   Records a session failure for tracking and debugging purposes.
+#
+# Arguments:
+#   $1 - session_id: Session that failed
+#
+# Example:
+#   fail_session "myproject_20250125-143022"
 fail_session() {
   local session_id="$1"
   local session_dir
@@ -132,6 +227,21 @@ fail_session() {
 # =============================================================================
 
 # List all sessions with optional directory filter
+# Displays formatted list of sessions with their metadata.
+#
+# Purpose:
+#   Provides human-readable overview of all sessions, optionally filtered
+#   by the directory they were created in.
+#
+# Arguments:
+#   $1 - filter_dir: (optional) Only show sessions from this directory
+#
+# Output:
+#   Formatted session listing with status, iteration, and directory info
+#
+# Example:
+#   list_sessions                          # All sessions
+#   list_sessions "/path/to/project"       # Filtered by directory
 list_sessions() {
   local filter_dir="${1:-}"
   local sessions_dir
@@ -213,12 +323,35 @@ list_sessions() {
 }
 
 # List sessions filtered by directory (convenience function)
+# Wrapper around list_sessions() with current directory as default filter.
+#
+# Purpose:
+#   Convenience function for listing sessions in the current project directory.
+#
+# Arguments:
+#   $1 - filter_dir: (optional) Directory to filter by, defaults to current directory
+#
+# Example:
+#   list_sessions_filtered
+#   list_sessions_filtered "/path/to/project"
 list_sessions_filtered() {
   local filter_dir="${1:-$(pwd)}"
   list_sessions "$filter_dir"
 }
 
 # Cleanup old sessions (remove incomplete ones older than specified days)
+# Deletes incomplete sessions that exceed the age threshold.
+#
+# Purpose:
+#   Maintenance function to prevent accumulation of stale session data.
+#   Only removes incomplete sessions; completed/failed sessions are preserved.
+#
+# Arguments:
+#   $1 - days: Age threshold in days (default: 7)
+#
+# Example:
+#   cleanup_sessions              # Remove incomplete sessions older than 7 days
+#   cleanup_sessions 30           # Remove incomplete sessions older than 30 days
 cleanup_sessions() {
   local days="${1:-7}"
   local sessions_dir
@@ -260,7 +393,32 @@ cleanup_sessions() {
 # Session Resumption
 # =============================================================================
 
-# Resume a specific session
+# Resume a specific session with optional pipeline state loading
+# Restores session state from disk and optionally loads pipeline state.
+#
+# Purpose:
+#   Enables resumption of interrupted sessions by restoring all saved state
+#   including prompts, progress, and pipeline configuration.
+#
+# Arguments:
+#   $1 - session_id: Session to resume
+#   $2 - load_pipeline: (optional) "true" to also load pipeline state, defaults to "false"
+#
+# Sets Global Variables:
+#   RESUME_ORIGINAL_DIR: Original directory from the session
+#
+# Files Restored:
+#   PROGRESS_FILE - Progress tracking
+#   TEMP_FILE_PREFIX_prompt.md - User's prompt
+#   VALIDATION_ISSUES_FILE - Validation issues
+#   PIPELINE_STATE_FILE - Pipeline state (if load_pipeline=true)
+#
+# Returns:
+#   Iteration number to resume from (stdout)
+#   0 on success, 1 on failure
+#
+# Example:
+#   iteration=$(resume_session "myproject_20250125-143022" "true")
 resume_session() {
   local session_id="$1"
   local session_dir

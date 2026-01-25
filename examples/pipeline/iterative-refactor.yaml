@@ -6,9 +6,15 @@
 # - AI-enhanced validation at key stages
 # - Different timeout configurations per stage
 #
+# Schema: This file follows the pipeline.schema.json schema.
+# For IDE autocompletion and validation, add this comment at the top:
+# # yaml-language-server: $schema=../../pipeline.schema.json
+#
 # Usage:
 #   RALPH_PIPELINE_CONFIG=examples/pipeline/iterative-refactor.yaml ./ralph 20
 #   RALPH_PIPELINE_AI_ENABLED=true ./ralph pipeline run
+
+# yaml-language-server: $schema=../../pipeline.schema.json
 #
 # =============================================================================
 # Pipeline Metadata

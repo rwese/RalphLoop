@@ -1,0 +1,282 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/rwese/RalphLoop/main/pipeline.schema.json",
+  "title": "RalphLoop Pipeline Configuration",
+  "description": "Configuration schema for RalphLoop pipeline stages and transitions",
+  "type": "object",
+  "required": ["pipeline", "stages"],
+  "properties": {
+    "pipeline": {
+      "type": "object",
+      "description": "Global pipeline metadata and settings",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Unique identifier for this pipeline configuration",
+          "examples": ["default", "ci-cd", "iterative-refactor", "quick-prototype"]
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of the pipeline purpose"
+        },
+        "max_iterations": {
+          "type": "integer",
+          "description": "Maximum number of iterations before pipeline terminates",
+          "minimum": 1,
+          "default": 100
+        },
+        "initial_stage": {
+          "type": "string",
+          "description": "Name of the stage to start execution from. Must match a stage name defined in stages array."
+        }
+      },
+      "additionalProperties": false
+    },
+    "stages": {
+      "type": "array",
+      "description": "List of pipeline stages executed in order",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "description": "A single stage in the pipeline",
+        "required": ["name", "entry_command"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Unique identifier for this stage. Used in on_success, on_failure, and transitions.",
+            "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$",
+            "examples": ["plan", "execute", "validate", "analyze", "implement", "test", "review", "deploy"]
+          },
+          "description": {
+            "type": "string",
+            "description": "Human-readable description of what this stage does"
+          },
+          "entry_command": {
+            "type": "string",
+            "description": "Command executed when entering this stage. Can be a built-in command (run_plan_stage, run_execute_stage, run_validate_stage) or a custom bash command/script.",
+            "examples": [
+              "run_plan_stage",
+              "run_execute_stage",
+              "run_validate_stage",
+              "./scripts/my-script.sh",
+              "npm run build"
+            ]
+          },
+          "validation_command": {
+            "type": "string",
+            "description": "Command executed to validate stage completion. Empty string or omit for no validation. Can be a built-in validation function or custom bash expression.",
+            "examples": [
+              "check_plan_complete",
+              "check_execution_complete",
+              "check_validation_passed",
+              "[[ -f build/output.txt ]] && grep -q SUCCESS build/output.txt"
+            ]
+          },
+          "on_success": {
+            "type": "string",
+            "description": "Stage to transition to on successful completion. Empty string or omit for terminal stage (pipeline ends).",
+            "examples": ["execute", "validate", "review", "deploy"]
+          },
+          "on_failure": {
+            "type": "string",
+            "description": "Stage to transition to on failure. Empty string or omit for terminal failure state.",
+            "examples": ["plan", "execute", "implement", "analyze"]
+          },
+          "timeout": {
+            "type": "integer",
+            "description": "Maximum time in seconds before stage times out. 0 means no timeout.",
+            "minimum": 0,
+            "default": 1800,
+            "examples": [300, 600, 900, 1800]
+          },
+          "ai_validation": {
+            "type": "boolean",
+            "description": "Enable AI-enhanced validation for this stage. Requires RALPH_PIPELINE_AI_ENABLED=true and an AI backend configured.",
+            "default": false
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "transitions": {
+      "type": "array",
+      "description": "Optional explicit transition rules with conditions. Evaluated in order - first matching transition is used. Falls back to on_success/on_failure if no transitions match.",
+      "items": {
+        "type": "object",
+        "description": "A conditional transition between stages",
+        "required": ["from", "to", "condition"],
+        "properties": {
+          "from": {
+            "type": "string",
+            "description": "Source stage name for this transition"
+          },
+          "to": {
+            "type": "string",
+            "description": "Target stage name to transition to"
+          },
+          "condition": {
+            "type": "string",
+            "description": "Bash expression evaluated to determine if transition is allowed. Expression should return exit code 0 for match, non-zero for no match.",
+            "examples": [
+              "[[ ! -f $VALIDATION_ISSUES_FILE ]]",
+              "[[ $RALPH_PIPELINE_FAST_MODE == true ]]",
+              "[[ $PIPELINE_CURRENT_ITERATION -lt 3 ]]",
+              "[[ -f .critical_issues ]]"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "pipeline": {
+            "properties": {
+              "initial_stage": { "type": "string" }
+            },
+            "required": ["initial_stage"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "stages": {
+            "contains": {
+              "properties": {
+                "name": {
+                  "$ref": "#/properties/pipeline/properties/initial_stage"
+                }
+              },
+              "required": ["name"]
+            }
+          }
+        }
+      }
+    }
+  ],
+  "examples": [
+    {
+      "pipeline": {
+        "name": "default",
+        "description": "Default RalphLoop pipeline with plan, execute, and validate stages",
+        "max_iterations": 100,
+        "initial_stage": "plan"
+      },
+      "stages": [
+        {
+          "name": "plan",
+          "description": "Analyze task and create implementation plan",
+          "entry_command": "run_plan_stage",
+          "validation_command": "check_plan_complete",
+          "on_success": "execute",
+          "on_failure": "",
+          "timeout": 1800,
+          "ai_validation": false
+        },
+        {
+          "name": "execute",
+          "description": "Execute the planned implementation",
+          "entry_command": "run_execute_stage",
+          "validation_command": "check_execution_complete",
+          "on_success": "validate",
+          "on_failure": "plan",
+          "timeout": 1800,
+          "ai_validation": false
+        },
+        {
+          "name": "validate",
+          "description": "Validate execution results and quality",
+          "entry_command": "run_validate_stage",
+          "validation_command": "check_validation_passed",
+          "on_success": "",
+          "on_failure": "execute",
+          "timeout": 300,
+          "ai_validation": false
+        }
+      ],
+      "transitions": []
+    },
+    {
+      "pipeline": {
+        "name": "iterative-refactor",
+        "description": "Multi-stage pipeline for iterative code refactoring with AI review",
+        "max_iterations": 50,
+        "initial_stage": "analyze"
+      },
+      "stages": [
+        {
+          "name": "analyze",
+          "description": "Analyze codebase structure and identify refactoring targets",
+          "entry_command": "run_code_analysis",
+          "validation_command": "check_analysis_complete",
+          "on_success": "implement",
+          "on_failure": "review",
+          "timeout": 600,
+          "ai_validation": true
+        },
+        {
+          "name": "implement",
+          "description": "Implement refactoring changes",
+          "entry_command": "run_implementation",
+          "validation_command": "check_implementation_complete",
+          "on_success": "test",
+          "on_failure": "analyze",
+          "timeout": 900,
+          "ai_validation": false
+        },
+        {
+          "name": "test",
+          "description": "Run tests to verify refactoring",
+          "entry_command": "run_tests",
+          "validation_command": "check_tests_passed",
+          "on_success": "review",
+          "on_failure": "implement",
+          "timeout": 300,
+          "ai_validation": true
+        },
+        {
+          "name": "review",
+          "description": "AI-powered code review of changes",
+          "entry_command": "run_code_review",
+          "validation_command": "check_review_passed",
+          "on_success": "deploy",
+          "on_failure": "implement",
+          "timeout": 600,
+          "ai_validation": true
+        },
+        {
+          "name": "deploy",
+          "description": "Deploy and finalize refactoring",
+          "entry_command": "run_deployment",
+          "validation_command": "",
+          "on_success": "",
+          "on_failure": "",
+          "timeout": 120,
+          "ai_validation": false
+        }
+      ],
+      "transitions": [
+        {
+          "from": "implement",
+          "to": "review",
+          "condition": "[[ $RALPH_PIPELINE_FAST_MODE == true ]]"
+        },
+        {
+          "from": "test",
+          "to": "deploy",
+          "condition": "[[ $PIPELINE_CURRENT_ITERATION -le 2 ]] && [[ -z $(git diff --name-only) ]]"
+        },
+        {
+          "from": "review",
+          "to": "analyze",
+          "condition": "[[ -f .critical_issues ]]"
+        }
+      ]
+    }
+  ]
+}

@@ -65,6 +65,15 @@ Before marking any task complete, verify:
 - **Issues**: Any problems encountered and how resolved
 - **Next Steps**: Recommended improvements
 
+## bash execution timeout
+
+- consider a higher timeout for executing tasks
+ - tests can take up to 900 seconds (15 minutes)
+
+## image analysis
+
+- use tool `understand_image`
+
 ## Critical Rules
 
 1. NEVER skip verification steps

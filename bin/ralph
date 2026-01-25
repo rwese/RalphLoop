@@ -1,7 +1,37 @@
 #!/usr/bin/env bash
 
 # bin/ralph - RalphLoop entry point
-# Main script that sources lib.sh and runs the execution loop
+# Main script that sources lib.sh and runs the execution pipeline
+#
+# Purpose:
+#   Primary entry point for RalphLoop autonomous development system.
+#   Initializes the library modules and delegates to the pipeline executor.
+#
+# Usage:
+#   ./ralph [options] [iterations]
+#   ./ralph pipeline <command> [options]
+#
+# Options:
+#   --sessions [--dir <path>]  List sessions (optionally filter by directory)
+#   --resume <id>              Resume a specific session
+#   --cleanup [days]           Clean up incomplete sessions older than N days
+#   --cleanup-all              Clean up ALL incomplete sessions
+#   --dir <path>               Filter sessions by directory
+#   --force-resume             Force resume without prompting
+#   -h, --help                 Show help message
+#
+# Pipeline Commands:
+#   pipeline run         Run the configured pipeline
+#   pipeline resume      Resume interrupted pipeline
+#   pipeline validate    Validate pipeline configuration
+#   pipeline status      Show current pipeline status
+#   pipeline reset       Reset pipeline state
+#   pipeline stop        Emergency stop (if running)
+#
+# Related Files:
+#   lib.sh: Unified library loader
+#   lib/pipeline.sh: Pipeline execution functions
+#   lib/args.sh: Argument parsing functions
 
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -24,11 +54,25 @@ source "${SCRIPT_DIR}/../lib.sh"
 # =============================================================================
 
 # Custom command configuration
+# Environment variables for custom execution modes
 RALPH_COMMAND="${RALPH_COMMAND:-}"
 RALPH_BACKEND="${RALPH_BACKEND:-}"
 RALPH_MODE="${RALPH_MODE:-autonomous}"
 
 # Handle custom command mode
+# Executes a custom command with the configured backend and mode.
+#
+# Purpose:
+#   Supports alternative execution modes beyond the standard pipeline.
+#   Used for custom workflows and testing scenarios.
+#
+# Environment Variables:
+#   RALPH_COMMAND: Custom command to execute
+#   RALPH_BACKEND: Backend to use
+#   RALPH_MODE: Execution mode (autonomous, interactive, validation)
+#
+# Example:
+#   RALPH_COMMAND="test" RALPH_BACKEND=mock ./bin/ralph
 handle_custom_command() {
     if [[ -n "$RALPH_COMMAND" ]]; then
         echo "========================================"
@@ -78,5 +122,6 @@ fi
 
 # Run the main execution if not in special command mode
 if [ -z "$RALPH_COMMAND" ]; then
-    run_main_loop
+    # Use the new pipeline-based execution
+    run_pipeline
 fi

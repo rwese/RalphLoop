@@ -4,9 +4,12 @@
     "AGENT_RALPH": {
       "description": "Fast execution mode - minimal safety checks",
       "mode": "primary",
-      "reasoningEffort": "medium",
+      "reasoningEffort": "high",
       "textVerbosity": "medium",
-      "permission": "allow",
+      "permission": {
+        "*": "allow",
+        "question": "deny"
+      },
       "prompt": "{file:prompts/agent/AGENT_RALPH.md}"
     }
   },
@@ -18,7 +21,19 @@
     }
   },
   "instructions": ["AGENTS.md", "AGENTS.local.md"],
+  "plugin": ["opencode-pty@0.1.4"],
   "mcp": {
+     "MiniMax": {
+      "type": "local",
+      "command": [
+        "uvx", "minimax-coding-plan-mcp", "-y"
+      ],
+      "environment": {
+        "MINIMAX_API_KEY": "{env:MINIMAX_API_KEY}",
+        "MINIMAX_API_HOST": "https://api.minimax.io"
+      },
+      "enabled": true
+    },
     "exa": {
       "type": "local",
       "command": ["npx", "-y", "exa-mcp-server"]

@@ -2,12 +2,54 @@
 
 # lib/exec.sh - Execution and validation loop for RalphLoop
 # Depends on: core.sh, sessions.sh, prompt.sh
+#
+# Purpose:
+#   Provides the main execution loop and validation functionality for RalphLoop.
+#   Handles OpenCode configuration, backend setup, and the core execute-validate
+#   iteration cycle.
+#
+# Key Responsibilities:
+#   - OpenCode configuration loading and validation
+#   - Backend configuration management
+#   - Execution loop with iteration management
+#   - Validation status extraction from results
+#
+# Workflow:
+#   1. Load and validate OpenCode configuration
+#   2. Build OpenCode command options
+#   3. Load backend-specific configuration
+#   4. Execute iterations (execute → validate → commit)
+#   5. Handle session persistence and resumption
+#
+# Usage:
+#   Sourced by lib.sh. Main loop functions called from pipeline.sh.
+#
+# Related Files:
+#   - lib/pipeline.sh: Uses run_main_loop() for legacy execution
+#   - lib/core.sh: Configuration functions used here
+#   - lib/sessions.sh: Session functions used here
+#   - backends/: Backend configuration files
 
 # =============================================================================
 # Configuration and Setup
 # =============================================================================
 
 # Load opencode.jsonc and export as OPENCODE_CONFIG_CONTENT for inline override
+# Reads OpenCode configuration file and exports it for agent runtime use.
+#
+# Purpose:
+#   Makes OpenCode backend configuration available to the agent runtime
+#   via environment variable for inline configuration override.
+#
+# Files:
+#   - Reads: backends/opencode/opencode.jsonc
+#   - Exports: OPENCODE_CONFIG_CONTENT
+#
+# Returns:
+#   0 always (continues even if config not found)
+#
+# Example:
+#   load_opencode_config
 load_opencode_config() {
   local opencode_config="${BACKENDS_DIR:-.}/opencode/opencode.jsonc"
   export OPENCODE_CONFIG_CONTENT="{}"
@@ -23,6 +65,23 @@ load_opencode_config() {
 }
 
 # Build opencode command with logging options
+# Constructs the OPENCODE_OPTS array with agent and logging configuration.
+#
+# Purpose:
+#   Prepares command-line options for OpenCode based on current configuration.
+#   Sets up logging preferences and agent selection.
+#
+# Sets:
+#   OPENCODE_OPTS - Array of command-line options for opencode command
+#
+# Configuration Used:
+#   - RALPH_LOG_LEVEL: Logging verbosity (DEBUG, INFO, WARN, ERROR)
+#   - RALPH_PRINT_LOGS: Whether to print logs to stdout
+#   - RALPH_AGENT: Agent configuration to use
+#
+# Example:
+#   build_opencode_opts
+#   opencode run "${OPENCODE_OPTS[@]}"
 build_opencode_opts() {
   OPENCODE_OPTS=()
   if [ -n "$RALPH_LOG_LEVEL" ]; then
@@ -35,6 +94,27 @@ build_opencode_opts() {
 }
 
 # Build opencode command options for validation with RALPH_AGENT_VALIDATION support
+# Constructs VALIDATION_OPENCODE_OPTS array with validation agent configuration.
+#
+# Purpose:
+#   Prepares command-line options for validation stage using the validation
+#   agent (which may differ from execution agent).
+#
+# Sets:
+#   VALIDATION_OPENCODE_OPTS - Array of command-line options for validation
+#
+# Configuration Used:
+#   - RALPH_LOG_LEVEL: Logging verbosity
+#   - RALPH_PRINT_LOGS: Whether to print logs to stdout
+#   - RALPH_AGENT_VALIDATION: Primary validation agent (if set)
+#   - RALPH_AGENT: Fallback validation agent
+#
+# Agent Priority:
+#   RALPH_AGENT_VALIDATION > RALPH_AGENT > AGENT_RALPH
+#
+# Example:
+#   build_validation_opencode_opts
+#   echo "$VALIDATION_OPENCODE_OPTS"
 build_validation_opencode_opts() {
   VALIDATION_OPENCODE_OPTS=()
   if [ -n "$RALPH_LOG_LEVEL" ]; then
@@ -57,6 +137,23 @@ build_validation_opencode_opts() {
 }
 
 # Load backend configuration if available
+# Reads and applies backend-specific configuration settings.
+#
+# Purpose:
+#   Applies backend-specific configuration when RALPH_BACKEND is set.
+#   Currently supports enabling/disabling backends via jq parsing.
+#
+# Arguments:
+#   Environment: RALPH_BACKEND - Backend to load configuration for
+#
+# Files:
+#   - Reads: backends/<RALPH_BACKEND>/config.jsonc
+#
+# Returns:
+#   0 always (continues even if config not found)
+#
+# Example:
+#   RALPH_BACKEND=mock load_backend_config
 load_backend_config() {
   if [[ -n "$RALPH_BACKEND" ]]; then
     local backend_config="${BACKENDS_DIR}/${RALPH_BACKEND}/config.jsonc"
@@ -81,7 +178,24 @@ load_backend_config() {
 }
 
 # Validate OpenCode backend configuration
-# Runs 'opencode debug config' to verify the config is valid
+# Runs 'opencode debug config' to verify the configuration is valid.
+#
+# Purpose:
+#   Ensures OpenCode is properly configured before starting execution.
+#   Catches configuration errors early to prevent runtime failures.
+#
+# Prerequisites:
+#   - opencode command must be available in PATH
+#
+# Returns:
+#   0 if configuration is valid
+#   1 if configuration validation fails (with error message)
+#
+# Example:
+#   if ! validate_opencode_config; then
+#     echo "Config validation failed"
+#     exit 1
+#   fi
 validate_opencode_config() {
   echo "🔍 Validating OpenCode configuration..."
 
@@ -112,6 +226,23 @@ validate_opencode_config() {
 }
 
 # Display configuration info
+# Prints current RalphLoop configuration to stdout.
+#
+# Purpose:
+#   Provides visibility into current configuration settings for debugging
+#   and user feedback purposes.
+#
+# Configuration Displayed:
+#   - Timeout (in seconds and minutes)
+#   - Memory Limit (in KB and GB)
+#   - Log Level
+#   - Print Logs setting
+#   - Max Iterations
+#   - Backend (if set)
+#   - Mode (if backend is set)
+#
+# Example:
+#   display_config
 display_config() {
   echo "========================================"
   echo "⚙️  RalphLoop Configuration"
@@ -129,6 +260,20 @@ display_config() {
 }
 
 # Get validation status from result
+# Extracts validation status from XML-formatted result output.
+#
+# Purpose:
+#   Parses the validation status from agent execution results
+#   to determine if validation passed or failed.
+#
+# Arguments:
+#   $1 - result: Raw output from validation agent
+#
+# Returns:
+#   Validation status (PASS or FAIL) to stdout
+#
+# Example:
+#   status=$(get_validation_status "$output")
 get_validation_status() {
   local result="$1"
   echo "$result" | grep -o '<validation_status>[^<]*</validation_status>' | sed 's/<[^>]*>//g' | tr -d ' '
@@ -139,6 +284,28 @@ get_validation_status() {
 # =============================================================================
 
 # Run the main execution loop
+# Legacy execution function (replaced by pipeline-based execution).
+#
+# Purpose:
+#   Main entry point for the execute-validate-commit loop.
+#   Orchestrates prompt loading, iteration execution, and session management.
+#
+# Process:
+#   1. Set up signal handlers for cleanup
+#   2. Load OpenCode configuration
+#   3. Build OpenCode options
+#   4. Load backend configuration
+#   5. Validate configuration
+#   6. Display configuration
+#   7. Generate session ID
+#   8. Execute iterations (deprecated, use pipeline.sh instead)
+#
+# Note:
+#   This function is maintained for backward compatibility.
+#   New code should use run_pipeline() from pipeline.sh instead.
+#
+# Example:
+#   run_main_loop
 run_main_loop() {
   # Set up signal handlers
   trap 'cleanup; exit 130' INT TERM

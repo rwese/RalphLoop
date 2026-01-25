@@ -1,5 +1,5 @@
 # RalphLoop Pipeline Configuration
-# Default pipeline matching the execute -> validate -> finalize flow
+# Default pipeline with plan -> execute -> validate stages
 #
 # This configuration file defines the stages and transitions for the pipeline.
 # The framework will load this file automatically if present in the current directory.
@@ -9,7 +9,13 @@
 # - stages: List of stage definitions
 # - transitions: Optional explicit transition rules with conditions
 #
+# Schema: This file follows the pipeline.schema.json schema.
+# For IDE autocompletion and validation, add this comment at the top:
+# # yaml-language-server: $schema=pipeline.schema.json
+#
 # For more information, see: https://github.com/rwese/RalphLoop#pipeline-configuration
+
+# yaml-language-server: $schema=pipeline.schema.json
 
 # =============================================================================
 # Pipeline Metadata
@@ -17,9 +23,9 @@
 
 pipeline:
   name: default
-  description: Default RalphLoop pipeline with execute, validate, and finalize stages
+  description: Default RalphLoop pipeline with plan, execute, and validate stages
   max_iterations: 100
-  initial_stage: execute
+  initial_stage: plan
 
 # =============================================================================
 # Stage Definitions
@@ -27,17 +33,32 @@ pipeline:
 
 stages:
   # ---------------------------------------------------------------------------
+  # Plan Stage
+  # ---------------------------------------------------------------------------
+  # Planning stage that analyzes tasks and creates implementation plan
+  # Runs before execution to ensure clear direction
+  #
+  - name: plan
+    description: Analyze task and create implementation plan
+    entry_command: run_plan_stage
+    validation_command: check_plan_complete
+    on_success: execute
+    on_failure: ""
+    timeout: 1800
+    ai_validation: false
+
+  # ---------------------------------------------------------------------------
   # Execute Stage
   # ---------------------------------------------------------------------------
   # Primary workload execution stage
   # Runs the main agent loop until work is complete
   #
   - name: execute
-    description: Execute the main workload using the AI agent
-    entry_command: run_agent_execution
+    description: Execute the planned implementation
+    entry_command: run_execute_stage
     validation_command: check_execution_complete
     on_success: validate
-    on_failure: finalize
+    on_failure: validate
     timeout: 1800
     ai_validation: false
 
@@ -48,27 +69,12 @@ stages:
   # Can loop back to execute if validation fails
   #
   - name: validate
-    description: Validate execution results against acceptance criteria
-    entry_command: run_validation
+    description: Validate execution results and quality
+    entry_command: run_validate_stage
     validation_command: check_validation_passed
-    on_success: finalize
-    on_failure: execute
-    timeout: 300
-    ai_validation: false
-
-  # ---------------------------------------------------------------------------
-  # Finalize Stage
-  # ---------------------------------------------------------------------------
-  # Terminal stage for cleanup, commits, and completion tasks
-  # This stage should always succeed and transition to completion
-  #
-  - name: finalize
-    description: Finalize pipeline, commit changes, and complete
-    entry_command: run_finalization
-    validation_command: ""
     on_success: ""
-    on_failure: ""
-    timeout: 120
+    on_failure: execute
+    timeout: 600
     ai_validation: false
 
 # =============================================================================
@@ -85,21 +91,22 @@ stages:
 # Transitions are checked in order - first matching transition is used
 # If no transitions match, the on_success/on_failure from stage definition is used
 #
+# Example transitions (uncomment and customize as needed):
 transitions:
-  # Example: Only transition to finalize if no pending issues
-  # - from: validate
-  #   to: finalize
-  #   condition: "[[ ! -f $VALIDATION_ISSUES_FILE ]]"
-
-  # Example: Skip validation in fast mode
-  # - from: execute
-  #   to: finalize
-  #   condition: "[[ $RALPH_PIPELINE_FAST_MODE == true ]]"
-
-  # Example: Retry with backoff on repeated failures
-  # - from: execute
-  #   to: execute
-  #   condition: "[[ $PIPELINE_CURRENT_ITERATION -lt 3 ]]"
+  - from: validate
+    to: execute
+    condition: "[[ -f $VALIDATION_ISSUES_FILE ]]"
+  - from: validate
+    to: complete
+    condition: "[[ ! -f $VALIDATION_ISSUES_FILE ]]"
+#   - from: execute
+#     to: complete
+#     condition: "[[ $RALPH_PIPELINE_FAST_MODE == true ]]"
+#   - from: execute
+#     to: execute
+#     condition: "[[ $PIPELINE_CURRENT_ITERATION -lt 3 ]]"
+#
+# transitions: []
 
 # =============================================================================
 # Stage Commands Reference
@@ -108,13 +115,14 @@ transitions:
 # The following built-in commands are available:
 #
 # Built-in Commands:
-#   run_agent_execution    - Run the main AI agent loop
-#   run_validation         - Run validation checks
-#   run_finalization       - Finalize and commit
+#   run_plan_stage         - Analyze task and create implementation plan
+#   run_execute_stage      - Execute the planned implementation
+#   run_validate_stage     - Validate results and quality
 #
 # Validation Functions:
-#   check_execution_complete  - Check if work is complete
-#   check_validation_passed   - Check if validation passed
+#   check_plan_complete        - Check if planning is complete
+#   check_execution_complete   - Check if work is complete
+#   check_validation_passed    - Check if validation passed
 #
 # Custom Commands:
 #   You can specify any bash command or script as entry_command

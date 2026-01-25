@@ -2,6 +2,24 @@
 
 # lib/args.sh - CLI argument parsing for RalphLoop
 # Depends on: core.sh
+#
+# Purpose:
+#   Provides command-line argument parsing and help text generation
+#   for RalphLoop's CLI interface.
+#
+# Key Responsibilities:
+#   - Parsing CLI arguments (--sessions, --resume, --cleanup, pipeline commands)
+#   - Session management command handling
+#   - Pipeline management command handling
+#   - Help text generation and display
+#
+# Usage:
+#   Sourced by lib.sh after core.sh. Functions are called from bin/ralph.
+#
+# Related Files:
+#   - bin/ralph: Calls parse_cli_args() and handle_session_commands()
+#   - lib/sessions.sh: Uses list_sessions() and cleanup_sessions() from here
+#   - lib/pipeline.sh: Pipeline commands are dispatched here
 
 # =============================================================================
 # CLI Argument Parsing
@@ -9,6 +27,27 @@
 
 # Parse command-line arguments and set global variables
 # Sets: RALPH_RESUME, RALPH_SESSIONS, RALPH_CLEANUP, RALPH_CLEANUP_DAYS, RALPH_PIPELINE_CMD
+#
+# Purpose:
+#   Parses all CLI arguments and populates global variables for later use.
+#   Handles both standard RalphLoop options and pipeline subcommands.
+#
+# Arguments:
+#   $@ - All command-line arguments passed to the script
+#
+# Sets Global Variables:
+#   RALPH_RESUME - Session ID to resume (if --resume used)
+#   RALPH_SESSIONS - true if --sessions flag used
+#   RALPH_CLEANUP - Cleanup mode: days, "all", or empty
+#   RALPH_CLEANUP_DAYS - Default cleanup age in days (7)
+#   RALPH_PIPELINE_CMD - Pipeline subcommand (run, resume, validate, status, reset, stop)
+#   RALPH_PIPELINE_ARGS - Remaining arguments after pipeline subcommand
+#   RALPH_SESSIONS_FILTER_DIR - Directory filter for session listing
+#   RALPH_FORCE_RESUME - true if --force-resume flag used
+#
+# Usage:
+#   parse_cli_args "$@"
+#   shift $#
 parse_cli_args() {
   RALPH_RESUME=""
   RALPH_SESSIONS=false
@@ -100,6 +139,17 @@ parse_cli_args() {
 }
 
 # Show help message
+# Displays comprehensive help text for RalphLoop's CLI interface.
+#
+# Purpose:
+#   Provides users with documentation on available commands, options,
+#   and usage examples for RalphLoop.
+#
+# Output:
+#   Help text to stdout, then exits with status 0
+#
+# Example:
+#   show_help
 show_help() {
   cat <<EOF
 RalphLoop - Autonomous Development Agent
@@ -147,6 +197,25 @@ EOF
 }
 
 # Handle session management commands
+# Processes session-related commands (--sessions, --cleanup, --resume)
+# and exits after handling.
+#
+# Purpose:
+#   Dispatches session management commands to appropriate functions
+#   and handles program exit after command completion.
+#
+# Global Variables Used:
+#   RALPH_SESSIONS - If true, lists sessions
+#   RALPH_CLEANUP - If set, triggers cleanup
+#   RALPH_RESUME - If set, triggers resume
+#   RALPH_SESSIONS_FILTER_DIR - Directory filter for listing
+#
+# Side Effects:
+#   May call list_sessions(), cleanup_sessions(), or resume_session()
+#   Exits with appropriate status code
+#
+# Example:
+#   handle_session_commands
 handle_session_commands() {
   if [ "$RALPH_SESSIONS" = "true" ]; then
     list_sessions "$RALPH_SESSIONS_FILTER_DIR"
@@ -182,6 +251,21 @@ handle_session_commands() {
 }
 
 # Handle pipeline management commands
+# Dispatches pipeline subcommands to appropriate functions.
+#
+# Purpose:
+#   Routes pipeline management commands (run, resume, validate, etc.)
+#   to their respective handler functions.
+#
+# Global Variables Used:
+#   RALPH_PIPELINE_CMD - The pipeline subcommand to execute
+#   RALPH_FORCE_RESUME - Force resume without prompting
+#
+# Side Effects:
+#   Calls appropriate pipeline function and exits with result code
+#
+# Example:
+#   handle_pipeline_commands
 handle_pipeline_commands() {
   if [ -z "$RALPH_PIPELINE_CMD" ]; then
     return 0

@@ -320,6 +320,157 @@ RALPH_PROMPT="$(cat prompt.md)" ./ralph 10
 2. Add your project prompt as `prompt.md`
 3. See [examples/README.md](./examples/README.md) for full instructions
 
+## Pipeline Architecture
+
+RalphLoop uses a **plan → execute → validate** pipeline structure to organize autonomous development work.
+
+### Pipeline Stages
+
+| Stage        | Description                                 | On Failure       |
+| ------------ | ------------------------------------------- | ---------------- |
+| **Plan**     | Analyze task and create implementation plan | Terminal (stops) |
+| **Execute**  | Execute the planned implementation          | Plan (re-plan)   |
+| **Validate** | Validate results and quality                | Execute (retry)  |
+
+### Pipeline Flow
+
+```
+┌─────────┐    ┌─────────┐    ┌─────────┐
+│  PLAN   │───▶│ EXECUTE │───▶│ VALIDATE │
+└─────────┘    └─────────┘    └─────────┘
+     │              │              │
+     ▼              ▼              ▼
+ Create plan   Implement work   Validate quality
+ Define done   Make changes     Check regressions
+                    │
+                    │ On Failure
+                    ▼
+               ┌─────────┐
+               │  PLAN   │ (re-plan)
+               └─────────┘
+```
+
+### Using the Pipeline
+
+#### Default Pipeline (No Configuration Needed)
+
+RalphLoop includes a **built-in default pipeline** that works from any directory. You don't need to create a `pipeline.yaml` file to get started.
+
+```bash
+# Run the pipeline with default configuration
+./ralph 10
+
+# Run with custom iteration count
+./ralph 20
+
+# Run with prompt file
+./ralph -p ./prompt.md 10
+```
+
+The default pipeline is embedded in the RalphLoop library and automatically loaded when no `pipeline.yaml` is found in the current directory.
+
+#### Pipeline Management Commands
+
+```bash
+# Run the pipeline
+./ralph pipeline run
+
+# Validate pipeline configuration
+./ralph pipeline validate
+
+# Show current pipeline status
+./ralph pipeline status
+
+# Reset pipeline state (start fresh)
+./ralph pipeline reset
+
+# Emergency stop (if running)
+./ralph pipeline stop
+```
+
+#### Configuration Options
+
+| Environment Variable            | Description                         | Default         |
+| ------------------------------- | ----------------------------------- | --------------- |
+| `RALPH_PIPELINE_CONFIG`         | Path to custom pipeline config file | `pipeline.yaml` |
+| `RALPH_PIPELINE_AI_ENABLED`     | Enable AI-enhanced validation       | `false`         |
+| `RALPH_PIPELINE_MAX_ITERATIONS` | Override max iterations             | `100`           |
+
+Example with custom configuration:
+
+```bash
+# Use custom pipeline configuration
+RALPH_PIPELINE_CONFIG=my-pipeline.yaml ./ralph 10
+
+# Enable AI validation
+RALPH_PIPELINE_AI_ENABLED=true ./ralph pipeline run
+
+# Custom iteration limit
+RALPH_PIPELINE_MAX_ITERATIONS=50 ./ralph 10
+```
+
+### Custom Pipeline Configuration
+
+Create a `pipeline.yaml` file to define custom stages and transitions:
+
+```yaml
+pipeline:
+  name: custom
+  max_iterations: 100
+  initial_stage: plan
+
+stages:
+  - name: plan
+    description: Analyze and plan the work
+    entry_command: run_plan_stage
+    validation_command: check_plan_complete
+    on_success: execute
+    on_failure: ''
+    timeout: 1800
+
+  - name: execute
+    description: Execute the implementation
+    entry_command: run_execute_stage
+    validation_command: check_execution_complete
+    on_success: validate
+    on_failure: plan
+    timeout: 1800
+
+  - name: validate
+    description: Validate quality and requirements
+    entry_command: run_validate_stage
+    validation_command: check_validation_passed
+    on_success: ''
+    on_failure: execute
+    timeout: 300
+
+transitions:
+  # Optional: Add conditional transitions
+  # - from: validate
+  #   to: deploy
+  #   condition: "[[ $RALPH_ENV == production ]]"
+```
+
+See [`pipeline.yaml`](./pipeline.yaml) for the default configuration and [`examples/pipeline/`](./examples/pipeline/) for more examples.
+
+### State Persistence
+
+The pipeline maintains state across runs:
+
+- **State file**: `${TEMP_FILE}_ralph_pipeline_state.txt`
+- **Log file**: `${TEMP_FILE}_ralph_pipeline.log`
+
+Resume a stopped pipeline:
+
+```bash
+# Pipeline automatically resumes from last state
+./ralph pipeline run
+
+# Or reset and start fresh
+./ralph pipeline reset
+./ralph pipeline run
+```
+
 ## Testing
 
 RalphLoop includes a comprehensive test suite to ensure reliability and prevent regressions:

@@ -3,20 +3,47 @@
 # lib/pipeline.sh - Configurable Multi-Stage Pipeline Framework for RalphLoop
 # Depends on: core.sh, sessions.sh
 #
-# This module provides a configuration-driven pipeline orchestration system
-# that replaces the hardcoded execute -> validate -> finalize flow.
+# Purpose:
+#   Provides a configuration-driven pipeline orchestration system that replaces
+#   the hardcoded execute -> validate -> finalize flow with a flexible,
+#   YAML/JSON-configurable multi-stage pipeline.
+#
+# Key Concepts:
+#   - Stages: Named execution phases (plan, execute, validate, etc.)
+#   - Transitions: Rules for moving between stages based on results
+#   - State Persistence: Pipeline state saved for interruption recovery
+#   - AI Validation: Optional AI-enhanced validation at stage boundaries
+#
+# Default Pipeline Structure:
+#   plan -> execute -> validate
+#   (with retry loop: validate failure -> execute)
+#
+# Configuration Files:
+#   - pipeline.yaml (primary)
+#   - pipeline.yml
+#   - pipeline.json
+#   - Or custom path via RALPH_PIPELINE_CONFIG
+#
+# Usage:
+#   Sourced by lib.sh. Main entry point is run_pipeline().
+#
+# Related Files:
+#   - pipeline.yaml: Default pipeline configuration
+#   - lib/exec.sh: Uses pipeline functions for execution
+#   - bin/ralph: Calls run_pipeline() as main entry point
 
 # =============================================================================
 # Pipeline Configuration Variables
 # =============================================================================
 
 # Pipeline configuration file paths (checked in order)
+# Looks for configuration files in current directory before using default.
 PIPELINE_CONFIG_FILES=("pipeline.yaml" "pipeline.yml" "pipeline.json")
 
-# Pipeline state file
+# Pipeline state file - stores current state for resume support
 PIPELINE_STATE_FILE="${TEMP_FILE_PREFIX}_pipeline_state.txt"
 
-# Pipeline log file
+# Pipeline log file - detailed execution log
 PIPELINE_LOG_FILE="${TEMP_FILE_PREFIX}_pipeline.log"
 
 # Default pipeline configuration (used when no config file found)
@@ -24,13 +51,13 @@ PIPELINE_NAME="${PIPELINE_NAME:-default}"
 PIPELINE_MAX_ITERATIONS="${PIPELINE_MAX_ITERATIONS:-100}"
 PIPELINE_INITIAL_STAGE="${PIPELINE_INITIAL_STAGE:-execute}"
 
-# Pipeline state variables
-PIPELINE_CURRENT_STAGE=""
-PIPELINE_CURRENT_ITERATION=0
-PIPELINE_CURRENT_ROUND=0
-PIPELINE_START_TIME=""
-PIPELINE_STATUS="idle" # idle, running, completed, failed, stopped
-PIPELINE_ERROR=""
+# Pipeline state variables - track execution progress
+PIPELINE_CURRENT_STAGE=""    # Current stage name
+PIPELINE_CURRENT_ITERATION=0 # Current iteration within stage
+PIPELINE_CURRENT_ROUND=0     # Current execution round
+PIPELINE_START_TIME=""       # When pipeline started
+PIPELINE_STATUS="idle"       # idle, running, completed, failed, stopped
+PIPELINE_ERROR=""            # Error message if failed
 
 # Validation status tracking (set by run_validate_stage, checked by check_validation_passed)
 VALIDATION_PASSED=false
@@ -39,16 +66,16 @@ VALIDATION_PASSED=false
 EXECUTION_COMPLETE=false
 
 # Stage definitions (populated by config parser)
-declare -A STAGE_ENTRY_COMMANDS
-declare -A STAGE_VALIDATION_COMMANDS
-declare -A STAGE_ON_SUCCESS
-declare -A STAGE_ON_FAILURE
-declare -A STAGE_TIMEOUTS
-declare -A STAGE_AI_VALIDATION
-declare -A STAGE_DESCRIPTIONS
+declare -A STAGE_ENTRY_COMMANDS      # Command to run when entering stage
+declare -A STAGE_VALIDATION_COMMANDS # Command to validate stage completion
+declare -A STAGE_ON_SUCCESS          # Next stage on success
+declare -A STAGE_ON_FAILURE          # Next stage on failure
+declare -A STAGE_TIMEOUTS            # Timeout for each stage
+declare -A STAGE_AI_VALIDATION       # Whether to use AI validation
+declare -A STAGE_DESCRIPTIONS        # Human-readable description
 
 # Transition rules (populated by config parser)
-declare -A TRANSITION_CONDITIONS
+declare -A TRANSITION_CONDITIONS # Conditional transition expressions
 
 # Available stages (populated by config parser)
 PIPELINE_STAGES=()
@@ -56,7 +83,7 @@ PIPELINE_STAGES=()
 # AI validation enabled (global flag)
 RALPH_PIPELINE_AI_ENABLED="${RALPH_PIPELINE_AI_ENABLED:-false}"
 
-# Emergency stop flag
+# Emergency stop flag - set to true to stop pipeline gracefully
 PIPELINE_EMERGENCY_STOP=false
 
 # =============================================================================
@@ -64,6 +91,22 @@ PIPELINE_EMERGENCY_STOP=false
 # =============================================================================
 
 # Find and load pipeline configuration
+# Searches for configuration file in standard locations and loads it.
+#
+# Purpose:
+#   Locates and parses the pipeline configuration file based on:
+#   1. Explicit path via RALPH_PIPELINE_CONFIG
+#   2. Standard files in current directory (pipeline.yaml, pipeline.yml, pipeline.json)
+#   3. Falls back to default configuration
+#
+# Environment Variables:
+#   RALPH_PIPELINE_CONFIG: Explicit path to config file
+#
+# Returns:
+#   0 always (falls back to default config if file not found)
+#
+# Example:
+#   load_pipeline_config
 load_pipeline_config() {
   local config_file=""
 

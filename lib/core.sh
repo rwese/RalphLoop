@@ -2,6 +2,26 @@
 
 # lib/core.sh - Core constants, configuration, and utilities
 # Part of RalphLoop modular refactoring
+#
+# Purpose:
+#   Provides foundational configuration, constants, and utility functions
+#   used across all RalphLoop modules. This module has no dependencies.
+#
+# Key Responsibilities:
+#   - Configuration variables (timeouts, memory limits, logging)
+#   - Temporary file management
+#   - Signal handling and cleanup
+#   - Cache and session directory management
+#   - Validation agent configuration
+#
+# Usage:
+#   This module is sourced first by lib.sh before all other modules.
+#   All variables and functions defined here are available globally.
+#
+# Related Files:
+#   - lib.sh: Sources this module first in dependency order
+#   - lib/sessions.sh: Uses get_ralph_sessions_dir() and generate_session_id()
+#   - lib/exec.sh: Uses get_validation_agent() and cleanup()
 
 # =============================================================================
 # Configuration Variables
@@ -110,8 +130,22 @@ If the current goal is complete, output <promise>COMPLETE</promise>
 # =============================================================================
 
 # Cleanup function for graceful termination
-# This function handles SIGINT (Ctrl+C) and SIGTERM signals
-# It ensures the opencode process is properly terminated and temp files are cleaned up
+# Handles SIGINT (Ctrl+C) and SIGTERM signals to ensure clean shutdown.
+# Terminates the OpenCode process, saves session state if applicable,
+# and removes all temporary files created during execution.
+#
+# Purpose:
+#   Provides graceful shutdown handling for interrupted pipeline runs.
+#   Saves session state to enable later resumption of interrupted work.
+#
+# Behavior:
+#   - Terminates OpenCode process with SIGTERM, then SIGKILL if needed
+#   - Saves session state if prompt was accepted or session exists
+#   - Removes all temporary files with TEMP_FILE_PREFIX pattern
+#
+# Usage:
+#   Automatically called via trap when signals are received.
+#   Can also be called directly for controlled shutdown.
 cleanup() {
   echo "" >&2
   echo "🛑 Caught signal - initiating graceful shutdown..." >&2
@@ -158,6 +192,19 @@ cleanup() {
 }
 
 # Check if exit code indicates signal termination
+# Converts exit codes greater than 128 to their corresponding signal name.
+#
+# Purpose:
+#   Identifies which signal caused process termination for better error reporting.
+#
+# Arguments:
+#   $1 - Exit code to check
+#
+# Returns:
+#   Signal name (SIGHUP, SIGINT, SIGQUIT, SIGTERM, or "Signal N") or empty if not signal
+#
+# Example:
+#   signal=$(check_signal_termination $?)
 check_signal_termination() {
   local exit_code=$1
 
@@ -175,6 +222,20 @@ check_signal_termination() {
 }
 
 # Sanitize content for heredoc to prevent variable expansion
+# Escapes dollar signs and backticks to prevent shell expansion in heredocs.
+#
+# Purpose:
+#   Allows safe embedding of content containing shell variables or commands
+#   into heredoc blocks without unintended expansion.
+#
+# Arguments:
+#   $1 - Content to sanitize
+#
+# Returns:
+#   Sanitized content with $ and ` characters escaped
+#
+# Example:
+#   safe_content=$(sanitize_for_heredoc "User: $HOME")
 sanitize_for_heredoc() {
   local content="$1"
   # Escape $ and ` to prevent expansion in heredoc
@@ -186,6 +247,18 @@ sanitize_for_heredoc() {
 # =============================================================================
 
 # Get the user's preferred editor
+# Checks VISUAL then EDITOR environment variables, falls back to vi.
+#
+# Purpose:
+#   Provides a consistent way to determine the user's preferred text editor
+#   for interactive prompt editing sessions.
+#
+# Returns:
+#   Editor command to use (VISUAL > EDITOR > vi)
+#
+# Example:
+#   editor=$(get_editor)
+#   $editor prompt.md
 get_editor() {
   if [ -n "${VISUAL:-}" ]; then
     echo "$VISUAL"
@@ -197,6 +270,19 @@ get_editor() {
 }
 
 # Validate max rounds is a positive integer
+# Ensures MAX_ROUNDS environment variable is a valid positive integer.
+#
+# Purpose:
+#   Validates that the iteration count is valid before starting execution.
+#
+# Sets:
+#   MAX_ROUNDS - Validated iteration count (from environment or default)
+#
+# Returns:
+#   0 if valid, 1 otherwise with error message printed to stderr
+#
+# Example:
+#   validate_max_rounds || exit 1
 validate_max_rounds() {
   if [[ -z "$MAX_ROUNDS" || ! "$MAX_ROUNDS" =~ ^[0-9]+$ ]]; then
     echo "Error: MAX_ROUNDS must be a positive integer"
@@ -214,6 +300,16 @@ validate_max_rounds() {
 # =============================================================================
 
 # Get the Ralph cache directory for storing prompts
+# Creates the directory if it doesn't exist. Uses XDG_CACHE_HOME if set.
+#
+# Purpose:
+#   Provides a consistent location for storing prompt cache files.
+#
+# Returns:
+#   Path to the prompts cache directory
+#
+# Example:
+#   cache_dir=$(get_ralph_cache_dir)
 get_ralph_cache_dir() {
   local cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/ralph/prompts"
   mkdir -p "$cache_dir"
@@ -221,6 +317,16 @@ get_ralph_cache_dir() {
 }
 
 # Get the Ralph sessions directory
+# Creates the directory if it doesn't exist. Uses XDG_CACHE_HOME if set.
+#
+# Purpose:
+#   Provides a consistent location for storing session state files.
+#
+# Returns:
+#   Path to the sessions directory
+#
+# Example:
+#   sessions_dir=$(get_ralph_sessions_dir)
 get_ralph_sessions_dir() {
   local sessions_dir="${XDG_CACHE_HOME:-$HOME/.cache}/ralph/sessions"
   mkdir -p "$sessions_dir"
@@ -228,6 +334,18 @@ get_ralph_sessions_dir() {
 }
 
 # Get sanitized directory name for session filename
+# Converts the current directory name to a safe filename by replacing
+# special characters with underscores.
+#
+# Purpose:
+#   Creates safe directory names for session filenames by sanitizing
+#   the current working directory name.
+#
+# Returns:
+#   Sanitized directory name suitable for filenames
+#
+# Example:
+#   safe_name=$(get_sanitized_dirname)  # "My Project" -> "My_Project"
 get_sanitized_dirname() {
   local dir_name
   dir_name=$(basename "$PWD")
@@ -236,6 +354,16 @@ get_sanitized_dirname() {
 }
 
 # Generate a unique session ID based on directory and timestamp
+# Combines sanitized directory name with current timestamp.
+#
+# Purpose:
+#   Creates globally unique identifiers for session tracking.
+#
+# Returns:
+#   Unique session ID in format: "directory_YYYYMMDD-HHMMSS"
+#
+# Example:
+#   session_id=$(generate_session_id)  # "myproject_20250125-143022"
 generate_session_id() {
   local dir_name
   dir_name=$(get_sanitized_dirname)
@@ -249,7 +377,23 @@ generate_session_id() {
 # =============================================================================
 
 # Get the validation agent to use for validation tasks
-# Priority: RALPH_AGENT_VALIDATION > RALPH_AGENT > AGENT_RALPH (default)
+# Implements priority cascade: RALPH_AGENT_VALIDATION > RALPH_AGENT > AGENT_RALPH
+#
+# Purpose:
+#   Determines which agent configuration to use for validation stage.
+#   Allows separate validation agent from execution agent.
+#
+# Environment Variables:
+#   RALPH_AGENT_VALIDATION - Primary validation agent (highest priority)
+#   RALPH_AGENT - Fallback validation agent
+#   AGENT_RALPH - Default validation agent (lowest priority)
+#
+# Returns:
+#   Agent configuration string to use for validation
+#
+# Example:
+#   validation_agent=$(get_validation_agent)
+#   # Returns: "opencode:gpt-4" (or whatever is configured)
 get_validation_agent() {
   if [ -n "${RALPH_AGENT_VALIDATION:-}" ]; then
     # RALPH_AGENT_VALIDATION is set, use it for validation
