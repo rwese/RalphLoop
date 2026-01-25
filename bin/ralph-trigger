@@ -1,10 +1,21 @@
 #!/usr/bin/env bash
 
-# ralph-trigger - Custom command trigger for RalphLoop evaluation loops
-# Usage: ralph-trigger [options]
+# bin/ralph-trigger - RalphLoop Evaluation Loop Trigger
 #
-# This script can be called by external CLIs to trigger RalphLoop evaluation loops
-# with custom configuration.
+# Purpose:
+#   Provides command-line interface to trigger RalphLoop evaluation loops
+#   with custom configuration. This script is designed for external CLIs
+#   and automation tools that need to invoke RalphLoop programmatically.
+#
+# Key Features:
+#   - Trigger evaluation loops with custom iteration count
+#   - Specify prompt files and evaluation modes
+#   - Select backend (opencode, mock)
+#   - Query and modify configuration
+#   - Check system status
+#
+# Usage:
+#   ./ralph-trigger [options]
 #
 # Options:
 #   --iterations, -n <number>  Number of iterations to run (default: 1)
@@ -12,16 +23,51 @@
 #   --mode, -m <mode>          Evaluation mode: autonomous, interactive, validation
 #   --backend, -b <backend>    Backend to use: opencode, mock
 #   --config, -c <file>        Path to backend config file
-#   --status                    Show current status
+#   --status                   Show current status
 #   --config-get <key>         Get configuration value
 #   --config-set <key>=<value> Set configuration value
 #   --help, -h                 Show this help message
 #
+# Evaluation Modes:
+#   autonomous   Run full autonomous development loop (default)
+#   interactive  Run with interactive prompts and user feedback
+#   validation   Run validation checks only
+#
 # Examples:
-#   ralph-trigger --iterations 5 --mode autonomous
-#   ralph-trigger --prompt ./prompt.md --backend opencode
-#   ralph-trigger --status
-#   ralph-trigger --config-get evaluation.maxIterations
+#   # Run autonomous development for 5 iterations
+#   ./ralph-trigger --iterations 5 --mode autonomous
+#
+#   # Run with specific prompt file
+#   ./ralph-trigger --prompt ./my-prompt.md --iterations 10
+#
+#   # Use OpenCode backend explicitly
+#   ./ralph-trigger --backend opencode --mode autonomous
+#
+#   # Check current system status
+#   ./ralph-trigger --status
+#
+#   # Get configuration value
+#   ./ralph-trigger --config-get evaluation.maxIterations
+#
+#   # Set configuration value
+#   ./ralph-trigger --config-set evaluation.maxIterations=50
+#
+# Environment Variables:
+#   RALPH_PROMPT         Direct prompt text
+#   RALPH_PROMPT_FILE    Path to prompt file
+#   RALPH_BACKEND        Default backend to use
+#   RALPH_ITERATIONS     Default number of iterations
+#   RALPH_MODE           Default evaluation mode
+#
+# Files:
+#   backends/index.jsonc      Main backend configuration
+#   backends/*/config.jsonc   Backend-specific configurations
+#   progress.md          Current progress tracking
+#
+# Related Files:
+#   bin/ralph: Main RalphLoop entry point
+#   bin/ralph-config: Configuration management tool
+#   bin/ralph-status: Status monitoring tool
 
 set -e -u -o pipefail
 

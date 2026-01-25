@@ -1,17 +1,59 @@
 #!/usr/bin/env bash
 
-# ralph-config - Configure RalphLoop settings
-# Usage: ralph-config [options]
+# bin/ralph-config - RalphLoop Configuration Management Tool
+#
+# Purpose:
+#   Provides command-line configuration management for RalphLoop settings.
+#   Allows viewing, modifying, and resetting configuration values.
+#
+# Key Features:
+#   - Get configuration values using dot notation
+#   - Set configuration values with type detection
+#   - List all configuration settings
+#   - Enable/disable backends
+#   - Reset configuration to defaults
+#
+# Usage:
+#   ./ralph-config [options]
 #
 # Options:
 #   --get <key>          Get configuration value
 #   --set <key>=<value>  Set configuration value
 #   --list, -l           List all configuration
-#   --backend <name>     Backend to configure
+#   --backend <name>     Backend to configure (opencode, mock)
 #   --enable <backend>   Enable a backend
 #   --disable <backend>  Disable a backend
 #   --reset              Reset to defaults
 #   --help, -h           Show this help message
+#
+# Configuration Keys:
+#   backends.opencode.enabled
+#   backends.mock.enabled
+#   evaluation.maxIterations
+#   evaluation.defaultMode
+#   evaluation.validationEnabled
+#   customCommands.enabled
+#
+# Examples:
+#   # List all configuration
+#   ./ralph-config --list
+#
+#   # Get a value
+#   ./ralph-config --get evaluation.maxIterations
+#
+#   # Set a value
+#   ./ralph-config --set evaluation.maxIterations=50
+#
+#   # Enable a backend
+#   ./ralph-config --enable mock
+#
+# Files:
+#   backends/index.jsonc        Main configuration file
+#   backends/*/config.jsonc     Backend-specific configurations
+#
+# Related Files:
+#   bin/json-query.cjs: JSON query utility used for config operations
+#   backends/index.jsonc: Configuration file format
 
 set -e -u -o pipefail
 

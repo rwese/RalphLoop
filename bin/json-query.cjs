@@ -1,9 +1,59 @@
 #!/usr/bin/env node
 
-// Simple JSON query utility for RalphLoop
-// Usage: json-query.js <json-file> <key> [--get|--set <value>]
-// Example: json-query.js config.json backends.claude-code.enabled --get
-//          json-query.js config.json backends.claude-code.enabled --set true
+/**
+ * bin/json-query.cjs - JSON Query Utility for RalphLoop
+ *
+ * Purpose:
+ *   Provides command-line JSON file querying and modification capabilities
+ *   for RalphLoop configuration management. Supports nested key access,
+ *   value retrieval, and value modification.
+ *
+ * Key Features:
+ *   - Get nested values from JSON files using dot notation
+ *   - Set nested values with automatic type parsing (boolean, number, string)
+ *   - Array index support (e.g., backends[0].name)
+ *   - Automatic backup before modifications
+ *   - Pretty-printed output for complex values
+ *
+ * Usage:
+ *   node json-query.cjs <json-file> <key> [--get|--set <value>]
+ *
+ * Arguments:
+ *   <json-file>     Path to JSON configuration file
+ *   <key>           Dot-notation key path (e.g., "backends.opencode.enabled")
+ *   [--get]         Retrieve value (default)
+ *   [--set <value>] Set value with automatic type detection
+ *
+ * Examples:
+ *   # Get a value
+ *   node json-query.cjs config.json backends.opencode.enabled --get
+ *
+ *   # Set a boolean
+ *   node json-query.cjs config.json backends.mock.enabled --set true
+ *
+ *   # Set a number
+ *   node json-query.cjs config.json settings.timeout --set 300
+ *
+ *   # Set a string (use quotes)
+ *   node json-query.cjs config.json info.name --set "My App"
+ *
+ * Key Path Syntax:
+ *   - Simple keys: "backends"
+ *   - Nested keys: "backends.opencode"
+ *   - Array access: "backends[0].name"
+ *   - Combined: "backends[0].config.settings.timeout"
+ *
+ * Type Detection:
+ *   - "true"/"false" → boolean
+ *   - Integer strings → number
+ *   - Float strings → number
+ *   - Quoted strings → string (quotes removed)
+ *   - Other strings → string
+ *
+ * Related Files:
+ *   - backends/index.jsonc: Configuration file queried by this tool
+ *   - bin/ralph-config: Higher-level configuration management wrapper
+ */
 
 const fs = require('fs');
 const path = require('path');

@@ -1,14 +1,53 @@
 #!/usr/bin/env bash
 
-# ralph-status - Check RalphLoop status and progress
-# Usage: ralph-status [options]
+# bin/ralph-status - RalphLoop Status and Progress Monitoring Tool
+#
+# Purpose:
+#   Provides command-line status monitoring for RalphLoop projects.
+#   Displays project state, progress tracking, and backend status.
+#
+# Key Features:
+#   - Show current state summary (project files, environment)
+#   - Display detailed progress information (iterations, recent activity)
+#   - Show backend status (configured backends, enabled/disabled state)
+#   - Verbose mode for comprehensive overview
+#
+# Usage:
+#   ./ralph-status [options]
 #
 # Options:
 #   --progress, -p  Show detailed progress information
 #   --state, -s     Show current state summary
 #   --backends, -b  Show backend status
-#   --verbose, -v   Show detailed information
+#   --verbose, -v   Show all information (equivalent to -p -s -b)
 #   --help, -h      Show this help message
+#
+# Default Behavior:
+#   When no options are specified, shows state summary by default.
+#
+# Examples:
+#   # Show current state summary (default)
+#   ./ralph-status --state
+#
+#   # Show detailed progress
+#   ./ralph-status --progress
+#
+#   # Show backend status
+#   ./ralph-status --backends
+#
+#   # Show comprehensive overview
+#   ./ralph-status --verbose
+#
+# Output Sections:
+#   - Project Files: Check for ralph, prompt.md, progress.md, backends/
+#   - Environment: Display RALPH_PROMPT, RALPH_PROMPT_FILE, RALPH_BACKEND
+#   - Progress: Iteration count and recent activity from progress.md
+#   - Backends: List of configured backends with their status
+#
+# Related Files:
+#   progress.md: Progress tracking file read by this tool
+#   prompt.md: Current prompt file
+#   backends/: Backend configurations
 
 set -e -u -o pipefail
 

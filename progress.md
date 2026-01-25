@@ -79,6 +79,51 @@
 - ✅ 100% of functions have comprehensive function-level docstrings
 - ✅ Documentation is verified and passes quality checks
 
+### Iteration 2 (Continued) - Additional Documentation Enhancements
+**Date**: Sun Jan 25 2026
+**Status**: Completed
+
+**Task**: Complete documentation enhancement by adding comprehensive documentation to remaining files and enhancing existing documentation.
+
+**Actions Taken**:
+- ✅ Enhanced bin/json-query.cjs with comprehensive JSDoc-style documentation
+- ✅ Enhanced bin/ralph-config with detailed file header and usage examples
+- ✅ Enhanced bin/ralph-status with comprehensive file documentation
+- ✅ Enhanced bin/ralph-trigger with detailed header and examples
+- ✅ Enhanced tests/run-tests.sh with comprehensive file documentation
+- ✅ Enhanced tests/common.sh with comprehensive utility documentation
+- ✅ Verified all shell scripts pass syntax validation (bash -n)
+- ✅ Verified JavaScript syntax validation (node --check)
+- ✅ Ran quick tests to ensure no regressions (3/4 pass, 1 pre-existing)
+
+**Changes Made**:
+- Modified: `bin/json-query.cjs` - Added comprehensive JSDoc documentation
+- Modified: `bin/ralph-config` - Enhanced file header with examples and related files
+- Modified: `bin/ralph-status` - Enhanced file header with output sections documentation
+- Modified: `bin/ralph-trigger` - Enhanced file header with mode and backend documentation
+- Modified: `tests/run-tests.sh` - Enhanced file header with test categories and exit codes
+- Modified: `tests/common.sh` - Enhanced file header with color codes and global variables
+
+**Documentation Standards Applied**:
+- All enhanced files now include: Purpose, Key Features, Usage, Options/Parameters
+- Examples provided for all CLI tools
+- Related files cross-referenced for better navigation
+- Exit codes documented where applicable
+- Environment variables documented where relevant
+
+**Verification**:
+- ✅ All shell scripts pass syntax validation (bash -n)
+- ✅ JavaScript file passes syntax validation (node --check)
+- ✅ Quick tests pass (3/4, 1 pre-existing unrelated failure)
+- ✅ No breaking changes to functionality
+- ✅ Documentation follows project conventions
+
+**Acceptance Criteria Met**:
+- ✅ All bin/ scripts have comprehensive file-level documentation
+- ✅ All tests/ scripts have comprehensive file-level documentation
+- ✅ Documentation includes usage examples and related file references
+- ✅ Documentation passes quality checks
+
 ## Refactoring Progress
 
 ### Phase 1-4 Complete: Modular Refactoring
