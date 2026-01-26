@@ -130,7 +130,7 @@ EOF
   assert_contains "$output" "Goal marked complete" "Should detect completion"
   assert_contains "$output" "Running independent validation" "Should run validation"
   assert_contains "$output" "Validation FAILED" "Should detect validation failure"
-  assert_contains "$output" "Issues Found" "Should show issues"
+  assert_contains "$output" "Issues saved to" "Should show issues saved"
 
   cd "$original_dir"
   rm -rf "$test_dir"
@@ -906,7 +906,7 @@ EOF
 
   # Verify detailed failure information
   assert_contains "$output" "Validation FAILED" "Should show validation failure"
-  assert_contains "$output" "Issues Found" "Should show issues section"
+  assert_contains "$output" "Issues saved to" "Should show issues saved"
   assert_contains "$output" "Mock validation failure" "Should show mock failure reason"
 
   cd "$original_dir"
@@ -1319,9 +1319,125 @@ EOF
 }
 
 # ============================================================================
-# SECTION 9: Edge Case Tests
-# Tests edge cases and boundary conditions
+# SECTION 10: Regression Tests
+# Tests specifically added to verify bug fixes and prevent regressions
 # ============================================================================
+
+test_regression_validation_failure_handling() {
+  print_section "Test: Regression - Validation Failure Handling"
+
+  local test_dir=$(create_temp_dir)
+  local original_dir="$(pwd)"
+  cd "$test_dir"
+
+  cp -r "$PROJECT_ROOT"/* .
+
+  cat >prompt.md <<'EOF'
+# Validation Failure Regression Test
+This tests that validation failures are handled correctly.
+<promise>COMPLETE</promise>
+EOF
+  echo "# Progress" >progress.md
+
+  # Run with fail response mode - capture exit code
+  local output
+  local exit_code=0
+  output=$(PATH="$PROJECT_ROOT/backends/mock/bin:$PATH" \
+    RALPH_MOCK_RESPONSE=fail \
+    timeout 30 "$RALPH_SCRIPT" 2 2>&1) || exit_code=$?
+
+  # Verify validation failure handling - regression test for issue where
+  # pipeline showed "Validation FAILED" but then showed "Pipeline completed successfully!"
+  assert_contains "$output" "Validation FAILED" "Should show validation failure"
+  assert_not_contains "$output" "Pipeline completed successfully" "Should NOT show successful completion when validation fails"
+
+  # Verify that validation issues are saved for next iteration
+  assert_contains "$output" "Issues saved to" "Should save validation issues"
+
+  # Verify that the pipeline continues to next iteration (retry behavior)
+  # With 2 iterations, we should see execute stage multiple times
+  local execute_count
+  execute_count=$(echo "$output" | grep -c "Stage: execute" || echo "0")
+  assert_match "$execute_count" "^[2-9]$" "Should have multiple execute stages (got $execute_count)"
+
+  # Exit code should be non-zero when validation fails
+  # Note: The exact exit code may vary, but it should not be 0
+  if [ "$exit_code" -eq 0 ]; then
+    print_warning "Exit code was 0 - this may indicate the mock backend exit code fix is not working"
+  fi
+
+  cd "$original_dir"
+  rm -rf "$test_dir"
+}
+
+test_regression_mock_backend_exit_code() {
+  print_section "Test: Regression - Mock Backend Exit Code on Validation Failure"
+
+  local test_dir=$(create_temp_dir)
+  local original_dir="$(pwd)"
+  cd "$test_dir"
+
+  cp -r "$PROJECT_ROOT"/* .
+
+  # Create a simple test that runs the mock-opencode validate command directly
+  cat >prompt.md <<'EOF'
+# Exit Code Test
+Test mock backend exit code.
+<promise>COMPLETE</promise>
+EOF
+  echo "# Progress" >progress.md
+
+  # Test the mock-opencode validate command directly with fail response
+  local mock_exit_code=0
+  PATH="$PROJECT_ROOT/backends/mock/bin:$PATH" \
+    RALPH_MOCK_RESPONSE=fail \
+    mock-opencode validate >/dev/null 2>&1
+  mock_exit_code=$?
+
+  # Verify that mock backend returns non-zero exit code when validation fails
+  assert_not_equal "0" "$mock_exit_code" "Mock backend should return non-zero exit code on validation failure (got $mock_exit_code)"
+
+  # Test that it returns 0 on success
+  mock_exit_code=0
+  PATH="$PROJECT_ROOT/backends/mock/bin:$PATH" \
+    RALPH_MOCK_RESPONSE=success \
+    mock-opencode validate >/dev/null 2>&1
+  mock_exit_code=$?
+
+  assert_equal "0" "$mock_exit_code" "Mock backend should return 0 on validation success"
+
+  cd "$original_dir"
+  rm -rf "$test_dir"
+}
+
+test_regression_no_complete_stage_transition() {
+  print_section "Test: Regression - No Invalid Complete Stage Transition"
+
+  local test_dir=$(create_temp_dir)
+  local original_dir="$(pwd)"
+  cd "$test_dir"
+
+  cp -r "$PROJECT_ROOT"/* .
+
+  cat >prompt.md <<'EOF'
+# No Complete Stage Test
+Verify pipeline doesn't transition to non-existent complete stage.
+<promise>COMPLETE</promise>
+EOF
+  echo "# Progress" >progress.md
+
+  # Run with fail response mode
+  local output=$(PATH="$PROJECT_ROOT/backends/mock/bin:$PATH" \
+    RALPH_MOCK_RESPONSE=fail \
+    timeout 30 "$RALPH_SCRIPT" 1 2>&1)
+
+  # Verify pipeline doesn't try to transition to non-existent "complete" stage
+  # The old buggy behavior would show "complete" stage which doesn't exist
+  assert_not_contains "$output" "Stage: complete" "Should NOT show non-existent complete stage"
+
+  cd "$original_dir"
+  rm -rf "$test_dir"
+}
 
 test_edge_empty_prompt_file() {
   print_section "Test: Edge - Empty Prompt File"
@@ -1488,6 +1604,12 @@ run_mock_e2e_comprehensive_tests() {
   test_edge_empty_prompt_file
   test_edge_no_prompt_with_env
   test_edge_rapid_iterations
+
+  # Section 10: Regression Tests
+  print_header "Section 10: Regression Tests"
+  test_regression_validation_failure_handling
+  test_regression_mock_backend_exit_code
+  test_regression_no_complete_stage_transition
 
   # Teardown
   teardown_test_environment

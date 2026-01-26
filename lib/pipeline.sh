@@ -893,9 +893,14 @@ run_pipeline() {
     loop_count=$((loop_count + 1))
     PIPELINE_CURRENT_ROUND=$loop_count
 
-    # Execute current stage
-    if ! execute_stage "$current_stage"; then
-      exit_code=$?
+    # Execute current stage and capture exit code
+    local stage_result
+    execute_stage "$current_stage"
+    stage_result=$?
+    exit_code=$stage_result
+
+    # Log stage failure if applicable
+    if [[ $exit_code -ne 0 ]]; then
       log_pipeline_event "STAGE_ERROR" "Stage '$current_stage' failed with exit code: $exit_code"
     fi
 

@@ -92,13 +92,7 @@ stages:
 # If no transitions match, the on_success/on_failure from stage definition is used
 #
 # Example transitions (uncomment and customize as needed):
-transitions:
-  - from: validate
-    to: execute
-    condition: "[[ -f $VALIDATION_ISSUES_FILE ]]"
-  - from: validate
-    to: complete
-    condition: "[[ ! -f $VALIDATION_ISSUES_FILE ]]"
+# transitions:
 #   - from: execute
 #     to: complete
 #     condition: "[[ $RALPH_PIPELINE_FAST_MODE == true ]]"

@@ -82,6 +82,7 @@ run_validation() {
             echo ""
             echo "<validation_recommendations>"
             echo "</validation_recommendations>"
+            return 0
             ;;
         "fail")
             echo "<validation_status>FAIL</validation_status>"
@@ -95,9 +96,11 @@ run_validation() {
             echo "- Fix the mock issue to pass validation"
             echo "- Check test scenario configuration"
             echo "</validation_recommendations>"
+            return 1
             ;;
         "empty")
             # Return empty
+            return 0
             ;;
         *)
             echo "<validation_status>PASS</validation_status>"
@@ -107,6 +110,7 @@ run_validation() {
             echo ""
             echo "<validation_recommendations>"
             echo "</validation_recommendations>"
+            return 0
             ;;
     esac
 }
