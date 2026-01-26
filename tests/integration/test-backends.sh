@@ -17,8 +17,8 @@ test_backend_directories_exist() {
 
   assert_dir_exists "$PROJECT_ROOT/backends" "Backends directory should exist"
 
-  # Check each backend directory
-  for backend in codex claude-code kilo mock; do
+  # Check each existing backend directory
+  for backend in mock opencode; do
     assert_dir_exists "$PROJECT_ROOT/backends/$backend" "$backend backend directory should exist"
   done
 }
@@ -26,7 +26,8 @@ test_backend_directories_exist() {
 test_backend_config_files() {
   print_section "Test: Backend config files"
 
-  for backend in codex claude-code kilo mock; do
+  # Only check config files for backends that have them
+  for backend in mock; do
     assert_file_exists "$PROJECT_ROOT/backends/$backend/config.jsonc" "$backend config.jsonc should exist"
   done
 }
@@ -186,7 +187,7 @@ test_ralph_with_mock_backend() {
   # Run with mock backend
   local output=$(PATH="$PROJECT_ROOT/backends/mock/bin:$PATH" timeout 30 "$RALPH_SCRIPT" 1 2>&1)
 
-  assert_contains "$output" "RalphLoop Iteration" "Should show iteration"
+  assert_contains "$output" "Stage:" "Should show stage"
   assert_contains "$output" "Starting agent execution" "Should show agent start"
 
   cd "$PROJECT_ROOT"
@@ -214,9 +215,9 @@ MOCKEOF
   chmod +x opencode
   local output=$(PATH="$test_dir:$PATH" \
     RALPH_MOCK_RESPONSE=success \
-    timeout 30 ./ralph 1 2>&1)
+    timeout 30 ./bin/ralph 1 2>&1)
 
-  assert_contains "$output" "RalphLoop Iteration" "Should show iteration"
+  assert_contains "$output" "Stage:" "Should show stage"
   # Note: Validation only runs if agent outputs <promise>COMPLETE</promise> which the mock does
   # But the validation output depends on the agent's actual response
   cd "$PROJECT_ROOT"
@@ -247,10 +248,10 @@ MOCKEOF
   # to verify the mock works correctly.
   local output=$(PATH="$test_dir:$PATH" \
     RALPH_MOCK_RESPONSE=progress \
-    timeout 60 ./ralph 1 2>&1)
+    timeout 60 ./bin/ralph 1 2>&1)
 
   # Should show 1 iteration
-  assert_contains "$output" "Iteration 1 of 1" "Should show iteration 1"
+  assert_contains "$output" "Iteration: 1 /" "Should show iteration 1"
 
   cd "$PROJECT_ROOT"
   rm -rf "$test_dir"

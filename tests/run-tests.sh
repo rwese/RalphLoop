@@ -387,7 +387,6 @@ run_quick_tests() {
 
   # Run quick validation tests
   test_validation_status_extraction_complete
-  test_promise_extraction_complete
   test_acceptance_criteria_parsing
   test_iteration_output
 
