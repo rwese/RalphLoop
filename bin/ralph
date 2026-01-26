@@ -40,7 +40,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_DIR="${SCRIPT_DIR}/../lib"
 
 # Ensure proper error handling
-set -e -u -o pipefail
+set -u -o pipefail
 
 # =============================================================================
 # Initialize Library

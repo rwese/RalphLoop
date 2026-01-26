@@ -62,6 +62,10 @@ PIPELINE_ERROR=""            # Error message if failed
 # Validation status tracking (set by run_validate_stage, checked by check_validation_passed)
 VALIDATION_PASSED=false
 
+# Validation issues file - stores issues from failed validation for next iteration
+# Note: This should match the definition in core.sh for consistency
+VALIDATION_ISSUES_FILE="${TEMP_FILE_PREFIX}_issues.md"
+
 # Execution completion tracking (set by run_execute_stage, checked by check_execution_complete)
 EXECUTION_COMPLETE=false
 
@@ -885,19 +889,18 @@ run_pipeline() {
 
   # Main pipeline loop
   local current_stage="$PIPELINE_CURRENT_STAGE"
+  local max_loops=$((PIPELINE_MAX_ITERATIONS * 10)) # Safety limit
   local exit_code=0
   local loop_count=0
-  local max_loops=$((PIPELINE_MAX_ITERATIONS * 10)) # Safety limit
 
   while [[ "$PIPELINE_STATUS" == "running" && $loop_count -lt $max_loops ]]; do
     loop_count=$((loop_count + 1))
     PIPELINE_CURRENT_ROUND=$loop_count
 
     # Execute current stage and capture exit code
-    local stage_result
-    execute_stage "$current_stage"
-    stage_result=$?
-    exit_code=$stage_result
+    stage_result=$(execute_stage "$current_stage")
+    stage_exit=$?
+    exit_code=$stage_exit
 
     # Log stage failure if applicable
     if [[ $exit_code -ne 0 ]]; then
@@ -905,7 +908,6 @@ run_pipeline() {
     fi
 
     # Determine next stage
-    local next_stage
     next_stage=$(get_next_stage "$current_stage" "$exit_code")
 
     # Check if pipeline should continue
@@ -1391,6 +1393,28 @@ run_execute_stage() {
 "
   fi
 
+  # Check for pending validation issues from previous failed validation
+  local pending_issues_context=""
+  if [ -f "$VALIDATION_ISSUES_FILE" ]; then
+    local pending_issues
+    pending_issues=$(cat "$VALIDATION_ISSUES_FILE")
+    if [ -n "$pending_issues" ]; then
+      pending_issues_context="
+## 🚨 PENDING VALIDATION ISSUES FROM PREVIOUS ITERATION
+The previous completion attempt failed validation. You MUST fix these issues:
+
+\`\`\`markdown
+${pending_issues}
+\`\`\`
+
+## Your Priority
+
+Focus ONLY on resolving these validation issues. Do NOT work on new features.
+After fixing, mark complete with <promise>COMPLETE</promise> for re-validation.
+"
+    fi
+  fi
+
   cat >"$tmp_prompt_file" <<EOF
 # Goals and Resources
 
@@ -1399,6 +1423,7 @@ run_execute_stage() {
 ${sanitized_prompt}
 
 ${pipeline_context}
+${pending_issues_context}
 ## Current Progress
 
 ${sanitized_progress}
@@ -1533,7 +1558,29 @@ EOF
 
   # Extract validation status
   local validation_status
-  validation_status=$(get_validation_status "$(cat "$validation_output" 2>/dev/null || echo "")")
+  local validation_issues
+  local validation_recommendations
+  local validation_output_content
+
+  validation_output_content=$(cat "$validation_output" 2>/dev/null || echo "")
+  validation_status=$(get_validation_status "$validation_output_content")
+
+  # Extract issues and recommendations BEFORE deleting the output file
+  if [ "$validation_status" = "FAIL" ]; then
+    validation_issues=$(echo "$validation_output_content" | grep -A 100 '<validation_issues>' | grep -B 100 '</validation_issues>' | sed 's/<[^>]*>//g' | sed 's/^-/  -/g')
+    validation_recommendations=$(echo "$validation_output_content" | grep -A 100 '<validation_recommendations>' | grep -B 100 '</validation_recommendations>' | sed 's/<[^>]*>//g' | sed 's/^-/  -/g')
+
+    # Save issues for next iteration
+    {
+      echo "## Validation Issues"
+      echo "$validation_issues"
+      echo ""
+      echo "## Recommendations"
+      echo "$validation_recommendations"
+    } >"$VALIDATION_ISSUES_FILE"
+  else
+    rm -f "$VALIDATION_ISSUES_FILE"
+  fi
 
   rm -f "$validation_output"
 
@@ -1541,10 +1588,12 @@ EOF
     echo ""
     echo "🎉 Validation PASSED!"
     VALIDATION_PASSED=true
+    rm -f "$VALIDATION_ISSUES_FILE"
     return 0
   else
     echo ""
     echo "⚠️  Validation FAILED"
+    echo "   Issues saved to ${VALIDATION_ISSUES_FILE}"
     echo "   The agent will need to fix issues in the next iteration."
     VALIDATION_PASSED=false
     return 1

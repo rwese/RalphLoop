@@ -245,8 +245,8 @@ test_iteration_output() {
   # Run one iteration with mock
   local output=$(PATH="$PROJECT_ROOT/backends/mock/bin:$PATH" timeout 30 "$RALPH_SCRIPT" 1 2>&1)
 
-  assert_contains "$output" "RalphLoop Iteration" "Should show iteration info"
-  assert_contains "$output" "Starting agent execution" "Should show agent start message"
+  assert_contains "$output" "Stage:" "Should show stage info"
+  assert_contains "$output" "Starting pipeline execution" "Should show execution start message"
 
   cd "$PROJECT_ROOT"
   rm -rf "$test_dir"

@@ -179,6 +179,7 @@ apply_delay() {
 # Main agent runner
 run_agent() {
     local agent="${1:-default}"
+    local prompt_file="${2:-}"
 
     # Only show agent messages for non-empty responses
     if [ "$MOCK_RESPONSE" != "empty" ]; then
@@ -188,6 +189,25 @@ run_agent() {
     fi
 
     apply_delay
+
+    # Check if we have a prompt file
+    local input_content=""
+    if [ -n "$prompt_file" ] && [ -f "$prompt_file" ]; then
+        input_content=$(cat "$prompt_file")
+    else
+        # Fall back to stdin if no file provided
+        if [ ! -t 0 ]; then
+            input_content=$(cat)
+        fi
+    fi
+
+    # Detect validation context - if input contains validation-specific markers
+    # Check for markers that are unique to validation prompts
+    if echo "$input_content" | grep -qi "^# Validation Task\|independent.*verify\|validation_status"; then
+        # This is a validation request, use validation response
+        run_validation
+        return $?
+    fi
 
     case "$MOCK_RESPONSE" in
         "complete"|"success")
@@ -251,6 +271,7 @@ parse_args() {
     local command=""
     local agent="default"
     local log_level="WARN"
+    local prompt_file=""
 
     while [ $# -gt 0 ]; do
         case "$1" in
@@ -267,7 +288,15 @@ parse_args() {
                             log_level="$2"
                             shift 2
                             ;;
+                        "-"*)
+                            # Skip other options
+                            shift 2
+                            ;;
                         *)
+                            # Assume it's the prompt file
+                            if [ -f "$1" ]; then
+                                prompt_file="$1"
+                            fi
                             shift
                             ;;
                     esac
@@ -304,7 +333,11 @@ parse_args() {
     # Execute command
     case "$command" in
         "run")
-            run_agent "$agent"
+            if [ -n "$prompt_file" ]; then
+                run_agent "$agent" "$prompt_file"
+            else
+                run_agent "$agent"
+            fi
             ;;
         "status")
             show_status
