@@ -421,6 +421,7 @@ run_all_tests() {
 
   # E2E tests
   source "$SCRIPT_DIR/e2e/test-workflows.sh"
+  source "$SCRIPT_DIR/e2e/test-mock-e2e-comprehensive.sh"
   run_e2e_tests
 
   # Reset counters for mock tests
@@ -459,6 +460,7 @@ main() {
     ;;
   e2e)
     source "$SCRIPT_DIR/e2e/test-workflows.sh"
+    source "$SCRIPT_DIR/e2e/test-mock-e2e-comprehensive.sh"
     run_e2e_tests
     ;;
   mock)
@@ -467,7 +469,9 @@ main() {
     ;;
   quick)
     source "$SCRIPT_DIR/unit/test-functions.sh"
+    source "$SCRIPT_DIR/unit/test-validation.sh"
     source "$SCRIPT_DIR/mock/test-mock-backend.sh"
+    source "$SCRIPT_DIR/e2e/test-mock-e2e-comprehensive.sh"
     run_quick_tests
     ;;
   all)
@@ -475,6 +479,7 @@ main() {
     source "$SCRIPT_DIR/unit/test-validation.sh"
     source "$SCRIPT_DIR/integration/test-backends.sh"
     source "$SCRIPT_DIR/e2e/test-workflows.sh"
+    source "$SCRIPT_DIR/e2e/test-mock-e2e-comprehensive.sh"
     source "$SCRIPT_DIR/mock/test-mock-backend.sh"
     run_all_tests
     ;;
